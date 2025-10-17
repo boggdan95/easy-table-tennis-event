@@ -1,0 +1,175 @@
+# Easy Table Tennis Event Manager (ettem)
+
+Python application for managing table tennis tournaments with round robin groups and knockout brackets.
+
+## Features (V1)
+
+- Player registration from CSV with validation
+- Round Robin group generation with snake seeding
+- Automatic fixture generation using circle method
+- Local web panel for manual result entry
+- Standings calculation with advanced tie-breaking
+- Knockout bracket generation with strategic placement
+- SQLite persistence (offline-first)
+- Internationalization (Spanish/English)
+- CSV export for groups, standings, and brackets
+
+**Note:** V1 does NOT include scheduling/table assignment. This is planned for V1.1.
+
+## Quick Start
+
+### Installation
+
+1. Create and activate a virtual environment:
+```bash
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux/Mac:
+source .venv/bin/activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+### Basic Usage
+
+```bash
+# Import players from CSV
+ettem import-players --csv data/samples/players.csv --category U13
+
+# Build groups
+ettem build-groups --config config/sample_config.yaml --out out/
+
+# Launch web panel to enter results
+ettem open-panel
+
+# Calculate standings
+ettem compute-standings --out out/
+
+# Generate knockout bracket
+ettem build-bracket --out out/
+
+# Export data
+ettem export --what standings --format csv --out out/
+```
+
+## CSV Format
+
+Players CSV must include these columns:
+- `id`: Unique player identifier
+- `nombre`: First name
+- `apellido`: Last name
+- `genero`: Gender (M or F)
+- `pais_cd`: ISO-3 country code (ESP, MEX, ARG, etc.)
+- `ranking_pts`: Numeric ranking points
+- `categoria`: Category (e.g., U13, U15, etc.)
+
+See `data/samples/players.csv` for an example.
+
+## Scoring Rules
+
+- **Win:** 2 tournament points
+- **Loss (played):** 1 tournament point
+- **Walkover (loser):** 0 tournament points
+
+## Tie-Breaking Rules
+
+When 3+ players are tied on tournament points, the following criteria are applied **only among the tied players**:
+
+1. **Sets ratio:** `sets_won / sets_lost` (if sets_lost = 0, treated as infinity)
+2. **Points ratio:** `points_won / points_lost` (if points_lost = 0, treated as infinity)
+3. **Seed:** Lower seed number wins (deterministic final tie-breaker)
+
+## Bracket Generation
+
+- Bracket size: next power of 2 ≥ number of qualifiers
+- **G1 (best 1st place):** top slot
+- **G2 (second best 1st place):** bottom slot
+- **Other 1st place finishers:** random draw in predefined slots (deterministic with `random_seed`)
+- **2nd place finishers:** placed in opposite half from their group's 1st place
+- **BYEs:** filled automatically when needed
+- **Same-country annotation:** 1st round matches with same country are flagged for review (non-blocking)
+
+## Configuration
+
+Edit `config/sample_config.yaml`:
+
+```yaml
+random_seed: 42              # For deterministic draws
+group_size_preference: 4     # Preferred group size (3 or 4)
+advance_per_group: 2         # Players advancing to knockout
+lang: es                     # Language (es or en)
+```
+
+## Development Commands
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test
+pytest tests/test_standings.py::test_triple_tie
+
+# Run with coverage
+pytest --cov=ettem --cov-report=html
+
+# Lint code
+ruff check .
+ruff check --fix .
+
+# Format code
+black .
+
+# Type checking
+mypy src/ettem
+```
+
+## Project Structure
+
+```
+easy-table-tennis-event/
+├── config/
+│   └── sample_config.yaml       # Configuration template
+├── data/
+│   └── samples/
+│       └── players.csv          # Sample player data
+├── i18n/
+│   ├── strings_es.yaml          # Spanish translations
+│   └── strings_en.yaml          # English translations
+├── src/
+│   └── ettem/
+│       ├── cli.py               # CLI commands
+│       ├── models.py            # Data models
+│       ├── storage.py           # SQLite repositories
+│       ├── group_builder.py     # Group generation
+│       ├── standings.py         # Standings calculator
+│       ├── bracket.py           # Bracket generator
+│       ├── io_csv.py            # CSV import/export
+│       ├── config_loader.py     # Config validation
+│       ├── i18n.py              # Translation helpers
+│       └── webapp/
+│           ├── app.py           # FastAPI application
+│           ├── templates/       # HTML templates
+│           └── static/          # CSS/JS files
+├── tests/                       # Test suite
+├── requirements.txt             # Dependencies
+├── pyproject.toml               # Project configuration
+├── README.md                    # This file
+└── CLAUDE.md                    # Claude Code guidance
+```
+
+## Roadmap (V1.1+)
+
+- Scheduler with table/time assignments
+- Break and buffer management
+- PDF printable schedules
+- User roles and credentials
+- Multiple simultaneous categories
+- Real-time updates in web panel
+
+## License
+
+Private project

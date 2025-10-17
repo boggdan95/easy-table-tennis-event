@@ -1,0 +1,16 @@
+# Easy Table Tennis Event Manager - Sample Configuration
+
+# Random seed for deterministic draws/bracket generation
+random_seed: 42
+
+# Group configuration
+group_size_preference: 4  # Preferred group size: 3 or 4
+advance_per_group: 2      # Number of players advancing from each group to knockout
+
+# Language (es or en)
+lang: es
+
+# Scheduling (V1.1 - not implemented in V1)
+scheduling:
+  enabled: false
+  # Future: tables, breaks, buffers, etc.

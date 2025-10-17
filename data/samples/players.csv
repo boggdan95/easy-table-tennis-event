@@ -1,0 +1,13 @@
+id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Juan,Perez,M,ESP,1200,U13
+2,Maria,Garcia,F,ESP,1150,U13
+3,Pedro,Lopez,M,ESP,1100,U13
+4,Ana,Martinez,F,ESP,1050,U13
+5,Carlos,Rodriguez,M,ESP,1000,U13
+6,Laura,Fernandez,F,ESP,950,U13
+7,Miguel,Sanchez,M,ESP,900,U13
+8,Sofia,Gonzalez,F,ESP,850,U13
+9,David,Ramirez,M,MEX,800,U13
+10,Elena,Torres,F,MEX,750,U13
+11,Luis,Morales,M,ARG,700,U13
+12,Carmen,Jimenez,F,ARG,650,U13
