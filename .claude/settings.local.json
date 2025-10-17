@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd tournament-specific player fields and CRUD operations\n\nPlayer Model Updates:\n- Added original_id (from CSV import)\n- Added tournament_number (bib/player number for event)\n- Added group_number (1-4 within group)\n- Added checked_in flag\n- Added notes field\n- New display_number property for smart number display\n\nPlayerORM Updates:\n- All new columns added to database schema\n- Relationship to group added\n- Updated timestamp tracking\n\nPlayerRepository Implementation:\n- CREATE: create() - saves player to DB with auto-generated ID\n- READ: get_by_id(), get_by_tournament_number(), get_by_category()\n- UPDATE: update() - modifies any player fields\n- DELETE: delete() - removes player from DB\n- SPECIAL: assign_seeds() - auto-assigns seeds based on ranking\n\nNow players can have multiple identifiers that are assigned\nat different stages of the tournament lifecycle.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []

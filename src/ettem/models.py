@@ -51,26 +51,51 @@ class Player:
     """Player in the tournament.
 
     Represents a single participant with their registration info and seeding.
+
+    ID Management:
+    - original_id: ID from the source CSV/system (may not be unique across categories)
+    - id: Internal database ID (unique, auto-generated)
+    - tournament_number: Assigned number for the tournament (e.g., bib number, visible to organizers)
+    - group_number: Number within their group (1-4, assigned when groups are created)
     """
 
-    id: int
+    id: int  # Database primary key (auto-generated)
     nombre: str
     apellido: str
     genero: Gender
     pais_cd: str  # ISO-3 country code (ESP, MEX, ARG, etc.)
     ranking_pts: float
     categoria: str  # U13, U15, U18, etc.
-    seed: Optional[int] = None  # Assigned after sorting by ranking
+
+    # Tournament-assigned identifiers
+    seed: Optional[int] = None  # Assigned after sorting by ranking (1 = best)
+    original_id: Optional[int] = None  # ID from import CSV (if any)
+    tournament_number: Optional[int] = None  # Bib/player number for the event
+    group_id: Optional[int] = None  # Which group they're in
+    group_number: Optional[int] = None  # Number within their group (1-4)
+
+    # Additional tournament metadata
+    checked_in: bool = False  # Has player checked in at venue
+    notes: Optional[str] = None  # Any special notes about the player
 
     @property
     def full_name(self) -> str:
         """Return full name."""
         return f"{self.nombre} {self.apellido}"
 
+    @property
+    def display_number(self) -> str:
+        """Return the most relevant number for display."""
+        if self.tournament_number:
+            return f"#{self.tournament_number}"
+        elif self.seed:
+            return f"S{self.seed}"
+        return f"ID{self.id}"
+
     def __str__(self) -> str:
         """String representation."""
-        seed_str = f"[{self.seed}] " if self.seed else ""
-        return f"{seed_str}{self.full_name} ({self.pais_cd})"
+        num = self.display_number
+        return f"{num} {self.full_name} ({self.pais_cd})"
 
 
 @dataclass

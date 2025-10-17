@@ -32,21 +32,44 @@ Base = declarative_base()
 
 
 class PlayerORM(Base):
-    """Player table."""
+    """Player table.
+
+    Stores player information with multiple ID/number schemes:
+    - id: Database primary key (auto-generated)
+    - original_id: ID from import source (CSV)
+    - tournament_number: Assigned bib/player number for event
+    - group_number: Number within group (1-4)
+    - seed: Ranking seed (1 = best)
+    """
 
     __tablename__ = "players"
 
-    id = Column(Integer, primary_key=True)
+    # Primary identifier
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Basic info
     nombre = Column(String(100), nullable=False)
     apellido = Column(String(100), nullable=False)
     genero = Column(String(1), nullable=False)  # M or F
     pais_cd = Column(String(3), nullable=False)  # ISO-3
     ranking_pts = Column(Float, nullable=False)
     categoria = Column(String(20), nullable=False)
-    seed = Column(Integer, nullable=True)
+
+    # Tournament-assigned identifiers
+    seed = Column(Integer, nullable=True)  # 1 = best player
+    original_id = Column(Integer, nullable=True)  # From CSV import
+    tournament_number = Column(Integer, nullable=True)  # Event bib number
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    group_number = Column(Integer, nullable=True)  # 1-4 within group
+
+    # Metadata
+    checked_in = Column(Boolean, nullable=False, default=False)
+    notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    group = relationship("GroupORM", foreign_keys=[group_id])
     matches_as_player1 = relationship(
         "MatchORM", back_populates="player1", foreign_keys="MatchORM.player1_id"
     )
@@ -208,12 +231,139 @@ class PlayerRepository:
     def __init__(self, session):
         self.session = session
 
-    # TODO: Implement:
-    # - create(player: Player) -> PlayerORM
-    # - get_by_id(player_id: int) -> Optional[PlayerORM]
-    # - get_by_category(category: str) -> list[PlayerORM]
-    # - update(player_orm: PlayerORM) -> PlayerORM
-    # - delete(player_id: int) -> bool
+    def create(self, player: "Player") -> PlayerORM:
+        """Create a new player in the database.
+
+        Args:
+            player: Player domain model
+
+        Returns:
+            Created PlayerORM instance with auto-generated ID
+        """
+        from ettem.models import Player
+
+        player_orm = PlayerORM(
+            nombre=player.nombre,
+            apellido=player.apellido,
+            genero=player.genero.value if hasattr(player.genero, "value") else player.genero,
+            pais_cd=player.pais_cd,
+            ranking_pts=player.ranking_pts,
+            categoria=player.categoria,
+            seed=player.seed,
+            original_id=player.original_id,
+            tournament_number=player.tournament_number,
+            group_id=player.group_id,
+            group_number=player.group_number,
+            checked_in=player.checked_in,
+            notes=player.notes,
+        )
+        self.session.add(player_orm)
+        self.session.commit()
+        self.session.refresh(player_orm)
+        return player_orm
+
+    def get_by_id(self, player_id: int) -> Optional[PlayerORM]:
+        """Get player by database ID.
+
+        Args:
+            player_id: Internal database ID
+
+        Returns:
+            PlayerORM if found, None otherwise
+        """
+        return self.session.query(PlayerORM).filter(PlayerORM.id == player_id).first()
+
+    def get_by_tournament_number(self, tournament_number: int) -> Optional[PlayerORM]:
+        """Get player by tournament number (bib number).
+
+        Args:
+            tournament_number: Tournament bib/player number
+
+        Returns:
+            PlayerORM if found, None otherwise
+        """
+        return (
+            self.session.query(PlayerORM)
+            .filter(PlayerORM.tournament_number == tournament_number)
+            .first()
+        )
+
+    def get_by_category(self, category: str) -> list[PlayerORM]:
+        """Get all players in a category.
+
+        Args:
+            category: Category name (e.g., 'U13', 'U15')
+
+        Returns:
+            List of PlayerORM instances
+        """
+        return self.session.query(PlayerORM).filter(PlayerORM.categoria == category).all()
+
+    def get_by_category_sorted_by_seed(self, category: str) -> list[PlayerORM]:
+        """Get players in a category sorted by seed.
+
+        Args:
+            category: Category name
+
+        Returns:
+            List of PlayerORM instances sorted by seed (1 first)
+        """
+        return (
+            self.session.query(PlayerORM)
+            .filter(PlayerORM.categoria == category)
+            .filter(PlayerORM.seed.isnot(None))
+            .order_by(PlayerORM.seed)
+            .all()
+        )
+
+    def get_all(self) -> list[PlayerORM]:
+        """Get all players."""
+        return self.session.query(PlayerORM).all()
+
+    def update(self, player_orm: PlayerORM) -> PlayerORM:
+        """Update an existing player.
+
+        Args:
+            player_orm: PlayerORM instance to update
+
+        Returns:
+            Updated PlayerORM instance
+        """
+        self.session.commit()
+        self.session.refresh(player_orm)
+        return player_orm
+
+    def delete(self, player_id: int) -> bool:
+        """Delete a player by ID.
+
+        Args:
+            player_id: Database ID of player to delete
+
+        Returns:
+            True if deleted, False if not found
+        """
+        player = self.get_by_id(player_id)
+        if player:
+            self.session.delete(player)
+            self.session.commit()
+            return True
+        return False
+
+    def assign_seeds(self, category: str) -> None:
+        """Assign seeds to players in a category based on ranking_pts.
+
+        Args:
+            category: Category to assign seeds for
+        """
+        players = (
+            self.session.query(PlayerORM)
+            .filter(PlayerORM.categoria == category)
+            .order_by(PlayerORM.ranking_pts.desc())  # Higher ranking = better seed
+            .all()
+        )
+        for idx, player in enumerate(players, start=1):
+            player.seed = idx
+        self.session.commit()
 
 
 class GroupRepository:
