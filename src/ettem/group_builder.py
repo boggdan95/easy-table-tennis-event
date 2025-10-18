@@ -45,9 +45,21 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
 
     if preferred_size == 4:
         if remainder == 1:
-            # Can't have a group of 1, so take one player from a group of 4 -> two groups of 3
-            if num_preferred_groups > 0:
-                return [4] * (num_preferred_groups - 1) + [3, 3]
+            # Can't have a group of 1, so take one player from a group of 4 -> make 3 groups of 3
+            # 4k + 1 = 4(k-1) + 5 = 4(k-1) + 3 + 2  -> We need two groups of 3
+            # But that's still 4k-4+3+3 = 4k+2, not 4k+1
+            # Actually: 4k+1 means we take 1 from an existing 4 -> makes (k-1) groups of 4 and 2 groups of 3
+            # Wait: (k-1)*4 + 2*3 = 4k-4+6 = 4k+2 (not 4k+1!)
+            # Correct: need to convert a 4 to a 3, giving us (k-1) fours, one 3, and add the 1 to another 3
+            # So: (k-1) groups of 4, and need to make 3,3 from 4+1 = 5... that doesn't work.
+            # Let me recalculate: 9 players with pref=4 -> 2*4 + 1 = We can't have 1 alone.
+            # Solution: 3,3,3 (three groups of 3)
+            if num_preferred_groups >= 2:
+                # Convert two 4s into three 3s: 2*4 + 1 = 8+1 = 9 = 3*3
+                return [3] * (num_preferred_groups + 1)
+            elif num_preferred_groups == 1:
+                # 4+1 = 5, can't divide evenly into 3s and 4s
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
             else:
                 raise ValueError(f"Cannot distribute {num_players} players into valid groups")
         elif remainder == 2:

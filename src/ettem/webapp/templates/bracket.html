@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Llave - {{ category }} - ETTEM{% endblock %}
+{% block content %}
+<h1>{{ category }} - Llave de Eliminacion Directa</h1>
+<p><a href="/category/{{ category }}" class="btn">Volver a Categoria</a></p>
+
+<div class="bracket-container">
+    {% for round_type, slots in slots_by_round.items() %}
+    <div class="bracket-column">
+        <h3 class="round-header">{{ round_type }}</h3>
+        <div class="matches-container">
+            {% for i in range(0, slots|length, 2) %}
+            {% set slot1 = slots[i] %}
+            {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
+            <div class="match">
+                <div class="match-line">
+                    <div class="player-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% endif %} {% if slot1.slot.same_country_warning %}warning{% endif %}">
+                        <span class="slot-num">#{{ slot1.slot.slot_number }}</span>
+                        <span class="player-name">
+                            {% if slot1.slot.is_bye %}
+                                <em>BYE</em>
+                            {% elif slot1.player %}
+                                {{ slot1.player.nombre }} {{ slot1.player.apellido }}
+                                <span class="country">({{ slot1.player.pais_cd }})</span>
+                            {% else %}
+                                <em>TBD</em>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if slot2 %}
+                    <div class="player-slot {% if slot2.slot.is_bye %}bye{% elif not slot2.player %}tbd{% endif %} {% if slot2.slot.same_country_warning %}warning{% endif %}">
+                        <span class="slot-num">#{{ slot2.slot.slot_number }}</span>
+                        <span class="player-name">
+                            {% if slot2.slot.is_bye %}
+                                <em>BYE</em>
+                            {% elif slot2.player %}
+                                {{ slot2.player.nombre }} {{ slot2.player.apellido }}
+                                <span class="country">({{ slot2.player.pais_cd }})</span>
+                            {% else %}
+                                <em>TBD</em>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="connector-line"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+.bracket-container {
+    display: flex;
+    gap: 40px;
+    overflow-x: auto;
+    padding: 20px 0;
+    margin: 20px 0;
+}
+
+.bracket-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+}
+
+.round-header {
+    background-color: #1565C0;
+    color: white;
+    padding: 12px;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.matches-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex-grow: 1;
+}
+
+.match {
+    display: flex;
+    margin-bottom: 40px;
+    position: relative;
+}
+
+.match-line {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.player-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background-color: #ffffff;
+    border: 2px solid #333;
+    border-radius: 4px;
+    min-height: 40px;
+}
+
+.player-slot.bye {
+    background-color: #e0e0e0;
+    border-color: #999;
+}
+
+.player-slot.warning {
+    border-color: #FF6F00;
+    background-color: #FFF3E0;
+}
+
+.player-slot.tbd {
+    background-color: #f5f5f5;
+    border-color: #bbb;
+    border-style: dashed;
+}
+
+.slot-num {
+    background-color: #1976D2;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 0.85em;
+    min-width: 30px;
+    text-align: center;
+}
+
+.player-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.player-name em {
+    color: #666;
+}
+
+.country {
+    color: #666;
+    font-size: 0.9em;
+    margin-left: 4px;
+}
+
+.connector-line {
+    position: absolute;
+    right: -40px;
+    top: 50%;
+    width: 40px;
+    height: 2px;
+    background-color: #333;
+    transform: translateY(-50%);
+}
+
+.bracket-column:last-child .connector-line {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .bracket-container {
+        flex-direction: column;
+    }
+
+    .connector-line {
+        display: none;
+    }
+}
+</style>
+
+<div style="margin-top: 30px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #1565C0;">
+    <p><strong>Leyenda:</strong></p>
+    <ul style="margin: 10px 0;">
+        <li><strong>#N</strong> - Posicion en el cuadro (1 = tope, ultimo = fondo)</li>
+        <li><strong>BYE</strong> - El jugador pasa automaticamente a la siguiente ronda</li>
+        <li><strong>Borde naranja</strong> - Aviso de jugadores del mismo pais (informativo)</li>
+    </ul>
+</div>
+
+{% endblock %}

@@ -718,3 +718,81 @@ class StandingRepository:
         count = self.session.query(GroupStandingORM).filter(GroupStandingORM.group_id == group_id).delete()
         self.session.commit()
         return count
+
+
+class BracketRepository:
+    """Repository for Bracket operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create_slot(self, slot: "BracketSlot", category: str) -> BracketSlotORM:
+        """Create a new bracket slot in the database.
+
+        Args:
+            slot: BracketSlot domain model
+            category: Category name
+
+        Returns:
+            Created BracketSlotORM instance
+        """
+        from ettem.models import BracketSlot
+
+        slot_orm = BracketSlotORM(
+            category=category,
+            slot_number=slot.slot_number,
+            round_type=slot.round_type.value if hasattr(slot.round_type, "value") else slot.round_type,
+            player_id=slot.player_id,
+            is_bye=slot.is_bye,
+            same_country_warning=slot.same_country_warning,
+        )
+        self.session.add(slot_orm)
+        self.session.commit()
+        self.session.refresh(slot_orm)
+        return slot_orm
+
+    def get_by_category_and_round(self, category: str, round_type: str) -> list[BracketSlotORM]:
+        """Get all bracket slots for a category and round.
+
+        Args:
+            category: Category name
+            round_type: Round type (QF, SF, F, etc.)
+
+        Returns:
+            List of BracketSlotORM instances ordered by slot_number
+        """
+        return (
+            self.session.query(BracketSlotORM)
+            .filter(BracketSlotORM.category == category, BracketSlotORM.round_type == round_type)
+            .order_by(BracketSlotORM.slot_number)
+            .all()
+        )
+
+    def get_by_category(self, category: str) -> list[BracketSlotORM]:
+        """Get all bracket slots for a category.
+
+        Args:
+            category: Category name
+
+        Returns:
+            List of BracketSlotORM instances
+        """
+        return (
+            self.session.query(BracketSlotORM)
+            .filter(BracketSlotORM.category == category)
+            .order_by(BracketSlotORM.round_type, BracketSlotORM.slot_number)
+            .all()
+        )
+
+    def delete_by_category(self, category: str) -> int:
+        """Delete all bracket slots for a category.
+
+        Args:
+            category: Category name
+
+        Returns:
+            Number of slots deleted
+        """
+        count = self.session.query(BracketSlotORM).filter(BracketSlotORM.category == category).delete()
+        self.session.commit()
+        return count

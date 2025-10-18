@@ -319,7 +319,7 @@ def build_bracket(category: str, config: str):
     """
     from ettem.bracket import build_bracket as create_bracket
     from ettem.config_loader import load_and_validate_config
-    from ettem.storage import DatabaseManager, StandingRepository, PlayerRepository
+    from ettem.storage import DatabaseManager, StandingRepository, PlayerRepository, BracketRepository
     from ettem.models import Player, GroupStanding
 
     try:
@@ -332,6 +332,7 @@ def build_bracket(category: str, config: str):
         session = db.get_session()
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
+        bracket_repo = BracketRepository(session)
 
         # Get all standings for this category
         click.echo(f"[TARGET] Loading standings for category: {category}")
@@ -400,6 +401,16 @@ def build_bracket(category: str, config: str):
         )
 
         click.echo(f"[SUCCESS] Bracket created with {sum(len(slots) for slots in bracket.slots.values())} slots")
+
+        # Save bracket to database
+        click.echo("[SAVE] Saving bracket to database...")
+        bracket_repo.delete_by_category(category)  # Clear old bracket
+
+        for round_type, slots in bracket.slots.items():
+            for slot in slots:
+                bracket_repo.create_slot(slot, category)
+
+        click.echo("[SUCCESS] Bracket saved to database")
 
         # Display bracket summary
         click.echo("\n[STATS] Bracket Summary:")

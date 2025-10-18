@@ -12,6 +12,7 @@ from ettem.models import Match, MatchStatus, Player, Set
 from ettem.standings import calculate_standings
 from ettem.storage import (
     DatabaseManager,
+    BracketRepository,
     GroupRepository,
     MatchRepository,
     PlayerRepository,
@@ -508,6 +509,112 @@ async def recalculate_standings(category: str):
 
     # Redirect back to category page
     return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+
+@app.get("/category/{category}/bracket", response_class=HTMLResponse)
+async def view_bracket(request: Request, category: str):
+    """View knockout bracket for a category."""
+    session = get_db_session()
+    bracket_repo = BracketRepository(session)
+    player_repo = PlayerRepository(session)
+    group_repo = GroupRepository(session)
+    standing_repo = StandingRepository(session)
+
+    # Get bracket slots for this category
+    bracket_slots = bracket_repo.get_by_category(category)
+
+    if not bracket_slots:
+        return HTMLResponse(content="No bracket found for this category. Run 'build-bracket' first.", status_code=404)
+
+    # Group slots by round
+    from collections import defaultdict, namedtuple
+    from ettem.models import RoundType
+
+    slots_by_round = defaultdict(list)
+    for slot_orm in bracket_slots:
+        slots_by_round[slot_orm.round_type].append(slot_orm)
+
+    # Sort each round by slot_number
+    for round_type in slots_by_round:
+        slots_by_round[round_type].sort(key=lambda s: s.slot_number)
+
+    # Determine bracket size from first round
+    first_round_slots = list(slots_by_round.values())[0] if slots_by_round else []
+    bracket_size = len(first_round_slots)
+
+    # Determine which rounds should exist based on bracket size
+    required_rounds = []
+    if bracket_size >= 32:
+        required_rounds = ['R32', 'R16', 'QF', 'SF', 'F']
+    elif bracket_size >= 16:
+        required_rounds = ['R16', 'QF', 'SF', 'F']
+    elif bracket_size >= 8:
+        required_rounds = ['QF', 'SF', 'F']
+    elif bracket_size >= 4:
+        required_rounds = ['SF', 'F']
+    elif bracket_size >= 2:
+        required_rounds = ['F']
+
+    # Create dummy slots for rounds that don't exist yet
+    DummySlot = namedtuple('DummySlot', ['slot_number', 'round_type', 'player_id', 'is_bye', 'same_country_warning', 'id'])
+
+    complete_bracket = {}
+    current_slots = bracket_size
+
+    for round_type in required_rounds:
+        if round_type in slots_by_round:
+            # Round exists in database
+            complete_bracket[round_type] = slots_by_round[round_type]
+        else:
+            # Create empty slots for this round
+            current_slots = current_slots // 2
+            complete_bracket[round_type] = []
+            for i in range(current_slots):
+                dummy = DummySlot(
+                    slot_number=i + 1,
+                    round_type=round_type,
+                    player_id=None,
+                    is_bye=False,
+                    same_country_warning=False,
+                    id=None
+                )
+                complete_bracket[round_type].append(dummy)
+
+    # Get player details for each slot
+    slots_with_players = {}
+    for round_type, slots in complete_bracket.items():
+        slots_with_players[round_type] = []
+        for slot in slots:
+            player = None
+            if slot.player_id:
+                player = player_repo.get_by_id(slot.player_id)
+            slots_with_players[round_type].append({
+                "slot": slot,
+                "player": player
+            })
+
+    # Get groups dict for lookups
+    groups = group_repo.get_by_category(category)
+    groups_dict = {g.id: g for g in groups}
+
+    # Get standings dict for lookups
+    all_standings = standing_repo.get_all()
+    standings_dict = {}
+    for standing_orm in all_standings:
+        player_orm = player_repo.get_by_id(standing_orm.player_id)
+        if player_orm and player_orm.categoria == category:
+            standings_dict[standing_orm.player_id] = standing_orm
+
+    return templates.TemplateResponse(
+        "bracket.html",
+        {
+            "request": request,
+            "category": category,
+            "slots_by_round": slots_with_players,
+            "groups_dict": groups_dict,
+            "standings_dict": standings_dict,
+        }
+    )
 
 
 if __name__ == "__main__":
