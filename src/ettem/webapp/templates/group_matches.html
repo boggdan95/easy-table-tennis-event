@@ -2,7 +2,11 @@
 {% block title %}Partidos Grupo {{ group.name }} - ETTEM{% endblock %}
 {% block content %}
 <h1>Grupo {{ group.name }} - Partidos</h1>
-<p><a href="/category/{{ category }}" class="btn">Volver a Categoria</a></p>
+<p>
+    <a href="/category/{{ category }}" class="btn">Volver a Categoria</a>
+    <a href="/group/{{ group.id }}/sheet" class="btn">Ver Hoja de Grupo</a>
+    <a href="/group/{{ group.id }}/standings" class="btn btn-success">Ver Clasificacion</a>
+</p>
 <table>
 <tr><th>#</th><th>Jugador 1</th><th>vs</th><th>Jugador 2</th><th>Resultado</th><th>Estado</th><th>Accion</th></tr>
 {% for m in matches %}
@@ -11,7 +15,17 @@
     <td>{{ m.player1.nombre }} {{ m.player1.apellido }}</td>
     <td>vs</td>
     <td>{{ m.player2.nombre }} {{ m.player2.apellido }}</td>
-    <td>{{ m.player1_sets }}-{{ m.player2_sets }}</td>
+    <td>
+        {% if m.match.status == 'WALKOVER' %}
+            {% if m.match.winner_id == m.player1.id %}
+                3-0 (WO)
+            {% else %}
+                0-3 (WO)
+            {% endif %}
+        {% else %}
+            {{ m.player1_sets }}-{{ m.player2_sets }}
+        {% endif %}
+    </td>
     <td class="status-{{ m.match.status }}">{{ m.match.status }}</td>
     <td><a href="/match/{{ m.match.id }}/enter-result" class="btn btn-warning">Ingresar Resultado</a></td>
 </tr>

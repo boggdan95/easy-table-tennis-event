@@ -5,8 +5,9 @@
 {% for group_data in groups %}
 <div class="group-card">
     <h2>Grupo {{ group_data.group.name }}</h2>
-    <p><a href="/group/{{ group_data.group.id }}/matches" class="btn">Ver Partidos</a>
-       <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success">Ver Standings</a></p>
+    <p><a href="/group/{{ group_data.group.id }}/sheet" class="btn">Hoja de Grupo</a>
+       <a href="/group/{{ group_data.group.id }}/matches" class="btn">Ver Partidos</a>
+       <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success">Ver Clasificacion</a></p>
     <h3>Jugadores:</h3>
     <ul>
     {% for player in group_data.players %}

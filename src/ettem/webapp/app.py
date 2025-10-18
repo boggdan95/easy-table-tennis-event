@@ -213,11 +213,24 @@ async def save_result(
     winner_id_int = parse_int(winner_id)
 
     if is_wo:
-        # Walkover - just set winner
+        # Walkover - set winner and record 3-0 in sets
         match_orm.status = MatchStatus.WALKOVER.value
         match_orm.winner_id = winner_id_int
-        match_orm.sets_json = "[]"
-        match_repo.update(match_orm)
+
+        # Record 3-0 sets for the winner (11-0 in each set)
+        wo_sets = []
+        for i in range(1, 4):  # 3 sets
+            if winner_id_int == match_orm.player1_id:
+                wo_sets.append({"set_number": i, "player1_points": 11, "player2_points": 0})
+            else:
+                wo_sets.append({"set_number": i, "player1_points": 0, "player2_points": 11})
+
+        match_repo.update_result(
+            match_id=match_id,
+            sets=wo_sets,
+            winner_id=winner_id_int,
+            status=MatchStatus.WALKOVER.value
+        )
     else:
         # Normal match - collect sets
         sets_data = []
@@ -320,6 +333,126 @@ async def view_standings(request: Request, group_id: int):
             "group": group,
             "standings": standings_data,
             "category": group.category
+        }
+    )
+
+
+@app.get("/group/{group_id}/sheet", response_class=HTMLResponse)
+async def view_group_sheet(request: Request, group_id: int):
+    """View group sheet with results matrix (original seeding order)."""
+    session = get_db_session()
+    group_repo = GroupRepository(session)
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+
+    # Get group
+    group = group_repo.get_by_id(group_id)
+    if not group:
+        return HTMLResponse(content="Group not found", status_code=404)
+
+    # Get players sorted by group_number (original seeding order)
+    all_players = [player_repo.get_by_id(pid) for pid in group.player_ids]
+    players = sorted([p for p in all_players if p], key=lambda p: p.group_number or 999)
+
+    # Get all matches for this group
+    match_orms = match_repo.get_by_group(group_id)
+
+    # Build results matrix: matrix[player1_group_num][player2_group_num] = result
+    # Result format: "3-1" or "WO" or None if not played
+    results_matrix = {}
+    for p in players:
+        results_matrix[p.group_number] = {}
+
+    for m_orm in match_orms:
+        if not m_orm.status or m_orm.status == MatchStatus.PENDING.value:
+            continue
+
+        p1 = player_repo.get_by_id(m_orm.player1_id)
+        p2 = player_repo.get_by_id(m_orm.player2_id)
+
+        if not p1 or not p2:
+            continue
+
+        # Convert to domain model to get sets
+        sets = [
+            Set(
+                set_number=s["set_number"],
+                player1_points=s["player1_points"],
+                player2_points=s["player2_points"],
+            )
+            for s in m_orm.sets
+        ]
+        match = Match(
+            id=m_orm.id,
+            player1_id=m_orm.player1_id,
+            player2_id=m_orm.player2_id,
+            group_id=m_orm.group_id,
+            round_type=m_orm.round_type,
+            status=m_orm.status,
+            sets=sets,
+            winner_id=m_orm.winner_id,
+        )
+
+        # Determine result string
+        if m_orm.status == MatchStatus.WALKOVER.value:
+            p1_result = "WO" if match.winner_id == p1.id else "WO"
+            p2_result = "WO" if match.winner_id == p2.id else "WO"
+        else:
+            p1_sets = match.player1_sets_won
+            p2_sets = match.player2_sets_won
+            p1_result = f"{p1_sets}-{p2_sets}"
+            p2_result = f"{p2_sets}-{p1_sets}"
+
+        # Store in matrix
+        results_matrix[p1.group_number][p2.group_number] = p1_result
+        results_matrix[p2.group_number][p1.group_number] = p2_result
+
+    # Calculate stats for each player
+    standings = calculate_standings(
+        [
+            Match(
+                id=m.id,
+                player1_id=m.player1_id,
+                player2_id=m.player2_id,
+                group_id=m.group_id,
+                round_type=m.round_type,
+                status=m.status,
+                sets=[
+                    Set(
+                        set_number=s["set_number"],
+                        player1_points=s["player1_points"],
+                        player2_points=s["player2_points"],
+                    )
+                    for s in m.sets
+                ],
+                winner_id=m.winner_id,
+            )
+            for m in match_orms
+        ],
+        group_id,
+        player_repo,
+    )
+
+    # Create dict for quick lookup
+    standings_dict = {s.player_id: s for s in standings}
+
+    # Build player data with stats
+    players_data = []
+    for player in players:
+        standing = standings_dict.get(player.id)
+        players_data.append({
+            "player": player,
+            "standing": standing,
+        })
+
+    return templates.TemplateResponse(
+        "group_sheet.html",
+        {
+            "request": request,
+            "group": group,
+            "players": players_data,
+            "results_matrix": results_matrix,
+            "category": group.category,
         }
     )
 

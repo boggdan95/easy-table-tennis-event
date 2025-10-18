@@ -1,8 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Standings Grupo {{ group.name }} - ETTEM{% endblock %}
+{% block title %}Clasificacion Grupo {{ group.name }} - ETTEM{% endblock %}
 {% block content %}
-<h1>Grupo {{ group.name }} - Standings</h1>
-<p><a href="/category/{{ category }}" class="btn">Volver</a></p>
+<h1>Grupo {{ group.name }} - Clasificacion Final</h1>
+<p>
+    <a href="/category/{{ category }}" class="btn">Volver a Categoria</a>
+    <a href="/group/{{ group.id }}/sheet" class="btn">Ver Hoja de Grupo</a>
+    <a href="/group/{{ group.id }}/matches" class="btn">Ver Lista de Partidos</a>
+</p>
 <table>
 <tr><th>Pos</th><th>Jugador</th><th>Pts</th><th>V-D</th><th>Sets</th><th>Puntos</th></tr>
 {% for s in standings %}
