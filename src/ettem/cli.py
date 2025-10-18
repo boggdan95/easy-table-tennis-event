@@ -296,7 +296,7 @@ def compute_standings(category: str):
                 player_orm = player_repo.get_by_id(standing.player_id)
                 if player_orm:
                     click.echo(
-                        f"  {standing.position}. {player_orm.full_name} - "
+                        f"  {standing.position}. {player_orm.nombre} {player_orm.apellido} - "
                         f"{standing.points_total}pts ({standing.wins}W-{standing.losses}L)"
                     )
 
