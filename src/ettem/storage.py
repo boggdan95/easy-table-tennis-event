@@ -372,7 +372,81 @@ class GroupRepository:
     def __init__(self, session):
         self.session = session
 
-    # TODO: Implement CRUD operations
+    def create(self, group: "Group") -> GroupORM:
+        """Create a new group in the database.
+
+        Args:
+            group: Group domain model
+
+        Returns:
+            Created GroupORM instance
+        """
+        from ettem.models import Group
+
+        group_orm = GroupORM(
+            name=group.name,
+            category=group.category,
+            player_ids_json=json.dumps(group.player_ids),
+        )
+        self.session.add(group_orm)
+        self.session.commit()
+        self.session.refresh(group_orm)
+        return group_orm
+
+    def get_by_id(self, group_id: int) -> Optional[GroupORM]:
+        """Get group by ID.
+
+        Args:
+            group_id: Database ID
+
+        Returns:
+            GroupORM if found, None otherwise
+        """
+        return self.session.query(GroupORM).filter(GroupORM.id == group_id).first()
+
+    def get_by_category(self, category: str) -> list[GroupORM]:
+        """Get all groups in a category.
+
+        Args:
+            category: Category name
+
+        Returns:
+            List of GroupORM instances
+        """
+        return self.session.query(GroupORM).filter(GroupORM.category == category).all()
+
+    def get_all(self) -> list[GroupORM]:
+        """Get all groups."""
+        return self.session.query(GroupORM).all()
+
+    def update(self, group_orm: GroupORM) -> GroupORM:
+        """Update an existing group.
+
+        Args:
+            group_orm: GroupORM instance to update
+
+        Returns:
+            Updated GroupORM instance
+        """
+        self.session.commit()
+        self.session.refresh(group_orm)
+        return group_orm
+
+    def delete(self, group_id: int) -> bool:
+        """Delete a group by ID.
+
+        Args:
+            group_id: Database ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        group = self.get_by_id(group_id)
+        if group:
+            self.session.delete(group)
+            self.session.commit()
+            return True
+        return False
 
 
 class MatchRepository:
@@ -381,7 +455,146 @@ class MatchRepository:
     def __init__(self, session):
         self.session = session
 
-    # TODO: Implement CRUD operations
+    def create(self, match: "Match") -> MatchORM:
+        """Create a new match in the database.
+
+        Args:
+            match: Match domain model
+
+        Returns:
+            Created MatchORM instance
+        """
+        from ettem.models import Match
+
+        # Convert sets to JSON format
+        sets_data = [
+            {
+                "set_number": s.set_number,
+                "player1_points": s.player1_points,
+                "player2_points": s.player2_points,
+            }
+            for s in match.sets
+        ]
+
+        match_orm = MatchORM(
+            player1_id=match.player1_id,
+            player2_id=match.player2_id,
+            group_id=match.group_id,
+            round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
+            round_name=match.round_name,
+            match_number=match.match_number,
+            status=match.status.value if hasattr(match.status, "value") else match.status,
+            sets_json=json.dumps(sets_data),
+            winner_id=match.winner_id,
+            scheduled_time=match.scheduled_time,
+            table_number=match.table_number,
+        )
+        self.session.add(match_orm)
+        self.session.commit()
+        self.session.refresh(match_orm)
+        return match_orm
+
+    def get_by_id(self, match_id: int) -> Optional[MatchORM]:
+        """Get match by ID.
+
+        Args:
+            match_id: Database ID
+
+        Returns:
+            MatchORM if found, None otherwise
+        """
+        return self.session.query(MatchORM).filter(MatchORM.id == match_id).first()
+
+    def get_by_group(self, group_id: int) -> list[MatchORM]:
+        """Get all matches in a group.
+
+        Args:
+            group_id: Group ID
+
+        Returns:
+            List of MatchORM instances
+        """
+        return self.session.query(MatchORM).filter(MatchORM.group_id == group_id).all()
+
+    def get_by_round(self, round_type: str) -> list[MatchORM]:
+        """Get all matches in a round.
+
+        Args:
+            round_type: Round type (RR, R16, QF, SF, F)
+
+        Returns:
+            List of MatchORM instances
+        """
+        return self.session.query(MatchORM).filter(MatchORM.round_type == round_type).all()
+
+    def get_by_player(self, player_id: int) -> list[MatchORM]:
+        """Get all matches for a player.
+
+        Args:
+            player_id: Player ID
+
+        Returns:
+            List of MatchORM instances
+        """
+        return (
+            self.session.query(MatchORM)
+            .filter((MatchORM.player1_id == player_id) | (MatchORM.player2_id == player_id))
+            .all()
+        )
+
+    def get_all(self) -> list[MatchORM]:
+        """Get all matches."""
+        return self.session.query(MatchORM).all()
+
+    def update(self, match_orm: MatchORM) -> MatchORM:
+        """Update an existing match.
+
+        Args:
+            match_orm: MatchORM instance to update
+
+        Returns:
+            Updated MatchORM instance
+        """
+        self.session.commit()
+        self.session.refresh(match_orm)
+        return match_orm
+
+    def update_result(self, match_id: int, sets: list[dict], winner_id: int, status: str) -> MatchORM:
+        """Update match result.
+
+        Args:
+            match_id: Match ID
+            sets: List of set dictionaries
+            winner_id: Winner player ID
+            status: New match status
+
+        Returns:
+            Updated MatchORM instance
+        """
+        match = self.get_by_id(match_id)
+        if match:
+            match.sets_json = json.dumps(sets)
+            match.winner_id = winner_id
+            match.status = status
+            self.session.commit()
+            self.session.refresh(match)
+        return match
+
+    def delete(self, match_id: int) -> bool:
+        """Delete a match by ID.
+
+        Args:
+            match_id: Database ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        match = self.get_by_id(match_id)
+        if match:
+            self.session.delete(match)
+            self.session.commit()
+            return True
+        return False
 
 
 class StandingRepository:
@@ -390,4 +603,118 @@ class StandingRepository:
     def __init__(self, session):
         self.session = session
 
-    # TODO: Implement CRUD operations
+    def create(self, standing: "GroupStanding") -> GroupStandingORM:
+        """Create a new standing in the database.
+
+        Args:
+            standing: GroupStanding domain model
+
+        Returns:
+            Created GroupStandingORM instance
+        """
+        from ettem.models import GroupStanding
+
+        standing_orm = GroupStandingORM(
+            player_id=standing.player_id,
+            group_id=standing.group_id,
+            points_total=standing.points_total,
+            wins=standing.wins,
+            losses=standing.losses,
+            sets_w=standing.sets_w,
+            sets_l=standing.sets_l,
+            points_w=standing.points_w,
+            points_l=standing.points_l,
+            position=standing.position,
+        )
+        self.session.add(standing_orm)
+        self.session.commit()
+        self.session.refresh(standing_orm)
+        return standing_orm
+
+    def get_by_id(self, standing_id: int) -> Optional[GroupStandingORM]:
+        """Get standing by ID.
+
+        Args:
+            standing_id: Database ID
+
+        Returns:
+            GroupStandingORM if found, None otherwise
+        """
+        return self.session.query(GroupStandingORM).filter(GroupStandingORM.id == standing_id).first()
+
+    def get_by_player_and_group(self, player_id: int, group_id: int) -> Optional[GroupStandingORM]:
+        """Get standing for a player in a specific group.
+
+        Args:
+            player_id: Player ID
+            group_id: Group ID
+
+        Returns:
+            GroupStandingORM if found, None otherwise
+        """
+        return (
+            self.session.query(GroupStandingORM)
+            .filter(GroupStandingORM.player_id == player_id, GroupStandingORM.group_id == group_id)
+            .first()
+        )
+
+    def get_by_group(self, group_id: int, ordered: bool = True) -> list[GroupStandingORM]:
+        """Get all standings for a group.
+
+        Args:
+            group_id: Group ID
+            ordered: If True, order by position
+
+        Returns:
+            List of GroupStandingORM instances
+        """
+        query = self.session.query(GroupStandingORM).filter(GroupStandingORM.group_id == group_id)
+        if ordered:
+            query = query.order_by(GroupStandingORM.position)
+        return query.all()
+
+    def get_all(self) -> list[GroupStandingORM]:
+        """Get all standings."""
+        return self.session.query(GroupStandingORM).all()
+
+    def update(self, standing_orm: GroupStandingORM) -> GroupStandingORM:
+        """Update an existing standing.
+
+        Args:
+            standing_orm: GroupStandingORM instance to update
+
+        Returns:
+            Updated GroupStandingORM instance
+        """
+        self.session.commit()
+        self.session.refresh(standing_orm)
+        return standing_orm
+
+    def delete(self, standing_id: int) -> bool:
+        """Delete a standing by ID.
+
+        Args:
+            standing_id: Database ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        standing = self.get_by_id(standing_id)
+        if standing:
+            self.session.delete(standing)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_by_group(self, group_id: int) -> int:
+        """Delete all standings for a group.
+
+        Args:
+            group_id: Group ID
+
+        Returns:
+            Number of standings deleted
+        """
+        count = self.session.query(GroupStandingORM).filter(GroupStandingORM.group_id == group_id).delete()
+        self.session.commit()
+        return count

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ category }} - ETTEM{% endblock %}
+{% block content %}
+<h1>Categoria: {{ category }}</h1>
+{% for group_data in groups %}
+<div class="group-card">
+    <h2>Grupo {{ group_data.group.name }}</h2>
+    <p><a href="/group/{{ group_data.group.id }}/matches" class="btn">Ver Partidos</a>
+       <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success">Ver Standings</a></p>
+    <h3>Jugadores:</h3>
+    <ul>
+    {% for player in group_data.players %}
+        <li>{{ player.seed }}. {{ player.nombre }} {{ player.apellido }} ({{ player.pais_cd }})</li>
+    {% endfor %}
+    </ul>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Inicio - ETTEM{% endblock %}
+{% block content %}
+<h1>Easy Table Tennis Event Manager</h1>
+<h2>Categorias</h2>
+{% if categories %}
+<ul>
+{% for category in categories %}
+    <li><a href="/category/{{ category }}" class="btn">{{ category }}</a></li>
+{% endfor %}
+</ul>
+{% else %}
+<p>No hay categorias. Importa jugadores primero.</p>
+{% endif %}
+{% endblock %}

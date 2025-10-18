@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Ingresar Resultado - ETTEM{% endblock %}
+{% block content %}
+<h1>Ingresar Resultado del Partido</h1>
+<h2>{{ player1.nombre }} {{ player1.apellido }} vs {{ player2.nombre }} {{ player2.apellido }}</h2>
+<form method="post" action="/match/{{ match.id }}/save-result">
+    <h3>Sets (dejar vacio los no jugados)</h3>
+    {% for i in range(1, 6) %}
+    <div>
+        <label>Set {{ i }}:</label>
+        <input type="number" name="set{{ i }}_p1" min="0" max="99" placeholder="{{ player1.apellido }}">
+        -
+        <input type="number" name="set{{ i }}_p2" min="0" max="99" placeholder="{{ player2.apellido }}">
+    </div>
+    {% endfor %}
+    <div style="margin-top: 20px;">
+        <label><input type="checkbox" name="is_walkover" value="true"> Walkover (WO)</label>
+        <label>Si WO, ganador: 
+            <select name="winner_id">
+                <option value="">-</option>
+                <option value="{{ player1.id }}">{{ player1.apellido }}</option>
+                <option value="{{ player2.id }}">{{ player2.apellido }}</option>
+            </select>
+        </label>
+    </div>
+    <button type="submit" class="btn btn-success" style="margin-top: 20px;">Guardar Resultado</button>
+</form>
+{% endblock %}

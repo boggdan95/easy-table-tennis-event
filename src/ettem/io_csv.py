@@ -175,34 +175,95 @@ def import_players_csv(
     return players
 
 
-def export_groups_csv(groups: list, path: str):
+def export_groups_csv(groups: list, players_by_id: dict, matches_by_group: dict, path: str):
     """Export groups to CSV.
 
     Args:
-        groups: List of Group objects
+        groups: List of Group ORM objects
+        players_by_id: Dictionary mapping player_id to Player ORM
+        matches_by_group: Dictionary mapping group_id to list of Match ORMs
         path: Output CSV path
     """
-    # TODO: Implement
-    raise NotImplementedError("export_groups_csv not yet implemented")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Group", "Player_ID", "Player_Name", "Country", "Seed", "Group_Number"])
+
+        for group in groups:
+            for player_id in group.player_ids:
+                player = players_by_id.get(player_id)
+                if player:
+                    writer.writerow([
+                        group.name,
+                        player.id,
+                        f"{player.nombre} {player.apellido}",
+                        player.pais_cd,
+                        player.seed or "",
+                        player.group_number or "",
+                    ])
 
 
-def export_standings_csv(standings: list, path: str):
+def export_standings_csv(standings: list, players_by_id: dict, path: str):
     """Export standings to CSV.
 
     Args:
-        standings: List of GroupStanding objects
+        standings: List of GroupStanding ORM objects
+        players_by_id: Dictionary mapping player_id to Player ORM
         path: Output CSV path
     """
-    # TODO: Implement
-    raise NotImplementedError("export_standings_csv not yet implemented")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "Group_ID", "Position", "Player_ID", "Player_Name", "Country",
+            "Points", "Wins", "Losses", "Sets_W", "Sets_L", "Points_W", "Points_L"
+        ])
+
+        for standing in standings:
+            player = players_by_id.get(standing.player_id)
+            if player:
+                writer.writerow([
+                    standing.group_id,
+                    standing.position or "",
+                    player.id,
+                    f"{player.nombre} {player.apellido}",
+                    player.pais_cd,
+                    standing.points_total,
+                    standing.wins,
+                    standing.losses,
+                    standing.sets_w,
+                    standing.sets_l,
+                    standing.points_w,
+                    standing.points_l,
+                ])
 
 
-def export_bracket_csv(bracket, path: str):
+def export_bracket_csv(bracket, players_by_id: dict, path: str):
     """Export bracket to CSV.
 
     Args:
-        bracket: Bracket object
+        bracket: Bracket object with slots
+        players_by_id: Dictionary mapping player_id to Player ORM
         path: Output CSV path
     """
-    # TODO: Implement
-    raise NotImplementedError("export_bracket_csv not yet implemented")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Round", "Slot_Number", "Player_ID", "Player_Name", "Country", "Is_BYE", "Same_Country_Warning"])
+
+        for round_type, slots in bracket.slots.items():
+            for slot in slots:
+                player_name = ""
+                country = ""
+                if slot.player_id and not slot.is_bye:
+                    player = players_by_id.get(slot.player_id)
+                    if player:
+                        player_name = f"{player.nombre} {player.apellido}"
+                        country = player.pais_cd
+
+                writer.writerow([
+                    round_type.value if hasattr(round_type, "value") else round_type,
+                    slot.slot_number,
+                    slot.player_id or "",
+                    player_name,
+                    country,
+                    "YES" if slot.is_bye else "NO",
+                    "YES" if slot.same_country_warning else "NO",
+                ])

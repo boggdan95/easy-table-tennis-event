@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Partidos Grupo {{ group.name }} - ETTEM{% endblock %}
+{% block content %}
+<h1>Grupo {{ group.name }} - Partidos</h1>
+<p><a href="/category/{{ category }}" class="btn">Volver a Categoria</a></p>
+<table>
+<tr><th>#</th><th>Jugador 1</th><th>vs</th><th>Jugador 2</th><th>Resultado</th><th>Estado</th><th>Accion</th></tr>
+{% for m in matches %}
+<tr>
+    <td>{{ m.match.match_number }}</td>
+    <td>{{ m.player1.nombre }} {{ m.player1.apellido }}</td>
+    <td>vs</td>
+    <td>{{ m.player2.nombre }} {{ m.player2.apellido }}</td>
+    <td>{{ m.player1_sets }}-{{ m.player2_sets }}</td>
+    <td class="status-{{ m.match.status }}">{{ m.match.status }}</td>
+    <td><a href="/match/{{ m.match.id }}/enter-result" class="btn btn-warning">Ingresar Resultado</a></td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}
