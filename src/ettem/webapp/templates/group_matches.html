@@ -27,7 +27,16 @@
         {% endif %}
     </td>
     <td class="status-{{ m.match.status }}">{{ m.match.status }}</td>
-    <td><a href="/match/{{ m.match.id }}/enter-result" class="btn btn-warning">Ingresar Resultado</a></td>
+    <td>
+        {% if m.match.status == 'pending' %}
+            <a href="/match/{{ m.match.id }}/enter-result" class="btn btn-success">Ingresar Resultado</a>
+        {% else %}
+            <a href="/match/{{ m.match.id }}/enter-result" class="btn btn-warning">Editar</a>
+            <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro de eliminar este resultado?');">
+                <button type="submit" class="btn btn-danger">Eliminar</button>
+            </form>
+        {% endif %}
+    </td>
 </tr>
 {% endfor %}
 </table>

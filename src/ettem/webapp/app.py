@@ -18,6 +18,7 @@ from ettem.storage import (
     PlayerRepository,
     StandingRepository,
 )
+from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -214,7 +215,16 @@ async def save_result(
     winner_id_int = parse_int(winner_id)
 
     if is_wo:
-        # Walkover - set winner and record 3-0 in sets
+        # Walkover - validate and set winner
+        is_valid, error_msg = validate_walkover(
+            match_orm.player1_id, match_orm.player2_id, winner_id_int
+        )
+        if not is_valid:
+            return HTMLResponse(
+                content=f"Error en walkover: {error_msg}",
+                status_code=400
+            )
+
         match_orm.status = MatchStatus.WALKOVER.value
         match_orm.winner_id = winner_id_int
 
@@ -243,13 +253,38 @@ async def save_result(
             (parse_int(set5_p1), parse_int(set5_p2)),
         ]
 
+        # Collect valid sets and validate each one
         for idx, (p1_points, p2_points) in enumerate(set_inputs, start=1):
             if p1_points is not None and p2_points is not None:
+                # Validate this set
+                is_valid, error_msg = validate_tt_set(p1_points, p2_points)
+                if not is_valid:
+                    return HTMLResponse(
+                        content=f"Error en Set {idx}: {error_msg}",
+                        status_code=400
+                    )
+
                 sets_data.append({
                     "set_number": idx,
                     "player1_points": p1_points,
                     "player2_points": p2_points,
                 })
+
+        # Check if we have any sets at all
+        if not sets_data:
+            return HTMLResponse(
+                content="Error: Debe ingresar al menos un set",
+                status_code=400
+            )
+
+        # Validate the complete match
+        sets_tuples = [(s["player1_points"], s["player2_points"]) for s in sets_data]
+        is_valid, error_msg = validate_match_sets(sets_tuples, best_of=5)
+        if not is_valid:
+            return HTMLResponse(
+                content=f"Error en el partido: {error_msg}",
+                status_code=400
+            )
 
         # Determine winner based on sets won
         p1_sets = sum(1 for s in sets_data if s["player1_points"] > s["player2_points"])
@@ -269,6 +304,29 @@ async def save_result(
             winner_id=winner_id_final,
             status=MatchStatus.COMPLETED.value
         )
+
+    # Redirect back to group matches
+    return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
+
+
+@app.post("/match/{match_id}/delete-result")
+async def delete_result(match_id: int):
+    """Delete match result and reset to pending status."""
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+
+    # Get match
+    match_orm = match_repo.get_by_id(match_id)
+    if not match_orm:
+        return HTMLResponse(content="Match not found", status_code=404)
+
+    # Reset match to pending state
+    match_repo.update_result(
+        match_id=match_id,
+        sets=[],  # Clear all sets
+        winner_id=None,
+        status=MatchStatus.PENDING.value
+    )
 
     # Redirect back to group matches
     return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
