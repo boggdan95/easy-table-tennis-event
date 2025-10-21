@@ -58,7 +58,7 @@ ettem --lang en import-players --csv data/samples/players.csv --category U13
 
 ### 3. Construir Grupos
 ```bash
-ettem build-groups --config config/sample_config.yaml --out out/
+ettem build-groups --config config/sample_config.yaml --category U13 --out out/
 ```
 
 **Resultado esperado:**

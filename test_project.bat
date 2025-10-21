@@ -31,7 +31,7 @@ echo    ✓ Players imported
 
 echo.
 echo [3/7] Building groups...
-ettem build-groups --config config/sample_config.yaml --out out/
+ettem build-groups --config config/sample_config.yaml --category U13 --out out/
 if errorlevel 1 (
     echo    ✗ ERROR: Build groups failed
     pause

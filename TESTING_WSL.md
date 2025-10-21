@@ -101,7 +101,7 @@ mkdir -p out
 ettem import-players --csv data/samples/players.csv --category U13
 
 # 3. Construir grupos
-ettem build-groups --config config/sample_config.yaml --out out/
+ettem build-groups --config config/sample_config.yaml --category U13 --out out/
 
 # 4. Calcular standings
 ettem compute-standings --out out/

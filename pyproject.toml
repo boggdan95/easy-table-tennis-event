@@ -3,7 +3,7 @@ name = "easy-table-tennis-event"
 version = "1.0.2"
 description = "Python application for managing table tennis tournaments with round robin groups and knockout brackets"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 authors = [
     { name = "Boggdan" }
 ]
