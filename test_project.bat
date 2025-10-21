@@ -103,9 +103,12 @@ echo   2. Enter match results
 echo   3. View standings
 echo   4. View knockout bracket
 echo.
-echo Press Ctrl+C to stop the server when done
+echo IMPORTANT:
+echo   - The server will start and stay running
+echo   - Open your browser at: http://127.0.0.1:8000
+echo   - Press Ctrl+C in this window to stop the server when done
 echo.
-pause
+echo Starting server in 3 seconds...
+timeout /t 3 /nobreak >nul
 echo.
-echo Starting server...
 ettem open-panel
