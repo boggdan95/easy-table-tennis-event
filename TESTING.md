@@ -98,7 +98,7 @@ En el panel web:
 
 ### 6. Calcular Standings
 ```bash
-ettem compute-standings --out out/
+ettem compute-standings --category U13
 ```
 
 **Resultado esperado:**
@@ -111,7 +111,7 @@ ettem compute-standings --out out/
 
 ### 7. Construir Bracket
 ```bash
-ettem build-bracket --out out/
+ettem build-bracket --category U13 --config config/sample_config.yaml
 ```
 
 **Resultado esperado:**

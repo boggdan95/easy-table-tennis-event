@@ -104,10 +104,10 @@ ettem import-players --csv data/samples/players.csv --category U13
 ettem build-groups --config config/sample_config.yaml --category U13 --out out/
 
 # 4. Calcular standings
-ettem compute-standings --out out/
+ettem compute-standings --category U13
 
 # 5. Construir bracket
-ettem build-bracket --out out/
+ettem build-bracket --category U13 --config config/sample_config.yaml
 
 # 6. Exportar
 ettem export --what groups --format csv --out out/

@@ -32,12 +32,12 @@ echo "   ✓ Groups created"
 
 echo ""
 echo "[4/7] Computing standings (initial - before matches)..."
-ettem compute-standings --out out/
+ettem compute-standings --category U13
 echo "   ✓ Standings computed"
 
 echo ""
 echo "[5/7] Building bracket..."
-ettem build-bracket --out out/
+ettem build-bracket --category U13 --config config/sample_config.yaml
 echo "   ✓ Bracket created"
 
 echo ""
