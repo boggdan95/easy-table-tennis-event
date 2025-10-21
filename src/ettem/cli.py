@@ -523,11 +523,35 @@ def export(what: str, format: str, out: str):
             click.echo("[LOAD] Loading bracket...")
             bracket_repo = BracketRepository(session)
 
-            bracket = bracket_repo.get_bracket()
+            # Get bracket slots (we need to specify category - use first category found)
+            # For now, get all players and find unique categories
+            all_players = player_repo.get_all()
+            categories = list(set(p.categoria for p in all_players))
 
-            if not bracket:
+            if not categories:
+                click.echo("[ERROR]  No categories found.", err=True)
+                return
+
+            # Use first category (in V1 we only support one category at a time)
+            category = categories[0]
+            bracket_slots = bracket_repo.get_by_category(category)
+
+            if not bracket_slots:
                 click.echo("[ERROR]  No bracket found. Run 'build-bracket' first.", err=True)
                 return
+
+            # Group slots by round to create bracket structure
+            from collections import defaultdict
+            slots_by_round = defaultdict(list)
+            for slot_orm in bracket_slots:
+                slots_by_round[slot_orm.round_type].append(slot_orm)
+
+            # Create a simple object to mimic Bracket structure
+            class SimpleBracket:
+                def __init__(self, slots_dict):
+                    self.slots = slots_dict
+
+            bracket = SimpleBracket(slots_by_round)
 
             # Export
             output_file = out_dir / "bracket.csv"
