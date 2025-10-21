@@ -1,27 +1,173 @@
 # English translations
-app_title: "Table Tennis Event Manager"
-players: "Players"
-groups: "Groups"
-matches: "Matches"
-standings: "Standings"
-bracket: "Knockout Bracket"
-import_players: "Import players"
-build_groups: "Build groups"
-compute_standings: "Compute standings"
-build_bracket: "Build bracket"
-enter_results: "Enter results"
-player_name: "Name"
-country: "Country"
-ranking: "Ranking"
-points: "Points"
-wins: "Wins"
-losses: "Losses"
-sets_won: "Sets won"
-sets_lost: "Sets lost"
-points_won: "Points won"
-points_lost: "Points lost"
-played: "Played"
-walkover: "Walkover"
-save: "Save"
-cancel: "Cancel"
-export: "Export"
+
+# Application
+app:
+  title: "Table Tennis Event Manager"
+  version: "Version {version}"
+  description: "Table tennis tournament management with round robin groups and knockout brackets"
+
+# CLI Commands
+cli:
+  import_players:
+    description: "Import players from CSV"
+    success: "Successfully imported {count} players for category {category}"
+    error_file_not_found: "File not found: {path}"
+    error_invalid_csv: "Invalid CSV format: {error}"
+    error_validation: "Validation error in row {row}: {error}"
+
+  build_groups:
+    description: "Build round robin groups"
+    success: "Successfully created {count} groups"
+    progress: "Building groups with preferred size of {size}..."
+    error_no_players: "No players available to form groups"
+    error_config: "Configuration error: {error}"
+
+  compute_standings:
+    description: "Compute group standings"
+    success: "Standings computed for {count} groups"
+    progress: "Computing standings..."
+    warning_no_results: "Warning: Some matches have no results"
+
+  build_bracket:
+    description: "Build knockout bracket"
+    success: "Knockout bracket created with {size} positions"
+    progress: "Generating knockout bracket..."
+    error_no_standings: "Must compute standings first"
+
+  open_panel:
+    description: "Open local web panel"
+    starting: "Starting web server at {host}:{port}..."
+    ready: "Panel available at http://{host}:{port}"
+    stopping: "Stopping server..."
+
+  export:
+    description: "Export data to files"
+    success: "Exported {what} to {path}"
+    error_no_data: "No {what} data to export"
+    error_invalid_format: "Unsupported format: {format}"
+
+# Web Application
+webapp:
+  nav:
+    home: "Home"
+    players: "Players"
+    groups: "Groups"
+    matches: "Matches"
+    standings: "Standings"
+    bracket: "Bracket"
+
+  home:
+    welcome: "Welcome to Event Manager"
+    subtitle: "Manage table tennis tournaments with ease"
+    quick_actions: "Quick Actions"
+
+  players:
+    title: "Players"
+    count: "{count} registered players"
+    import: "Import players"
+    no_players: "No players registered"
+
+  groups:
+    title: "Groups"
+    group_number: "Group {number}"
+    no_groups: "No groups created"
+    create_groups: "Create groups"
+
+  matches:
+    title: "Matches"
+    match_number: "Match #{number}"
+    enter_result: "Enter result"
+    edit_result: "Edit result"
+    delete_result: "Delete result"
+    no_matches: "No matches scheduled"
+    score: "Score"
+    player1: "Player 1"
+    player2: "Player 2"
+    sets: "Sets"
+    points_detail: "Points per set"
+    status:
+      pending: "Pending"
+      completed: "Completed"
+      walkover: "Walkover"
+
+  standings:
+    title: "Standings"
+    position: "Pos"
+    player: "Player"
+    matches_played: "MP"
+    wins: "W"
+    losses: "L"
+    sets_won: "SW"
+    sets_lost: "SL"
+    sets_ratio: "S. Ratio"
+    points_won: "PW"
+    points_lost: "PL"
+    points_ratio: "P. Ratio"
+    total_points: "Pts"
+    no_standings: "No standings available"
+    calculate: "Calculate standings"
+
+  bracket:
+    title: "Knockout Bracket"
+    round_16: "Round of 16"
+    round_8: "Quarterfinals"
+    round_4: "Semifinals"
+    round_2: "Final"
+    winner: "Winner"
+    bye: "BYE"
+    same_country_warning: "⚠ Same country in 1st round"
+    no_bracket: "No bracket generated"
+    generate: "Generate bracket"
+
+  forms:
+    save: "Save"
+    cancel: "Cancel"
+    delete: "Delete"
+    edit: "Edit"
+    confirm: "Confirm"
+    back: "Back"
+    submit: "Submit"
+    reset: "Reset"
+
+# Validation Messages
+validation:
+  required_field: "Field {field} is required"
+  invalid_gender: "Gender must be M or F"
+  invalid_country: "Country code must be ISO-3 (e.g., ESP, MEX)"
+  invalid_ranking: "Ranking must be a number"
+  invalid_score: "Invalid score: {error}"
+  invalid_sets: "Sets must follow table tennis rules"
+  player_not_found: "Player not found: {player}"
+  duplicate_player: "Duplicate player: {player}"
+
+# Table Tennis Rules
+rules:
+  scoring:
+    win: "Win: 2 points"
+    loss: "Loss: 1 point"
+    walkover: "Walkover (loser): 0 points"
+
+  tiebreak:
+    title: "Tiebreak (≥3 players tied)"
+    step1: "1. Sets ratio (sets won / sets lost)"
+    step2: "2. Points ratio (points won / points lost)"
+    step3: "3. Seed (lower seed wins)"
+
+  sets:
+    best_of_5: "Best of 5 sets"
+    best_of_7: "Best of 7 sets"
+    points_to_win: "11 points to win set"
+    deuce_rule: "Deuce at 10-10, win by 2"
+
+# Common
+common:
+  yes: "Yes"
+  no: "No"
+  loading: "Loading..."
+  error: "Error"
+  success: "Success"
+  warning: "Warning"
+  info: "Information"
+  confirm_delete: "Are you sure you want to delete?"
+  action_required: "Action required"
+  no_data: "No data available"

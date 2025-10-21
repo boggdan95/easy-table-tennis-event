@@ -1,7 +1,7 @@
 """FastAPI web application for Easy Table Tennis Event Manager."""
 
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -19,6 +19,7 @@ from ettem.storage import (
     StandingRepository,
 )
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
+from ettem.i18n import load_strings, get_language_from_env
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -41,6 +42,34 @@ def get_db_session():
     return db_manager.get_session()
 
 
+def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse:
+    """
+    Render a template with i18n support.
+
+    Automatically adds i18n strings to the context.
+
+    Args:
+        template_name: Name of the template file
+        context: Template context (must include 'request')
+
+    Returns:
+        HTMLResponse with rendered template
+    """
+    # Load i18n strings based on environment language
+    lang = get_language_from_env()
+    try:
+        i18n_strings = load_strings(lang)
+    except (ValueError, FileNotFoundError):
+        # Fallback to empty dict if strings can't be loaded
+        i18n_strings = {}
+
+    # Add i18n to context
+    context["t"] = i18n_strings
+    context["lang"] = lang
+
+    return templates.TemplateResponse(template_name, context)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Home page - list all categories."""
@@ -51,7 +80,7 @@ async def index(request: Request):
     all_players = player_repo.get_all()
     categories = sorted(set(p.categoria for p in all_players))
 
-    return templates.TemplateResponse(
+    return render_template(
         "index.html",
         {"request": request, "categories": categories}
     )
@@ -76,7 +105,7 @@ async def view_category(request: Request, category: str):
             "players": [p for p in players if p]  # Filter out None
         })
 
-    return templates.TemplateResponse(
+    return render_template(
         "category.html",
         {
             "request": request,
@@ -139,7 +168,7 @@ async def view_group_matches(request: Request, group_id: int):
             "player2_sets": match.player2_sets_won,
         })
 
-    return templates.TemplateResponse(
+    return render_template(
         "group_matches.html",
         {
             "request": request,

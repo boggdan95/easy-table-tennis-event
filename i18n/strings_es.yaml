@@ -1,27 +1,173 @@
 # Spanish translations
-app_title: "Gestor de Eventos de Tenis de Mesa"
-players: "Jugadores"
-groups: "Grupos"
-matches: "Partidos"
-standings: "Clasificación"
-bracket: "Llave eliminatoria"
-import_players: "Importar jugadores"
-build_groups: "Construir grupos"
-compute_standings: "Calcular clasificación"
-build_bracket: "Construir llave"
-enter_results: "Ingresar resultados"
-player_name: "Nombre"
-country: "País"
-ranking: "Ranking"
-points: "Puntos"
-wins: "Victorias"
-losses: "Derrotas"
-sets_won: "Sets ganados"
-sets_lost: "Sets perdidos"
-points_won: "Puntos ganados"
-points_lost: "Puntos perdidos"
-played: "Jugado"
-walkover: "Walkover"
-save: "Guardar"
-cancel: "Cancelar"
-export: "Exportar"
+
+# Application
+app:
+  title: "Gestor de Eventos de Tenis de Mesa"
+  version: "Versión {version}"
+  description: "Gestión de torneos de tenis de mesa con grupos round robin y llaves eliminatorias"
+
+# CLI Commands
+cli:
+  import_players:
+    description: "Importar jugadores desde CSV"
+    success: "Importados exitosamente {count} jugadores para categoría {category}"
+    error_file_not_found: "Archivo no encontrado: {path}"
+    error_invalid_csv: "Formato de CSV inválido: {error}"
+    error_validation: "Error de validación en fila {row}: {error}"
+
+  build_groups:
+    description: "Construir grupos round robin"
+    success: "Creados {count} grupos exitosamente"
+    progress: "Construyendo grupos con tamaño preferido de {size}..."
+    error_no_players: "No hay jugadores para formar grupos"
+    error_config: "Error en configuración: {error}"
+
+  compute_standings:
+    description: "Calcular clasificación de grupos"
+    success: "Clasificación calculada para {count} grupos"
+    progress: "Calculando clasificación..."
+    warning_no_results: "Advertencia: Algunos partidos no tienen resultados"
+
+  build_bracket:
+    description: "Construir llave eliminatoria"
+    success: "Llave eliminatoria creada con {size} posiciones"
+    progress: "Generando llave eliminatoria..."
+    error_no_standings: "Debe calcular clasificación primero"
+
+  open_panel:
+    description: "Abrir panel web local"
+    starting: "Iniciando servidor web en {host}:{port}..."
+    ready: "Panel disponible en http://{host}:{port}"
+    stopping: "Deteniendo servidor..."
+
+  export:
+    description: "Exportar datos a archivos"
+    success: "Exportado {what} a {path}"
+    error_no_data: "No hay datos de {what} para exportar"
+    error_invalid_format: "Formato no soportado: {format}"
+
+# Web Application
+webapp:
+  nav:
+    home: "Inicio"
+    players: "Jugadores"
+    groups: "Grupos"
+    matches: "Partidos"
+    standings: "Clasificación"
+    bracket: "Llave"
+
+  home:
+    welcome: "Bienvenido al Gestor de Eventos"
+    subtitle: "Gestiona torneos de tenis de mesa de forma sencilla"
+    quick_actions: "Acciones Rápidas"
+
+  players:
+    title: "Jugadores"
+    count: "{count} jugadores registrados"
+    import: "Importar jugadores"
+    no_players: "No hay jugadores registrados"
+
+  groups:
+    title: "Grupos"
+    group_number: "Grupo {number}"
+    no_groups: "No hay grupos creados"
+    create_groups: "Crear grupos"
+
+  matches:
+    title: "Partidos"
+    match_number: "Partido #{number}"
+    enter_result: "Ingresar resultado"
+    edit_result: "Editar resultado"
+    delete_result: "Eliminar resultado"
+    no_matches: "No hay partidos programados"
+    score: "Marcador"
+    player1: "Jugador 1"
+    player2: "Jugador 2"
+    sets: "Sets"
+    points_detail: "Puntos por set"
+    status:
+      pending: "Pendiente"
+      completed: "Completado"
+      walkover: "Walkover"
+
+  standings:
+    title: "Clasificación"
+    position: "Pos"
+    player: "Jugador"
+    matches_played: "PJ"
+    wins: "G"
+    losses: "P"
+    sets_won: "SW"
+    sets_lost: "SL"
+    sets_ratio: "S. Ratio"
+    points_won: "PW"
+    points_lost: "PL"
+    points_ratio: "P. Ratio"
+    total_points: "Pts"
+    no_standings: "No hay clasificación disponible"
+    calculate: "Calcular clasificación"
+
+  bracket:
+    title: "Llave Eliminatoria"
+    round_16: "Octavos de Final"
+    round_8: "Cuartos de Final"
+    round_4: "Semifinales"
+    round_2: "Final"
+    winner: "Ganador"
+    bye: "BYE"
+    same_country_warning: "⚠ Mismo país en 1ra ronda"
+    no_bracket: "No hay llave generada"
+    generate: "Generar llave"
+
+  forms:
+    save: "Guardar"
+    cancel: "Cancelar"
+    delete: "Eliminar"
+    edit: "Editar"
+    confirm: "Confirmar"
+    back: "Volver"
+    submit: "Enviar"
+    reset: "Reiniciar"
+
+# Validation Messages
+validation:
+  required_field: "El campo {field} es obligatorio"
+  invalid_gender: "Género debe ser M o F"
+  invalid_country: "Código de país debe ser ISO-3 (ej: ESP, MEX)"
+  invalid_ranking: "Ranking debe ser un número"
+  invalid_score: "Marcador inválido: {error}"
+  invalid_sets: "Los sets deben seguir reglas de tenis de mesa"
+  player_not_found: "Jugador no encontrado: {player}"
+  duplicate_player: "Jugador duplicado: {player}"
+
+# Table Tennis Rules
+rules:
+  scoring:
+    win: "Victoria: 2 puntos"
+    loss: "Derrota: 1 punto"
+    walkover: "Walkover (perdedor): 0 puntos"
+
+  tiebreak:
+    title: "Desempate (≥3 jugadores empatados)"
+    step1: "1. Ratio de sets (sets ganados / sets perdidos)"
+    step2: "2. Ratio de puntos (puntos ganados / puntos perdidos)"
+    step3: "3. Seed (menor seed gana)"
+
+  sets:
+    best_of_5: "Mejor de 5 sets"
+    best_of_7: "Mejor de 7 sets"
+    points_to_win: "11 puntos para ganar set"
+    deuce_rule: "Deuce a 10-10, ganar por 2"
+
+# Common
+common:
+  yes: "Sí"
+  no: "No"
+  loading: "Cargando..."
+  error: "Error"
+  success: "Éxito"
+  warning: "Advertencia"
+  info: "Información"
+  confirm_delete: "¿Está seguro que desea eliminar?"
+  action_required: "Acción requerida"
+  no_data: "No hay datos disponibles"

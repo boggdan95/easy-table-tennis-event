@@ -1,13 +1,26 @@
 """Command-line interface for ettem."""
 
+import os
 import click
 
 
 @click.group()
-@click.version_option(version="0.1.0")
-def cli():
+@click.version_option(version="1.0.1")
+@click.option("--lang", type=click.Choice(["es", "en"]), default=None,
+              help="Language (es=Spanish, en=English). Default: from ETTEM_LANG env or 'es'")
+@click.pass_context
+def cli(ctx, lang):
     """Easy Table Tennis Event Manager - CLI tool for managing table tennis tournaments."""
-    pass
+    # Store language in context for all subcommands
+    ctx.ensure_object(dict)
+
+    # Determine language: CLI arg > ENV > default
+    if lang:
+        ctx.obj["lang"] = lang
+        os.environ["ETTEM_LANG"] = lang
+    else:
+        from ettem.i18n import get_language_from_env
+        ctx.obj["lang"] = get_language_from_env()
 
 
 @cli.command()
@@ -436,9 +449,101 @@ def build_bracket(category: str, config: str):
 @click.option("--format", type=click.Choice(["csv"]), default="csv")
 @click.option("--out", required=True, help="Output directory")
 def export(what: str, format: str, out: str):
-    """Export data to files."""
-    click.echo(f"Exporting {what} as {format} to {out}")
-    # TODO: Implement
+    """Export data to files.
+
+    Example:
+        ettem export --what standings --format csv --out out/
+    """
+    from pathlib import Path
+    from ettem.storage import (
+        DatabaseManager,
+        PlayerRepository,
+        GroupRepository,
+        StandingRepository,
+        BracketRepository,
+        MatchRepository
+    )
+    from ettem.io_csv import export_groups_csv, export_standings_csv, export_bracket_csv
+
+    try:
+        click.echo(f"[INFO] Exporting {what} as {format} to {out}")
+
+        # Create output directory if it doesn't exist
+        out_dir = Path(out)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize database and repositories
+        db = DatabaseManager()
+        session = db.get_session()
+        player_repo = PlayerRepository(session)
+
+        # Get all players for lookups
+        players = player_repo.get_all()
+        players_by_id = {p.id: p for p in players}
+
+        if what == "groups":
+            click.echo("[LOAD] Loading groups and matches...")
+            group_repo = GroupRepository(session)
+            match_repo = MatchRepository(session)
+
+            groups = group_repo.get_all()
+
+            if not groups:
+                click.echo("[ERROR]  No groups found. Run 'build-groups' first.", err=True)
+                return
+
+            # Get matches by group
+            matches_by_group = {}
+            for group in groups:
+                matches_by_group[group.id] = match_repo.get_by_group(group.id)
+
+            # Export
+            output_file = out_dir / "groups.csv"
+            click.echo(f"[EXPORT] Writing to {output_file}...")
+            export_groups_csv(groups, players_by_id, matches_by_group, str(output_file))
+            click.echo(f"[SUCCESS] Exported {len(groups)} groups to {output_file}")
+
+        elif what == "standings":
+            click.echo("[LOAD] Loading standings...")
+            standing_repo = StandingRepository(session)
+
+            standings = standing_repo.get_all()
+
+            if not standings:
+                click.echo("[ERROR]  No standings found. Run 'compute-standings' first.", err=True)
+                return
+
+            # Export
+            output_file = out_dir / "standings.csv"
+            click.echo(f"[EXPORT] Writing to {output_file}...")
+            export_standings_csv(standings, players_by_id, str(output_file))
+            click.echo(f"[SUCCESS] Exported {len(standings)} standings to {output_file}")
+
+        elif what == "bracket":
+            click.echo("[LOAD] Loading bracket...")
+            bracket_repo = BracketRepository(session)
+
+            bracket = bracket_repo.get_bracket()
+
+            if not bracket:
+                click.echo("[ERROR]  No bracket found. Run 'build-bracket' first.", err=True)
+                return
+
+            # Export
+            output_file = out_dir / "bracket.csv"
+            click.echo(f"[EXPORT] Writing to {output_file}...")
+            export_bracket_csv(bracket, players_by_id, str(output_file))
+
+            # Count total slots
+            total_slots = sum(len(slots) for slots in bracket.slots.values())
+            click.echo(f"[SUCCESS] Exported bracket with {total_slots} slots to {output_file}")
+
+        session.close()
+        click.echo("\n[DONE] Export completed successfully!")
+
+    except Exception as e:
+        click.echo(f"[ERROR] Unexpected error during export: {e}", err=True)
+        raise
 
 
 if __name__ == "__main__":
