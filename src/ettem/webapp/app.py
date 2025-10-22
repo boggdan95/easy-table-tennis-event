@@ -75,14 +75,19 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     context["lang"] = lang
 
     # Add global data (categories for sidebar)
+    session = None
     try:
         session = get_db_session()
         player_repo = PlayerRepository(session)
         all_players = player_repo.get_all()
         categories = sorted(set(p.categoria for p in all_players))
         context["categories"] = categories
-    except:
+    except Exception as e:
+        print(f"[ERROR] Failed to load categories: {e}")
         context["categories"] = []
+    finally:
+        if session:
+            session.close()
 
     # Extract flash message and form values from session if available
     request = context.get("request")
@@ -92,11 +97,13 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
         form_values = request.session.pop("form_values", None)
 
         if flash_message:
-            print(f"[DEBUG] Flash message found: {flash_message} (type: {flash_type})")
+            # Use repr() to safely print any Unicode characters
+            try:
+                print(f"[DEBUG] Flash message found: {repr(flash_message)} (type: {flash_type})")
+            except:
+                print(f"[DEBUG] Flash message found (type: {flash_type})")
             context["flash_message"] = flash_message
             context["flash_type"] = flash_type
-        else:
-            print(f"[DEBUG] No flash message in session")
 
         if form_values:
             print(f"[DEBUG] Form values found: {form_values}")

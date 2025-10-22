@@ -20,6 +20,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from ettem.models import Gender, MatchStatus, RoundType
 
@@ -204,7 +205,13 @@ class DatabaseManager:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine = create_engine(f"sqlite:///{self.db_path}", echo=False)
+        # Use NullPool for SQLite to avoid connection pool issues
+        self.engine = create_engine(
+            f"sqlite:///{self.db_path}",
+            echo=False,
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False}
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def create_tables(self):
