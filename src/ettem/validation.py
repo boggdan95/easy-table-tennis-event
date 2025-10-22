@@ -46,10 +46,10 @@ def validate_tt_set(score_a: int, score_b: int) -> tuple[bool, str]:
     """
     # Validate inputs
     if score_a < 0 or score_b < 0:
-        return False, "Scores cannot be negative"
+        return False, "Los puntajes no pueden ser negativos"
 
     if score_a == score_b:
-        return False, "Set cannot be tied (must have a winner)"
+        return False, "El set no puede estar empatado (debe haber un ganador)"
 
     winner_score = max(score_a, score_b)
     loser_score = min(score_a, score_b)
@@ -57,19 +57,19 @@ def validate_tt_set(score_a: int, score_b: int) -> tuple[bool, str]:
 
     # Rule 1: Winner must reach at least 11 points
     if winner_score < 11:
-        return False, f"Winner must reach at least 11 points (current: {winner_score})"
+        return False, f"El ganador debe alcanzar al menos 11 puntos (actual: {winner_score})"
 
     # Rule 2: In deuce situation (both players ≥ 10), difference must be exactly 2
     if loser_score >= 10:
         if diff != 2:
             return (
                 False,
-                f"In deuce (≥10-10), winner must have exactly +2 points (current difference: {diff})",
+                f"En deuce (≥10-10), el ganador debe tener exactamente +2 puntos (diferencia actual: {diff})",
             )
 
     # Rule 3: Normal situation (loser < 10), difference must be at least 2
     elif diff < 2:
-        return False, f"Winner must have at least +2 points (current difference: {diff})"
+        return False, f"El ganador debe tener al menos +2 puntos (diferencia actual: {diff})"
 
     return True, ""
 
@@ -98,17 +98,17 @@ def validate_match_sets(
         (False, 'Set 2: In deuce (≥10-10), winner must have exactly +2 points (current difference: 1)')
     """
     if not sets:
-        return False, "Match must have at least one set"
+        return False, "El partido debe tener al menos un set"
 
     # Validate number of sets
     max_sets = best_of
     min_sets = (best_of // 2) + 1  # Minimum sets to win
 
     if len(sets) > max_sets:
-        return False, f"Too many sets for best-of-{best_of} format (max: {max_sets}, got: {len(sets)})"
+        return False, f"Demasiados sets para formato mejor de {best_of} (máximo: {max_sets}, ingresados: {len(sets)})"
 
     if len(sets) < min_sets:
-        return False, f"Not enough sets played (minimum {min_sets} for best-of-{best_of}, got: {len(sets)})"
+        return False, f"No hay suficientes sets jugados (mínimo {min_sets} para mejor de {best_of}, ingresados: {len(sets)})"
 
     # Validate each set individually
     for idx, (score_a, score_b) in enumerate(sets, start=1):
@@ -122,14 +122,14 @@ def validate_match_sets(
     p2_sets_won = sum(1 for s_a, s_b in sets if s_b > s_a)
 
     if p1_sets_won < sets_to_win and p2_sets_won < sets_to_win:
-        return False, f"Match incomplete: neither player has won {sets_to_win} sets (best-of-{best_of})"
+        return False, f"Partido incompleto: ningún jugador ha ganado {sets_to_win} sets (mejor de {best_of})"
 
     # Validate that match wasn't played beyond necessary
     if p1_sets_won == sets_to_win or p2_sets_won == sets_to_win:
         # Check if there are extra sets after someone already won
         sets_after_winner = len(sets) - (p1_sets_won + p2_sets_won)
         if sets_after_winner > 0:
-            return False, "Match has extra sets after a winner was determined"
+            return False, "El partido tiene sets extras después de que se determinó un ganador"
 
     return True, ""
 
@@ -148,6 +148,6 @@ def validate_walkover(
         Tuple of (is_valid, error_message)
     """
     if winner_id not in (player1_id, player2_id):
-        return False, "Winner must be one of the two players in the match"
+        return False, "El ganador debe ser uno de los dos jugadores del partido"
 
     return True, ""

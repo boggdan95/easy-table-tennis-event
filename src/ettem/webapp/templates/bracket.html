@@ -1,8 +1,26 @@
 {% extends "base.html" %}
+
 {% block title %}Llave - {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ category }} - Llave Eliminatoria{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
 {% block content %}
-<h1>{{ category }} - Llave de Eliminacion Directa</h1>
-<p><a href="/category/{{ category }}" class="btn">Volver a Categoria</a></p>
+<!-- Bracket Info Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h2 class="card-title">🏅 Llave de Eliminación Directa</h2>
+    </div>
+    <div class="card-body">
+        <p>Visualización del cuadro de eliminación directa con los clasificados de los grupos.</p>
+    </div>
+</div>
 
 <div class="bracket-container">
     {% for round_type, slots in slots_by_round.items() %}
@@ -67,13 +85,14 @@
 }
 
 .round-header {
-    background-color: #1565C0;
+    background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
     color: white;
     padding: 12px;
     text-align: center;
     font-weight: bold;
-    border-radius: 4px;
+    border-radius: var(--border-radius);
     margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
 }
 
 .matches-container {
@@ -101,10 +120,16 @@
     align-items: center;
     gap: 8px;
     padding: 10px 12px;
-    background-color: #ffffff;
-    border: 2px solid #333;
-    border-radius: 4px;
+    background-color: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
     min-height: 40px;
+    transition: all 0.2s ease;
+}
+
+.player-slot:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--primary-color);
 }
 
 .player-slot.bye {
@@ -124,10 +149,10 @@
 }
 
 .slot-num {
-    background-color: #1976D2;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
     padding: 4px 8px;
-    border-radius: 3px;
+    border-radius: var(--border-radius);
     font-weight: bold;
     font-size: 0.85em;
     min-width: 30px;
@@ -174,13 +199,17 @@
 }
 </style>
 
-<div style="margin-top: 30px; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #1565C0;">
-    <p><strong>Leyenda:</strong></p>
-    <ul style="margin: 10px 0;">
-        <li><strong>#N</strong> - Posicion en el cuadro (1 = tope, ultimo = fondo)</li>
-        <li><strong>BYE</strong> - El jugador pasa automaticamente a la siguiente ronda</li>
-        <li><strong>Borde naranja</strong> - Aviso de jugadores del mismo pais (informativo)</li>
-    </ul>
+<!-- Legend Card -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">ℹ️ Leyenda</h3>
+    </div>
+    <div class="card-body">
+        <ul style="margin: 0; padding-left: 1.5rem; line-height: 1.8;">
+            <li><strong>#N</strong> - Posición en el cuadro (1 = tope, último = fondo)</li>
+            <li><strong>BYE</strong> - El jugador pasa automáticamente a la siguiente ronda</li>
+            <li><strong>Borde naranja</strong> - Aviso de jugadores del mismo país (informativo)</li>
+        </ul>
+    </div>
 </div>
-
 {% endblock %}

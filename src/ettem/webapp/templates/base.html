@@ -1,43 +1,85 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ lang or 'es' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Easy Table Tennis Event Manager{% endblock %}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
-        h1, h2 { color: #333; }
-        .nav { margin-bottom: 20px; padding: 10px; background: #007bff; color: white; border-radius: 4px; }
-        .nav a { color: white; margin-right: 15px; text-decoration: none; }
-        .nav a:hover { text-decoration: underline; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: #007bff; color: white; }
-        tr:hover { background-color: #f1f1f1; }
-        .btn { display: inline-block; padding: 8px 16px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; }
-        .btn:hover { background: #0056b3; }
-        .btn-success { background: #28a745; }
-        .btn-success:hover { background: #218838; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-warning:hover { background: #e0a800; }
-        .group-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 4px; }
-        .status-pending { color: #6c757d; }
-        .status-completed { color: #28a745; font-weight: bold; }
-        .status-walkover { color: #dc3545; }
-        form { margin: 20px 0; }
-        label { display: block; margin: 10px 0 5px; font-weight: bold; }
-        input[type="number"] { padding: 8px; width: 80px; border: 1px solid #ddd; border-radius: 4px; }
-        input[type="checkbox"] { margin-right: 5px; }
-    </style>
+    <title>{% block title %}ETTEM - Event Manager{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <div class="container">
-        <div class="nav">
-            <a href="/">Inicio</a>
-            {% block nav %}{% endblock %}
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>
+                    <span class="logo">🏓</span>
+                    ETTEM
+                </h1>
+                <div class="subtitle">Table Tennis Manager</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Principal</div>
+                    <a href="/" class="nav-link">
+                        <span class="icon">🏠</span>
+                        <span>Inicio</span>
+                    </a>
+                </div>
+
+                {% if categories %}
+                <div class="nav-section">
+                    <div class="nav-section-title">Categorías</div>
+                    {% for cat in categories %}
+                    <a href="/category/{{ cat }}" class="nav-link">
+                        <span class="icon">🏆</span>
+                        <span>{{ cat }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block sidebar_nav %}{% endblock %}
+            </nav>
+
+            <div class="sidebar-footer">
+                <div>ETTEM v1.0.2</div>
+                <div style="opacity: 0.6; font-size: 0.75rem;">Easy Table Tennis Event Manager</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="topbar-title">
+                    {% block page_title %}Dashboard{% endblock %}
+                </div>
+                <div class="topbar-actions">
+                    {% block topbar_actions %}
+                    <select class="form-control" style="width: auto;" onchange="window.location.href='?lang='+this.value">
+                        <option value="es" {{ 'selected' if lang == 'es' }}>🇪🇸 Español</option>
+                        <option value="en" {{ 'selected' if lang == 'en' }}>🇬🇧 English</option>
+                    </select>
+                    {% endblock %}
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="content">
+                {% block content %}{% endblock %}
+            </main>
         </div>
-        {% block content %}{% endblock %}
     </div>
+
+    <!-- JavaScript -->
+    <script src="/static/app.js"></script>
+    {% block extra_js %}{% endblock %}
+
+    <!-- Flash Messages (converted to toasts) -->
+    {% if flash_message %}
+    <div data-flash-message="{{ flash_message }}" data-flash-type="{{ flash_type or 'info' }}" style="display:none;"></div>
+    {% endif %}
 </body>
 </html>

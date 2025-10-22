@@ -1,43 +1,119 @@
 {% extends "base.html" %}
+
 {% block title %}Partidos Grupo {{ group.name }} - ETTEM{% endblock %}
+
+{% block page_title %}Grupo {{ group.name }} - Partidos{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
 {% block content %}
-<h1>Grupo {{ group.name }} - Partidos</h1>
-<p>
-    <a href="/category/{{ category }}" class="btn">Volver a Categoria</a>
-    <a href="/group/{{ group.id }}/sheet" class="btn">Ver Hoja de Grupo</a>
-    <a href="/group/{{ group.id }}/standings" class="btn btn-success">Ver Clasificacion</a>
-</p>
-<table>
-<tr><th>#</th><th>Jugador 1</th><th>vs</th><th>Jugador 2</th><th>Resultado</th><th>Estado</th><th>Accion</th></tr>
-{% for m in matches %}
-<tr>
-    <td>{{ m.match.match_number }}</td>
-    <td>{{ m.player1.nombre }} {{ m.player1.apellido }}</td>
-    <td>vs</td>
-    <td>{{ m.player2.nombre }} {{ m.player2.apellido }}</td>
-    <td>
-        {% if m.match.status == 'WALKOVER' %}
-            {% if m.match.winner_id == m.player1.id %}
-                3-0 (WO)
-            {% else %}
-                0-3 (WO)
-            {% endif %}
-        {% else %}
-            {{ m.player1_sets }}-{{ m.player2_sets }}
-        {% endif %}
-    </td>
-    <td class="status-{{ m.match.status }}">{{ m.match.status }}</td>
-    <td>
-        {% if m.match.status == 'pending' %}
-            <a href="/match/{{ m.match.id }}/enter-result" class="btn btn-success">Ingresar Resultado</a>
-        {% else %}
-            <a href="/match/{{ m.match.id }}/enter-result" class="btn btn-warning">Editar</a>
-            <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" onsubmit="return confirm('¿Está seguro de eliminar este resultado?');">
-                <button type="submit" class="btn btn-danger">Eliminar</button>
-            </form>
-        {% endif %}
-    </td>
-</tr>
-{% endfor %}
-</table>
+<!-- Navigation Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <a href="/group/{{ group.id }}/standings" class="btn btn-success">
+                <span>📊</span>
+                <span>Ver Clasificación</span>
+            </a>
+            <a href="/group/{{ group.id }}/sheet" class="btn btn-secondary">
+                <span>📄</span>
+                <span>Ver Hoja de Grupo</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Matches Table Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Lista de Partidos</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th>Jugador 1</th>
+                        <th style="width: 40px; text-align: center;">vs</th>
+                        <th>Jugador 2</th>
+                        <th style="width: 120px; text-align: center;">Resultado</th>
+                        <th style="width: 120px; text-align: center;">Estado</th>
+                        <th style="width: 200px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in matches %}
+                    <tr>
+                        <td><span class="badge badge-secondary">{{ m.match.match_number }}</span></td>
+                        <td>
+                            <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>
+                        </td>
+                        <td style="text-align: center; color: var(--text-muted);">vs</td>
+                        <td>
+                            <strong>{{ m.player2.nombre }} {{ m.player2.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player2.pais_cd }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.match.status == 'WALKOVER' %}
+                                {% if m.match.winner_id == m.player1.id %}
+                                    <span class="badge badge-warning">3-0 (WO)</span>
+                                {% else %}
+                                    <span class="badge badge-warning">0-3 (WO)</span>
+                                {% endif %}
+                            {% elif m.match.status != 'pending' %}
+                                <span class="badge badge-success" style="font-size: 1rem;">{{ m.player1_sets }}-{{ m.player2_sets }}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.match.status == 'pending' %}
+                                <span class="badge badge-secondary">Pendiente</span>
+                            {% elif m.match.status == 'WALKOVER' %}
+                                <span class="badge badge-warning">Walkover</span>
+                            {% else %}
+                                <span class="badge badge-success">Completado</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="d-flex gap-1" style="justify-content: center;">
+                                {% if m.match.status == 'pending' %}
+                                    <a href="/match/{{ m.match.id }}/enter-result"
+                                       class="btn btn-success btn-sm"
+                                       title="Ingresar resultado"
+                                       style="padding: 0.25rem 0.5rem;">
+                                        ✓
+                                    </a>
+                                {% else %}
+                                    <a href="/match/{{ m.match.id }}/enter-result"
+                                       class="btn btn-warning btn-sm"
+                                       title="Editar resultado"
+                                       style="padding: 0.25rem 0.5rem;">
+                                        ✎
+                                    </a>
+                                    <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" data-confirm="¿Está seguro de eliminar este resultado?">
+                                        <button type="submit"
+                                                class="btn btn-danger btn-sm"
+                                                title="Eliminar resultado"
+                                                style="padding: 0.25rem 0.5rem;">
+                                            ✕
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

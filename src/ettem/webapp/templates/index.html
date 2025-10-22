@@ -1,15 +1,145 @@
 {% extends "base.html" %}
+
 {% block title %}Inicio - ETTEM{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
-<h1>Easy Table Tennis Event Manager</h1>
-<h2>Categorias</h2>
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">🏓 Bienvenido a Easy Table Tennis Event Manager</h2>
+    </div>
+    <div class="card-body">
+        <p>Sistema profesional para gestionar torneos de tenis de mesa con grupos round robin y llaves eliminatorias.</p>
+    </div>
+</div>
+
 {% if categories %}
-<ul>
-{% for category in categories %}
-    <li><a href="/category/{{ category }}" class="btn">{{ category }}</a></li>
-{% endfor %}
-</ul>
+    <!-- Stats Overview -->
+    <div class="grid grid-3 mb-3">
+        <div class="stat-card">
+            <div class="stat-value">{{ categories|length }}</div>
+            <div class="stat-label">Categorías Activas</div>
+        </div>
+        <div class="stat-card secondary">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Partidos Pendientes</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Partidos Completados</div>
+        </div>
+    </div>
+
+    <!-- Categories List -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Categorías Disponibles</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-2">
+                {% for category in categories %}
+                <a href="/category/{{ category }}" class="card" style="text-decoration: none; transition: all 0.2s;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div style="font-size: 2rem;">🏆</div>
+                            <div>
+                                <h4 style="margin: 0; color: var(--text-primary); font-size: 1.25rem;">{{ category }}</h4>
+                                <p style="margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.875rem;">
+                                    Clic para ver detalles
+                                </p>
+                            </div>
+                        </div>
+                        <div style="font-size: 1.5rem; color: var(--primary-color);">→</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Gestión de Torneo</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-2 mb-3">
+                <a href="/admin/import-players" class="btn btn-primary" style="justify-content: flex-start;">
+                    <span>📥</span>
+                    <span>Importar Jugadores</span>
+                </a>
+                <a href="/admin/create-groups" class="btn btn-secondary" style="justify-content: flex-start;">
+                    <span>👥</span>
+                    <span>Crear Grupos</span>
+                </a>
+                <a href="/admin/calculate-standings" class="btn btn-success" style="justify-content: flex-start;">
+                    <span>📊</span>
+                    <span>Calcular Standings</span>
+                </a>
+                <a href="/admin/generate-bracket" class="btn btn-warning" style="justify-content: flex-start;">
+                    <span>🏅</span>
+                    <span>Generar Bracket</span>
+                </a>
+            </div>
+            <div class="alert alert-info" style="margin: 0;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Gestión Completa desde la UI</div>
+                    <div>Todas las operaciones del torneo ahora disponibles directamente desde la interfaz web.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 {% else %}
-<p>No hay categorias. Importa jugadores primero.</p>
+    <div class="alert alert-warning">
+        <span class="icon">⚠️</span>
+        <div class="alert-content">
+            <div class="alert-title">Sin Categorías</div>
+            <div>No hay categorías registradas. Importa jugadores primero usando el comando CLI:</div>
+            <code style="display: block; margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                ettem import-players --csv data/samples/players.csv --category U13
+            </code>
+        </div>
+    </div>
+
+    <!-- Getting Started Guide -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🚀 Guía de Inicio</h3>
+        </div>
+        <div class="card-body">
+            <ol style="padding-left: 1.5rem; line-height: 1.8;">
+                <li><strong>Importar jugadores:</strong> <code>ettem import-players --csv tu_archivo.csv --category U13</code></li>
+                <li><strong>Crear grupos:</strong> <code>ettem build-groups --config config/sample_config.yaml --category U13</code></li>
+                <li><strong>Ingresar resultados:</strong> Usa esta interfaz web para registrar los partidos</li>
+                <li><strong>Calcular standings:</strong> <code>ettem compute-standings --category U13</code></li>
+                <li><strong>Generar bracket:</strong> <code>ettem build-bracket --category U13 --config config/sample_config.yaml</code></li>
+            </ol>
+        </div>
+    </div>
 {% endif %}
+
+<!-- System Info -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">ℹ️ Información del Sistema</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2">
+            <div>
+                <strong>Versión:</strong> 1.0.2
+            </div>
+            <div>
+                <strong>Idioma:</strong> {{ 'Español' if lang == 'es' else 'English' }}
+            </div>
+            <div>
+                <strong>Base de Datos:</strong> SQLite (.ettem/ettem.sqlite)
+            </div>
+            <div>
+                <strong>Estado:</strong> <span class="badge badge-success">Operativo</span>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

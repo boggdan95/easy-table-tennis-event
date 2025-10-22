@@ -1,14 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Hoja Grupo {{ group.name }} - ETTEM{% endblock %}
-{% block content %}
-<h1>Grupo {{ group.name }} - Hoja de Grupo</h1>
-<p>
-    <a href="/category/{{ category }}" class="btn">Volver a Categoria</a>
-    <a href="/group/{{ group.id }}/standings" class="btn">Ver Clasificacion Final</a>
-    <a href="/group/{{ group.id }}/matches" class="btn">Ver Lista de Partidos</a>
-</p>
 
-<h2>Resultados (Orden Original de Sorteo)</h2>
+{% block title %}Hoja Grupo {{ group.name }} - ETTEM{% endblock %}
+
+{% block page_title %}Grupo {{ group.name }} - Hoja{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Navigation Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <a href="/group/{{ group.id }}/matches" class="btn btn-primary">
+                <span>📋</span>
+                <span>Ver Lista de Partidos</span>
+            </a>
+            <a href="/group/{{ group.id }}/standings" class="btn btn-success">
+                <span>📊</span>
+                <span>Ver Clasificación Final</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Group Sheet Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📄 Matriz de Resultados (Orden Original de Sorteo)</h3>
+    </div>
+    <div class="card-body" style="padding: 0; overflow-x: auto;">
 <table class="group-sheet-matrix">
     <thead>
         <tr>
@@ -52,15 +77,21 @@
         {% endfor %}
     </tbody>
 </table>
-
-<div style="margin-top: 20px; font-size: 0.9em; color: #666;">
-    <p><strong>Nota:</strong></p>
-    <ul>
-        <li>La posicion en la tabla es el orden original de sorteo (snake seeding)</li>
-        <li>Los numeros en las columnas representan la posicion asignada en el grupo</li>
-        <li>La matriz muestra el resultado desde la perspectiva del jugador de la fila</li>
-        <li>Para ver la clasificacion final ordenada por puntos, click en "Ver Clasificacion Final"</li>
-    </ul>
+    </div>
+    <div class="card-footer">
+        <div class="alert alert-info" style="margin: 0;">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">Nota sobre la Hoja de Grupo</div>
+                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; line-height: 1.8;">
+                    <li>La posición en la tabla es el orden original de sorteo (snake seeding)</li>
+                    <li>Los números en las columnas representan la posición asignada en el grupo</li>
+                    <li>La matriz muestra el resultado desde la perspectiva del jugador de la fila</li>
+                    <li>Para ver la clasificación final ordenada por puntos, click en "Ver Clasificación Final"</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -78,16 +109,21 @@
 }
 
 .group-sheet-matrix th {
-    background-color: #4CAF50;
+    background: linear-gradient(135deg, var(--success-color), var(--success-dark));
     color: white;
+    font-weight: 600;
 }
 
 .group-sheet-matrix tbody tr:nth-child(even) {
-    background-color: #f2f2f2;
+    background-color: var(--card-bg-secondary);
+}
+
+.group-sheet-matrix tbody tr:hover {
+    background-color: var(--primary-light);
 }
 
 .matrix-diagonal {
-    background-color: #333;
+    background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
     color: white;
     font-weight: bold;
 }
@@ -109,8 +145,9 @@
 }
 
 .group-sheet-matrix td:first-child {
-    background-color: #e3f2fd;
+    background: linear-gradient(135deg, var(--primary-light), #fff);
     font-weight: bold;
+    border-right: 2px solid var(--primary-color);
 }
 </style>
 {% endblock %}

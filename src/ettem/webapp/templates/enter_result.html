@@ -1,46 +1,165 @@
 {% extends "base.html" %}
+
 {% block title %}{% if match.status == 'pending' %}Ingresar{% else %}Editar{% endif %} Resultado - ETTEM{% endblock %}
+
+{% block page_title %}{% if match.status == 'pending' %}Ingresar{% else %}Editar{% endif %} Resultado{% endblock %}
+
+{% block topbar_actions %}
+<a href="/group/{{ match.group_id }}/matches" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Cancelar</span>
+</a>
+{% endblock %}
+
 {% block content %}
-<h1>{% if match.status == 'pending' %}Ingresar{% else %}Editar{% endif %} Resultado del Partido</h1>
-<h2>{{ player1.nombre }} {{ player1.apellido }} vs {{ player2.nombre }} {{ player2.apellido }}</h2>
+<!-- Match Info Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Partido</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; font-size: 1.25rem;">
+            <div style="text-align: right; flex: 1;">
+                <strong>{{ player1.nombre }} {{ player1.apellido }}</strong>
+                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ player1.pais_cd }}</span>
+            </div>
+            <div style="font-size: 1.5rem; color: var(--text-muted);">VS</div>
+            <div style="text-align: left; flex: 1;">
+                <strong>{{ player2.nombre }} {{ player2.apellido }}</strong>
+                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ player2.pais_cd }}</span>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% if match.status != 'pending' %}
-<div style="background: #fff3cd; padding: 10px; margin-bottom: 15px; border-radius: 5px;">
-    ⚠️ Está editando un resultado existente. Los cambios sobrescribirán el resultado anterior.
+<div class="alert alert-warning mb-3">
+    <span class="icon">⚠️</span>
+    <div class="alert-content">
+        <div class="alert-title">Editando Resultado</div>
+        <div>Está editando un resultado existente. Los cambios sobrescribirán el resultado anterior.</div>
+    </div>
 </div>
 {% endif %}
 
-<form method="post" action="/match/{{ match.id }}/save-result">
-    <h3>Sets (dejar vacio los no jugados)</h3>
-    {% for i in range(1, 6) %}
-    <div>
-        <label>Set {{ i }}:</label>
-        {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
-        <input type="number" name="set{{ i }}_p1" min="0" max="99"
-               placeholder="{{ player1.apellido }}"
-               {% if set_data %}value="{{ set_data.player1_points }}"{% endif %}>
-        -
-        <input type="number" name="set{{ i }}_p2" min="0" max="99"
-               placeholder="{{ player2.apellido }}"
-               {% if set_data %}value="{{ set_data.player2_points }}"{% endif %}>
+<!-- Result Form Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Ingresar Sets</h3>
     </div>
-    {% endfor %}
-    <div style="margin-top: 20px;">
-        <label><input type="checkbox" name="is_walkover" value="true"
-                      {% if match.status == 'WALKOVER' %}checked{% endif %}> Walkover (WO)</label>
-        <label>Si WO, ganador:
-            <select name="winner_id">
-                <option value="">-</option>
-                <option value="{{ player1.id }}"
-                        {% if match.winner_id == player1.id %}selected{% endif %}>{{ player1.apellido }}</option>
-                <option value="{{ player2.id }}"
-                        {% if match.winner_id == player2.id %}selected{% endif %}>{{ player2.apellido }}</option>
-            </select>
-        </label>
+    <div class="card-body">
+        <form method="post" action="/match/{{ match.id }}/save-result" data-match-form>
+            <div class="form-section">
+                <label class="form-label">Sets (dejar vacío los no jugados)</label>
+
+                <!-- Horizontal Table Layout -->
+                <div style="overflow-x: auto;">
+                    <table class="table" style="margin: 0;">
+                        <thead>
+                            <tr>
+                                <th style="width: 180px;">Jugador</th>
+                                <th style="width: 100px; text-align: center;">Set 1</th>
+                                <th style="width: 100px; text-align: center;">Set 2</th>
+                                <th style="width: 100px; text-align: center;">Set 3</th>
+                                <th style="width: 100px; text-align: center;">Set 4</th>
+                                <th style="width: 100px; text-align: center;">Set 5</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>{{ player1.apellido }}</strong></td>
+                                {% for i in range(1, 6) %}
+                                {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
+                                {% set saved_value = form_values.get('set' + i|string + '_p1', '') if form_values else '' %}
+                                {% set display_value = saved_value if saved_value != '' else (set_data.player1_points if set_data else '') %}
+                                <td style="text-align: center;">
+                                    <input type="number"
+                                           name="set{{ i }}_p1"
+                                           min="0"
+                                           max="99"
+                                           class="form-control score-input"
+                                           tabindex="{{ (i-1)*2 + 1 }}"
+                                           style="width: 80px; margin: 0 auto; text-align: center;"
+                                           placeholder="-"
+                                           {% if display_value != '' %}value="{{ display_value }}"{% endif %}>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td><strong>{{ player2.apellido }}</strong></td>
+                                {% for i in range(1, 6) %}
+                                {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
+                                {% set saved_value = form_values.get('set' + i|string + '_p2', '') if form_values else '' %}
+                                {% set display_value = saved_value if saved_value != '' else (set_data.player2_points if set_data else '') %}
+                                <td style="text-align: center;">
+                                    <input type="number"
+                                           name="set{{ i }}_p2"
+                                           min="0"
+                                           max="99"
+                                           class="form-control score-input"
+                                           tabindex="{{ (i-1)*2 + 2 }}"
+                                           style="width: 80px; margin: 0 auto; text-align: center;"
+                                           placeholder="-"
+                                           {% if display_value != '' %}value="{{ display_value }}"{% endif %}>
+                                </td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-row">
+                    <label class="form-label">
+                        <input type="checkbox"
+                               name="is_walkover"
+                               value="true"
+                               {% if match.status == 'WALKOVER' %}checked{% endif %}
+                               style="margin-right: 0.5rem;">
+                        Walkover (WO)
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label class="form-label">Si es WO, seleccionar ganador:</label>
+                    <select name="winner_id" class="form-control" style="max-width: 300px;">
+                        <option value="">-</option>
+                        <option value="{{ player1.id }}"
+                                {% if match.winner_id == player1.id %}selected{% endif %}>
+                            {{ player1.nombre }} {{ player1.apellido }}
+                        </option>
+                        <option value="{{ player2.id }}"
+                                {% if match.winner_id == player2.id %}selected{% endif %}>
+                            {{ player2.nombre }} {{ player2.apellido }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Instrucciones</div>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                        <li>Ingresa los puntos de cada set jugado</li>
+                        <li>Deja vacíos los sets no jugados</li>
+                        <li>Para un walkover: marca la casilla y selecciona el ganador</li>
+                        <li>Los errores de validación se mostrarán como notificaciones</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Guardar Resultado</span>
+                </button>
+                <a href="/group/{{ match.group_id }}/matches" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+            </div>
+        </form>
     </div>
-    <div style="margin-top: 20px;">
-        <button type="submit" class="btn btn-success">Guardar Resultado</button>
-        <a href="/group/{{ match.group_id }}/matches" class="btn">Cancelar</a>
-    </div>
-</form>
+</div>
 {% endblock %}

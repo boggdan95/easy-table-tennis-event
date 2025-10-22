@@ -1,23 +1,105 @@
 {% extends "base.html" %}
-{% block title %}Clasificacion Grupo {{ group.name }} - ETTEM{% endblock %}
+
+{% block title %}Clasificación Grupo {{ group.name }} - ETTEM{% endblock %}
+
+{% block page_title %}Grupo {{ group.name }} - Clasificación{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
 {% block content %}
-<h1>Grupo {{ group.name }} - Clasificacion Final</h1>
-<p>
-    <a href="/category/{{ category }}" class="btn">Volver a Categoria</a>
-    <a href="/group/{{ group.id }}/sheet" class="btn">Ver Hoja de Grupo</a>
-    <a href="/group/{{ group.id }}/matches" class="btn">Ver Lista de Partidos</a>
-</p>
-<table>
-<tr><th>Pos</th><th>Jugador</th><th>Pts</th><th>V-D</th><th>Sets</th><th>Puntos</th></tr>
-{% for s in standings %}
-<tr>
-    <td>{{ s.standing.position }}</td>
-    <td>{{ s.player.nombre }} {{ s.player.apellido }}</td>
-    <td>{{ s.standing.points_total }}</td>
-    <td>{{ s.standing.wins }}-{{ s.standing.losses }}</td>
-    <td>{{ s.standing.sets_w }}-{{ s.standing.sets_l }}</td>
-    <td>{{ s.standing.points_w }}-{{ s.standing.points_l }}</td>
-</tr>
-{% endfor %}
-</table>
+<!-- Navigation Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <a href="/group/{{ group.id }}/matches" class="btn btn-primary">
+                <span>📋</span>
+                <span>Ver Lista de Partidos</span>
+            </a>
+            <a href="/group/{{ group.id }}/sheet" class="btn btn-secondary">
+                <span>📄</span>
+                <span>Ver Hoja de Grupo</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Standings Table Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">🏆 Clasificación Final</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 80px; text-align: center;">Posición</th>
+                        <th>Jugador</th>
+                        <th style="width: 100px; text-align: center;">Puntos</th>
+                        <th style="width: 100px; text-align: center;">V-D</th>
+                        <th style="width: 120px; text-align: center;">Sets</th>
+                        <th style="width: 120px; text-align: center;">Puntos Juego</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in standings %}
+                    <tr {% if s.standing.position <= 2 %}style="background-color: var(--success-light);"{% endif %}>
+                        <td style="text-align: center;">
+                            {% if s.standing.position == 1 %}
+                                <span class="badge badge-success" style="font-size: 1.1rem;">🥇 1º</span>
+                            {% elif s.standing.position == 2 %}
+                                <span class="badge badge-success" style="font-size: 1.1rem;">🥈 2º</span>
+                            {% elif s.standing.position == 3 %}
+                                <span class="badge badge-warning">🥉 3º</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{{ s.standing.position }}º</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
+                                <span class="badge badge-secondary">{{ s.player.pais_cd }}</span>
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            <strong style="font-size: 1.1rem; color: var(--primary-color);">{{ s.standing.points_total }}</strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge {% if s.standing.wins > s.standing.losses %}badge-success{% elif s.standing.wins == s.standing.losses %}badge-warning{% else %}badge-danger{% endif %}">
+                                {{ s.standing.wins }}-{{ s.standing.losses }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary">{{ s.standing.sets_w }}-{{ s.standing.sets_l }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary">{{ s.standing.points_w }}-{{ s.standing.points_l }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="alert alert-info" style="margin: 0;">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">Reglas de Clasificación</div>
+                <div>
+                    <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
+                    <br>
+                    <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.
+                    <br>
+                    Los primeros 2 clasificados avanzan a la llave de eliminación directa.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from ettem.models import Match, MatchStatus, Player, Set
 from ettem.standings import calculate_standings
@@ -23,6 +24,12 @@ from ettem.i18n import load_strings, get_language_from_env
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
+
+# Add session middleware for flash messages
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="ettem-secret-key-change-in-production-2024"  # TODO: Move to config
+)
 
 # Setup templates directory
 templates_dir = Path(__file__).parent / "templates"
@@ -46,7 +53,7 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     """
     Render a template with i18n support.
 
-    Automatically adds i18n strings to the context.
+    Automatically adds i18n strings and global data to the context.
 
     Args:
         template_name: Name of the template file
@@ -66,6 +73,34 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     # Add i18n to context
     context["t"] = i18n_strings
     context["lang"] = lang
+
+    # Add global data (categories for sidebar)
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        all_players = player_repo.get_all()
+        categories = sorted(set(p.categoria for p in all_players))
+        context["categories"] = categories
+    except:
+        context["categories"] = []
+
+    # Extract flash message and form values from session if available
+    request = context.get("request")
+    if request and hasattr(request, "session"):
+        flash_message = request.session.pop("flash_message", None)
+        flash_type = request.session.pop("flash_type", "info")
+        form_values = request.session.pop("form_values", None)
+
+        if flash_message:
+            print(f"[DEBUG] Flash message found: {flash_message} (type: {flash_type})")
+            context["flash_message"] = flash_message
+            context["flash_type"] = flash_type
+        else:
+            print(f"[DEBUG] No flash message in session")
+
+        if form_values:
+            print(f"[DEBUG] Form values found: {form_values}")
+            context["form_values"] = form_values
 
     return templates.TemplateResponse(template_name, context)
 
@@ -194,7 +229,7 @@ async def enter_result_form(request: Request, match_id: int):
     player1 = player_repo.get_by_id(match_orm.player1_id)
     player2 = player_repo.get_by_id(match_orm.player2_id)
 
-    return templates.TemplateResponse(
+    return render_template(
         "enter_result.html",
         {
             "request": request,
@@ -207,6 +242,7 @@ async def enter_result_form(request: Request, match_id: int):
 
 @app.post("/match/{match_id}/save-result")
 async def save_result(
+    request: Request,
     match_id: int,
     is_walkover: Optional[str] = Form(None),
     winner_id: Optional[str] = Form(None),
@@ -228,7 +264,9 @@ async def save_result(
     # Get match
     match_orm = match_repo.get_by_id(match_id)
     if not match_orm:
-        return HTMLResponse(content="Match not found", status_code=404)
+        request.session["flash_message"] = "Partido no encontrado"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/", status_code=303)
 
     # Helper function to parse integer or None
     def parse_int(value: Optional[str]) -> Optional[int]:
@@ -249,10 +287,9 @@ async def save_result(
             match_orm.player1_id, match_orm.player2_id, winner_id_int
         )
         if not is_valid:
-            return HTMLResponse(
-                content=f"Error en walkover: {error_msg}",
-                status_code=400
-            )
+            request.session["flash_message"] = f"Error en walkover: {error_msg}"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
         match_orm.status = MatchStatus.WALKOVER.value
         match_orm.winner_id = winner_id_int
@@ -288,10 +325,9 @@ async def save_result(
                 # Validate this set
                 is_valid, error_msg = validate_tt_set(p1_points, p2_points)
                 if not is_valid:
-                    return HTMLResponse(
-                        content=f"Error en Set {idx}: {error_msg}",
-                        status_code=400
-                    )
+                    request.session["flash_message"] = f"Error en Set {idx}: {error_msg}"
+                    request.session["flash_type"] = "error"
+                    return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
                 sets_data.append({
                     "set_number": idx,
@@ -301,19 +337,26 @@ async def save_result(
 
         # Check if we have any sets at all
         if not sets_data:
-            return HTMLResponse(
-                content="Error: Debe ingresar al menos un set",
-                status_code=400
-            )
+            request.session["flash_message"] = "Error: Debe ingresar al menos un set"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
         # Validate the complete match
         sets_tuples = [(s["player1_points"], s["player2_points"]) for s in sets_data]
         is_valid, error_msg = validate_match_sets(sets_tuples, best_of=5)
         if not is_valid:
-            return HTMLResponse(
-                content=f"Error en el partido: {error_msg}",
-                status_code=400
-            )
+            error_text = f"Error en el partido: {error_msg}"
+            print(f"[DEBUG] Saving flash message to session: {error_text}")
+            request.session["flash_message"] = error_text
+            request.session["flash_type"] = "error"
+            # Save form values to preserve them on error
+            form_vals = {}
+            for i in range(1, 6):
+                form_vals[f"set{i}_p1"] = set_inputs[i-1][0] if set_inputs[i-1][0] is not None else ""
+                form_vals[f"set{i}_p2"] = set_inputs[i-1][1] if set_inputs[i-1][1] is not None else ""
+            request.session["form_values"] = form_vals
+            print(f"[DEBUG] Session after save: {dict(request.session)}")
+            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
         # Determine winner based on sets won
         p1_sets = sum(1 for s in sets_data if s["player1_points"] > s["player2_points"])
@@ -334,12 +377,16 @@ async def save_result(
             status=MatchStatus.COMPLETED.value
         )
 
+    # Set success message
+    request.session["flash_message"] = "Resultado guardado exitosamente"
+    request.session["flash_type"] = "success"
+
     # Redirect back to group matches
     return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
 
 
 @app.post("/match/{match_id}/delete-result")
-async def delete_result(match_id: int):
+async def delete_result(request: Request, match_id: int):
     """Delete match result and reset to pending status."""
     session = get_db_session()
     match_repo = MatchRepository(session)
@@ -347,7 +394,9 @@ async def delete_result(match_id: int):
     # Get match
     match_orm = match_repo.get_by_id(match_id)
     if not match_orm:
-        return HTMLResponse(content="Match not found", status_code=404)
+        request.session["flash_message"] = "Partido no encontrado"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/", status_code=303)
 
     # Reset match to pending state
     match_repo.update_result(
@@ -356,6 +405,10 @@ async def delete_result(match_id: int):
         winner_id=None,
         status=MatchStatus.PENDING.value
     )
+
+    # Set success message
+    request.session["flash_message"] = "Resultado eliminado exitosamente"
+    request.session["flash_type"] = "success"
 
     # Redirect back to group matches
     return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)

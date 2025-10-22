@@ -168,3 +168,153 @@ easy-tt-event-manager/
 
 ## Roadmap (README)
 - V1.1: Scheduler/mesas, breaks, buffers, PDF imprimibles, roles/credenciales, múltiples categorías simultáneas.
+
+---
+
+## Estado Actual del Proyecto (V1.0.2 - UI Moderna)
+
+### ✅ Completado (V1.0.0 - V1.0.2)
+
+**V1.0.0 - Core Funcional**
+- ✅ CLI completo con todos los comandos
+- ✅ Motor deportivo (grupos RR → standings → bracket KO)
+- ✅ Validación de sets y partidos (reglas ITTF)
+- ✅ Base de datos SQLite con ORM
+- ✅ Tests completos (grupos, standings, bracket, validación)
+
+**V1.0.1 - Edición de Resultados**
+- ✅ Editar/eliminar resultados de partidos
+- ✅ Validación de scores de tenis de mesa
+- ✅ Módulo de validación completo (`validation.py`)
+
+**V1.0.2 - Internacionalización y Exportación**
+- ✅ Sistema de i18n con archivos YAML (ES/EN)
+- ✅ Comando `export` para grupos/standings/bracket a CSV
+- ✅ Strings traducidos en español/inglés
+
+**V1.0.2 (Actual) - UI Moderna**
+- ✅ **Interfaz moderna con sidebar navegable**
+  - Diseño profesional con CSS moderno (variables, gradientes, sombras)
+  - Sidebar con navegación por categorías
+  - Topbar con selector de idioma
+  - Sistema de cards, badges, alerts, toasts
+
+- ✅ **JavaScript interactivo**
+  - Sistema de notificaciones toast (success/error/warning/info)
+  - Validación de formularios
+  - Confirmaciones de acciones
+  - Navegación activa resaltada
+
+- ✅ **Templates completamente rediseñados**
+  - `index.html` - Dashboard con stats y acciones
+  - `category.html` - Vista de categoría con cards de grupos
+  - `group_matches.html` - Tabla moderna de partidos
+  - `enter_result.html` - Formulario horizontal de ingreso de sets
+  - `standings.html` - Clasificación con medallas y badges
+  - `bracket.html` - Visualización de llave eliminatoria
+  - `group_sheet.html` - Matriz de resultados
+
+- ✅ **Mejoras UX**
+  - Errores de validación como toast popups (no page redirects)
+  - Mensajes completamente en español
+  - Valores del formulario se preservan en caso de error
+  - Inputs numéricos sin flechas (spinners)
+  - Tab order vertical en formulario de sets
+  - Botones con solo íconos (tooltips para descripción)
+  - Flash messages con SessionMiddleware
+
+### 🚧 En Progreso / Próxima Sesión
+
+**V1.1 - Gestión Completa desde UI**
+
+La UI debe ser la interfaz principal. Actualmente las siguientes operaciones solo están disponibles por CLI:
+
+1. **Importar Jugadores** 📥
+   - [ ] Formulario web para upload CSV
+   - [ ] Preview de jugadores antes de importar
+   - [ ] Formulario manual para agregar jugadores
+   - [ ] Validación en tiempo real
+
+2. **Crear Grupos** 👥
+   - [ ] Página de configuración de grupos
+   - [ ] Selector de categoría
+   - [ ] Configuración de tamaño preferido (3 o 4)
+   - [ ] Ejecutar sorteo desde UI
+   - [ ] Mostrar preview de grupos generados
+
+3. **Calcular Standings** 📊
+   - [ ] Botón para recalcular todas las clasificaciones
+   - [ ] Notificación de éxito/error
+   - [ ] Auto-actualización después de ingresar resultados
+
+4. **Generar Bracket** 🏅
+   - [ ] Página de configuración de bracket
+   - [ ] Selector de categoría
+   - [ ] Configuración de clasificados por grupo
+   - [ ] Ejecutar generación desde UI
+   - [ ] Mostrar bracket generado
+
+### Flujo de Trabajo Actual
+
+**Por CLI (funciona perfectamente):**
+```bash
+# 1. Importar jugadores
+ettem import-players --csv data/samples/players.csv --category U13
+
+# 2. Crear grupos
+ettem build-groups --config config/sample_config.yaml --category U13
+
+# 3. Abrir panel web
+ettem open-panel
+
+# 4. Ingresar resultados en http://127.0.0.1:8000
+
+# 5. Calcular standings
+ettem compute-standings --category U13
+
+# 6. Generar bracket
+ettem build-bracket --category U13 --config config/sample_config.yaml
+
+# 7. Exportar
+ettem export --what standings --format csv --out out/
+```
+
+**Por UI Web (parcial):**
+- ✅ Ver categorías y grupos
+- ✅ Ver partidos y standings
+- ✅ Ingresar/editar/eliminar resultados
+- ✅ Ver bracket generado
+- ❌ Importar jugadores (solo CLI)
+- ❌ Crear grupos (solo CLI)
+- ❌ Calcular standings (solo CLI)
+- ❌ Generar bracket (solo CLI)
+
+### Objetivo V1.1
+
+**UI como interfaz principal completa:**
+- Todas las operaciones del CLI disponibles en la UI web
+- Usuario puede gestionar torneo 100% desde navegador
+- CLI queda como herramienta avanzada/scripts
+
+### Notas Técnicas
+
+**Arquitectura Actual:**
+- Frontend: FastAPI + Jinja2 templates + JavaScript vanilla
+- Backend: SQLAlchemy ORM + SQLite
+- Validación: Módulo dedicado con reglas ITTF
+- i18n: YAML con dot notation
+- Sesiones: SessionMiddleware para flash messages
+
+**Archivos Principales:**
+- `src/ettem/webapp/app.py` - Rutas y endpoints
+- `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
+- `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
+- `src/ettem/validation.py` - Reglas de validación (en español)
+- `src/ettem/i18n.py` - Sistema de traducción
+
+**Próximos Pasos:**
+1. Agregar endpoints POST para operaciones administrativas
+2. Crear formularios/modals para configuración
+3. Reutilizar lógica del CLI en endpoints web
+4. Agregar feedback visual (progress bars, confirmaciones)
+5. Testing de flujo completo desde UI

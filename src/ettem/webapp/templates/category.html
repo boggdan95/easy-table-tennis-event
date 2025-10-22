@@ -1,20 +1,63 @@
 {% extends "base.html" %}
+
 {% block title %}{{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}/bracket" class="btn btn-success">
+    <span>🏅</span>
+    <span>Ver Llave de Eliminación</span>
+</a>
+{% endblock %}
+
 {% block content %}
-<h1>Categoria: {{ category }}</h1>
-<p><a href="/category/{{ category }}/bracket" class="btn btn-success">Ver Llave de Eliminacion</a></p>
-{% for group_data in groups %}
-<div class="group-card">
-    <h2>Grupo {{ group_data.group.name }}</h2>
-    <p><a href="/group/{{ group_data.group.id }}/sheet" class="btn">Hoja de Grupo</a>
-       <a href="/group/{{ group_data.group.id }}/matches" class="btn">Ver Partidos</a>
-       <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success">Ver Clasificacion</a></p>
-    <h3>Jugadores:</h3>
-    <ul>
-    {% for player in group_data.players %}
-        <li>{{ player.seed }}. {{ player.nombre }} {{ player.apellido }} ({{ player.pais_cd }})</li>
-    {% endfor %}
-    </ul>
+<!-- Category Header -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h2 class="card-title">🏆 Categoría: {{ category }}</h2>
+    </div>
+    <div class="card-body">
+        <p>Grupos de fase round-robin. Selecciona un grupo para ver partidos, resultados y clasificación.</p>
+    </div>
 </div>
-{% endfor %}
+
+<!-- Groups Grid -->
+<div class="grid grid-2">
+    {% for group_data in groups %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Grupo {{ group_data.group.name }}</h3>
+        </div>
+        <div class="card-body">
+            <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text-muted);">Jugadores:</h4>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                {% for player in group_data.players %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--card-bg-secondary); border-radius: 6px;">
+                    <span class="badge badge-primary">{{ player.seed }}</span>
+                    <span style="flex: 1; font-weight: 500;">{{ player.nombre }} {{ player.apellido }}</span>
+                    <span class="badge badge-secondary">{{ player.pais_cd }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                <a href="/group/{{ group_data.group.id }}/matches" class="btn btn-primary btn-sm">
+                    <span>📋</span>
+                    <span>Partidos</span>
+                </a>
+                <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success btn-sm">
+                    <span>📊</span>
+                    <span>Clasificación</span>
+                </a>
+                <a href="/group/{{ group_data.group.id }}/sheet" class="btn btn-secondary btn-sm">
+                    <span>📄</span>
+                    <span>Hoja</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}
