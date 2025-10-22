@@ -250,9 +250,33 @@ easy-tt-event-manager/
   - Preview de tamaño de bracket y BYEs
   - Random seed para sorteo de posiciones
   - Vista previa de jugadores clasificados
-  - Generación y guardado de bracket en base de datos
+  - Generación automática y guardado de bracket en base de datos
+
+- ✅ **Bracket Manual con Drag-and-Drop** 🎯
+  - Interfaz completa de drag-and-drop para posicionamiento manual de jugadores
+  - Listas separadas de 1º y 2º lugar ordenadas por grupo (G1, G2, G3...)
+  - Arrastre desde listas hacia slots del bracket
+  - Arrastre entre slots (mover/intercambiar jugadores dentro del bracket)
+  - BYEs pre-colocados según reglas ITTF (posiciones exactas por cantidad de grupos)
+  - Validaciones estrictas:
+    * Prevención de jugadores duplicados
+    * Error bloqueante si mismo grupo en misma mitad del bracket
+    * Advertencia (no bloqueante) para mismo país
+  - Preservación de formulario en errores de validación
+  - Badges visuales con grupo de cada jugador
+  - BYEs bloqueados (no se pueden mover ni eliminar)
+  - Reglas ITTF implementadas:
+    * 3 grupos (6 jugadores) → Bracket 8 → BYEs en [2, 7]
+    * 5 grupos (10 jugadores) → Bracket 16 → BYEs en [2, 6, 7, 10, 11, 15]
+    * ... hasta 20 grupos con posiciones predefinidas
 
 ### 🚧 Próxima Sesión (V1.2+)
+
+**Pendientes del Bracket Manual:**
+- Botón para "rellenar vacíos con BYEs" cuando todos los jugadores están asignados
+- Auto-sugerencia de segunda posición cuando se coloca primero de grupo
+- Restauración completa del estado del formulario desde sesión (falta cargar datos guardados)
+- Reglas de posicionamiento dinámicas según tamaño de bracket (32, 64, etc.)
 
 **Mejoras Potenciales:**
 - Edición de jugadores desde UI
@@ -314,17 +338,19 @@ ettem export --what standings --format csv --out out/
 - Sesiones: SessionMiddleware para flash messages
 
 **Archivos Principales:**
-- `src/ettem/webapp/app.py` - Rutas y endpoints (1435 líneas con admin)
+- `src/ettem/webapp/app.py` - Rutas y endpoints (~1700 líneas con admin + manual bracket)
 - `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
 - `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
 - `src/ettem/validation.py` - Reglas de validación (en español)
 - `src/ettem/i18n.py` - Sistema de traducción
+- `src/ettem/storage.py` - Repositorios SQLite con método update_slot_warning
 
 **Nuevos Templates Admin (V1.1.0):**
 - `admin_import_players.html` - Upload CSV + formulario manual
 - `admin_create_groups.html` - Configuración de grupos con preview
 - `admin_calculate_standings.html` - Recalcular clasificaciones
-- `admin_generate_bracket.html` - Configuración de bracket
+- `admin_generate_bracket.html` - Configuración de bracket (auto + acceso a manual)
+- `admin_manual_bracket.html` - Interfaz drag-and-drop para bracket manual (~640 líneas)
 
 ## Workflow de Desarrollo
 
