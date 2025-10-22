@@ -5,7 +5,7 @@ import click
 
 
 @click.group()
-@click.version_option(version="1.0.1")
+@click.version_option(version="1.1.0")
 @click.option("--lang", type=click.Choice(["es", "en"]), default=None,
               help="Language (es=Spanish, en=English). Default: from ETTEM_LANG env or 'es'")
 @click.pass_context

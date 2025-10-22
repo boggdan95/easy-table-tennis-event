@@ -171,9 +171,9 @@ easy-tt-event-manager/
 
 ---
 
-## Estado Actual del Proyecto (V1.0.2 - UI Moderna)
+## Estado Actual del Proyecto (V1.1.0 - Gestión Completa desde UI)
 
-### ✅ Completado (V1.0.0 - V1.0.2)
+### ✅ Completado (V1.0.0 - V1.1.0)
 
 **V1.0.0 - Core Funcional**
 - ✅ CLI completo con todos los comandos
@@ -187,12 +187,12 @@ easy-tt-event-manager/
 - ✅ Validación de scores de tenis de mesa
 - ✅ Módulo de validación completo (`validation.py`)
 
-**V1.0.2 - Internacionalización y Exportación**
+**V1.0.2 - Internacionalización y UI Moderna**
 - ✅ Sistema de i18n con archivos YAML (ES/EN)
 - ✅ Comando `export` para grupos/standings/bracket a CSV
 - ✅ Strings traducidos en español/inglés
 
-**V1.0.2 (Actual) - UI Moderna**
+**V1.0.2 - UI Moderna**
 - ✅ **Interfaz moderna con sidebar navegable**
   - Diseño profesional con CSS moderno (variables, gradientes, sombras)
   - Sidebar con navegación por categorías
@@ -223,36 +223,44 @@ easy-tt-event-manager/
   - Botones con solo íconos (tooltips para descripción)
   - Flash messages con SessionMiddleware
 
-### 🚧 En Progreso / Próxima Sesión
+**V1.1.0 (Actual) - Gestión Completa desde UI**
+- ✅ **Importar Jugadores** 📥
+  - Upload de archivos CSV con validación
+  - Formulario manual para agregar jugadores individualmente
+  - Validación en tiempo real (género, país ISO-3, ranking)
+  - Preview de jugadores importados
+  - Auto-asignación de seeds
 
-**V1.1 - Gestión Completa desde UI**
+- ✅ **Crear Grupos** 👥
+  - Página de configuración con selector de categoría
+  - Configuración de tamaño preferido (3 o 4 jugadores)
+  - Preview dinámico de distribución de grupos
+  - Random seed configurable para reproducibilidad
+  - Eliminación de grupos existentes y creación de nuevos
 
-La UI debe ser la interfaz principal. Actualmente las siguientes operaciones solo están disponibles por CLI:
+- ✅ **Calcular Standings** 📊
+  - Recalcular todas las categorías de una vez
+  - Calcular por categoría individual
+  - Vista previa de clasificaciones actuales
+  - Notificaciones de éxito/error con toast
+  - Redirección automática a vista de categoría
 
-1. **Importar Jugadores** 📥
-   - [ ] Formulario web para upload CSV
-   - [ ] Preview de jugadores antes de importar
-   - [ ] Formulario manual para agregar jugadores
-   - [ ] Validación en tiempo real
+- ✅ **Generar Bracket** 🏅
+  - Configuración de clasificados por grupo (1º, 1º-2º, 1º-2º-3º)
+  - Preview de tamaño de bracket y BYEs
+  - Random seed para sorteo de posiciones
+  - Vista previa de jugadores clasificados
+  - Generación y guardado de bracket en base de datos
 
-2. **Crear Grupos** 👥
-   - [ ] Página de configuración de grupos
-   - [ ] Selector de categoría
-   - [ ] Configuración de tamaño preferido (3 o 4)
-   - [ ] Ejecutar sorteo desde UI
-   - [ ] Mostrar preview de grupos generados
+### 🚧 Próxima Sesión (V1.2+)
 
-3. **Calcular Standings** 📊
-   - [ ] Botón para recalcular todas las clasificaciones
-   - [ ] Notificación de éxito/error
-   - [ ] Auto-actualización después de ingresar resultados
-
-4. **Generar Bracket** 🏅
-   - [ ] Página de configuración de bracket
-   - [ ] Selector de categoría
-   - [ ] Configuración de clasificados por grupo
-   - [ ] Ejecutar generación desde UI
-   - [ ] Mostrar bracket generado
+**Mejoras Potenciales:**
+- Edición de jugadores desde UI
+- Eliminación de categorías completas
+- Exportación a CSV desde UI
+- Impresión de hojas de grupo (PDF)
+- Registro de resultados de bracket
+- Scheduler/asignación de mesas y horarios
 
 ### Flujo de Trabajo Actual
 
@@ -279,22 +287,22 @@ ettem build-bracket --category U13 --config config/sample_config.yaml
 ettem export --what standings --format csv --out out/
 ```
 
-**Por UI Web (parcial):**
+**Por UI Web (✅ COMPLETO en V1.1.0):**
 - ✅ Ver categorías y grupos
 - ✅ Ver partidos y standings
 - ✅ Ingresar/editar/eliminar resultados
 - ✅ Ver bracket generado
-- ❌ Importar jugadores (solo CLI)
-- ❌ Crear grupos (solo CLI)
-- ❌ Calcular standings (solo CLI)
-- ❌ Generar bracket (solo CLI)
+- ✅ **Importar jugadores (CSV + manual)**
+- ✅ **Crear grupos con configuración**
+- ✅ **Calcular standings (todas o por categoría)**
+- ✅ **Generar bracket con configuración**
 
-### Objetivo V1.1
+### Objetivo V1.1 ✅ CUMPLIDO
 
 **UI como interfaz principal completa:**
-- Todas las operaciones del CLI disponibles en la UI web
-- Usuario puede gestionar torneo 100% desde navegador
-- CLI queda como herramienta avanzada/scripts
+- ✅ Todas las operaciones del CLI disponibles en la UI web
+- ✅ Usuario puede gestionar torneo 100% desde navegador
+- ✅ CLI queda como herramienta avanzada/scripts
 
 ### Notas Técnicas
 
@@ -306,15 +314,21 @@ ettem export --what standings --format csv --out out/
 - Sesiones: SessionMiddleware para flash messages
 
 **Archivos Principales:**
-- `src/ettem/webapp/app.py` - Rutas y endpoints
+- `src/ettem/webapp/app.py` - Rutas y endpoints (1435 líneas con admin)
 - `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
 - `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
 - `src/ettem/validation.py` - Reglas de validación (en español)
 - `src/ettem/i18n.py` - Sistema de traducción
 
-**Próximos Pasos:**
-1. Agregar endpoints POST para operaciones administrativas
-2. Crear formularios/modals para configuración
-3. Reutilizar lógica del CLI en endpoints web
-4. Agregar feedback visual (progress bars, confirmaciones)
+**Nuevos Templates Admin (V1.1.0):**
+- `admin_import_players.html` - Upload CSV + formulario manual
+- `admin_create_groups.html` - Configuración de grupos con preview
+- `admin_calculate_standings.html` - Recalcular clasificaciones
+- `admin_generate_bracket.html` - Configuración de bracket
+
+## Workflow de Desarrollo
+
+### Ramas de Git
+- `main` - Código estable y probado (V1.0.0, V1.0.1, V1.0.2, V1.1.0)
+- `feature/*` - Nuevas funcionalidades en desarrollo (se mergean a main cuando están listas)
 5. Testing de flujo completo desde UI

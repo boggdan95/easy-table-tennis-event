@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Jugadores - ETTEM{% endblock %}
+
+{% block page_title %}Importar Jugadores{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Inicio</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Import Methods Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Método de Importación</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2 mb-3">
+            <button onclick="showImportMethod('csv')" class="btn btn-primary" id="btn-csv">
+                <span>📄</span>
+                <span>Importar desde CSV</span>
+            </button>
+            <button onclick="showImportMethod('manual')" class="btn btn-secondary" id="btn-manual">
+                <span>✍️</span>
+                <span>Agregar Manualmente</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Import Section -->
+<div id="import-csv-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">Importar desde CSV</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/import-players/csv" enctype="multipart/form-data">
+            <div class="form-section">
+                <label class="form-label">Archivo CSV</label>
+                <input type="file" name="csv_file" accept=".csv" required class="form-control" style="max-width: 500px;">
+                <p class="form-help">El archivo debe contener las columnas: id, nombre, apellido, genero, pais_cd, ranking_pts, categoria</p>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">Categoría (opcional)</label>
+                <input type="text" name="category" class="form-control" placeholder="Ej: U13, U15, OPEN..." style="max-width: 300px;">
+                <p class="form-help">Si se especifica, solo se importarán jugadores de esta categoría</p>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">
+                    <input type="checkbox" name="assign_seeds" value="true" checked style="margin-right: 0.5rem;">
+                    Asignar seeds automáticamente basado en ranking
+                </label>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Formato del CSV</div>
+                    <div>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>id</strong>: Número único del jugador</li>
+                            <li><strong>nombre</strong>: Nombre del jugador</li>
+                            <li><strong>apellido</strong>: Apellido del jugador</li>
+                            <li><strong>genero</strong>: M o F</li>
+                            <li><strong>pais_cd</strong>: Código ISO-3 del país (ej: ESP, USA, CHN)</li>
+                            <li><strong>ranking_pts</strong>: Puntos de ranking (número)</li>
+                            <li><strong>categoria</strong>: Categoría del torneo (ej: U13, U15, OPEN)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Importar Jugadores</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Manual Entry Section -->
+<div id="import-manual-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">Agregar Jugador Manualmente</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/import-players/manual">
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">ID Original *</label>
+                    <input type="number" name="original_id" required class="form-control" placeholder="1">
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Categoría *</label>
+                    <input type="text" name="categoria" required class="form-control" placeholder="U13" style="text-transform: uppercase;">
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Nombre *</label>
+                    <input type="text" name="nombre" required class="form-control" placeholder="Juan">
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Apellido *</label>
+                    <input type="text" name="apellido" required class="form-control" placeholder="Pérez">
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Género *</label>
+                    <select name="genero" required class="form-control">
+                        <option value="">-Seleccionar-</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Femenino</option>
+                    </select>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">País (ISO-3) *</label>
+                    <input type="text" name="pais_cd" required class="form-control" placeholder="ESP" maxlength="3" style="text-transform: uppercase;">
+                    <p class="form-help">Código de 3 letras (ej: ESP, USA, CHN, ARG)</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Puntos de Ranking *</label>
+                    <input type="number" name="ranking_pts" required class="form-control" placeholder="1200" step="0.01" min="0">
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Seed (opcional)</label>
+                    <input type="number" name="seed" class="form-control" placeholder="Se calcula automáticamente" min="1">
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Agregar Jugador</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Players List Section (if any) -->
+{% if players %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Jugadores Importados ({{ players|length }})</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Género</th>
+                        <th>País</th>
+                        <th>Ranking</th>
+                        <th>Categoría</th>
+                        <th>Seed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in players %}
+                    <tr>
+                        <td><span class="badge badge-secondary">{{ player.original_id or player.id }}</span></td>
+                        <td><strong>{{ player.nombre }} {{ player.apellido }}</strong></td>
+                        <td>{{ player.genero.value if player.genero else '-' }}</td>
+                        <td><span class="badge badge-secondary">{{ player.pais_cd }}</span></td>
+                        <td>{{ player.ranking_pts }}</td>
+                        <td><span class="badge badge-primary">{{ player.categoria }}</span></td>
+                        <td>{{ player.seed or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function showImportMethod(method) {
+    // Hide all sections
+    hideImportSections();
+
+    // Reset button styles
+    document.getElementById('btn-csv').className = 'btn btn-secondary';
+    document.getElementById('btn-manual').className = 'btn btn-secondary';
+
+    // Show selected section
+    if (method === 'csv') {
+        document.getElementById('import-csv-section').style.display = 'block';
+        document.getElementById('btn-csv').className = 'btn btn-primary';
+    } else if (method === 'manual') {
+        document.getElementById('import-manual-section').style.display = 'block';
+        document.getElementById('btn-manual').className = 'btn btn-primary';
+    }
+}
+
+function hideImportSections() {
+    document.getElementById('import-csv-section').style.display = 'none';
+    document.getElementById('import-manual-section').style.display = 'none';
+    document.getElementById('btn-csv').className = 'btn btn-secondary';
+    document.getElementById('btn-manual').className = 'btn btn-secondary';
+}
+</script>
+{% endblock %}

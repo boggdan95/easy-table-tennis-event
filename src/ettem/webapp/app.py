@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -755,6 +755,677 @@ async def view_bracket(request: Request, category: str):
             "standings_dict": standings_dict,
         }
     )
+
+
+# ========================================
+# ADMIN ROUTES
+# ========================================
+
+@app.get("/admin/import-players", response_class=HTMLResponse)
+async def admin_import_players_form(request: Request):
+    """Show import players form."""
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+
+    # Get all players to show in the list
+    players = player_repo.get_all()
+
+    return render_template(
+        "admin_import_players.html",
+        {
+            "request": request,
+            "players": players
+        }
+    )
+
+
+@app.post("/admin/import-players/csv")
+async def admin_import_players_csv(
+    request: Request,
+    csv_file: UploadFile = File(...),
+    category: Optional[str] = Form(None),
+    assign_seeds: Optional[str] = Form(None)
+):
+    """Import players from CSV file."""
+    import tempfile
+    from pathlib import Path
+    from ettem.io_csv import import_players_csv, CSVImportError
+
+    try:
+        # Save uploaded file to temp location
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.csv') as tmp:
+            content = await csv_file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        # Import players from CSV
+        try:
+            players = import_players_csv(
+                tmp_path,
+                category_filter=category if category and category.strip() else None
+            )
+
+            if not players:
+                request.session["flash_message"] = "No se encontraron jugadores para importar (revisa el filtro de categoría)"
+                request.session["flash_type"] = "warning"
+                return RedirectResponse(url="/admin/import-players", status_code=303)
+
+            # Save players to database
+            session = get_db_session()
+            player_repo = PlayerRepository(session)
+
+            imported_count = 0
+            for player in players:
+                try:
+                    player_repo.create(player)
+                    imported_count += 1
+                except Exception as e:
+                    print(f"[ERROR] Error saving player {player.full_name}: {e}")
+
+            # Assign seeds if requested
+            if assign_seeds == "true":
+                categories = set(p.categoria for p in players)
+                for cat in categories:
+                    player_repo.assign_seeds(cat)
+
+            request.session["flash_message"] = f"Se importaron exitosamente {imported_count} jugadores"
+            request.session["flash_type"] = "success"
+
+        except CSVImportError as e:
+            request.session["flash_message"] = f"Error al importar CSV: {str(e)}"
+            request.session["flash_type"] = "error"
+        finally:
+            # Clean up temp file
+            Path(tmp_path).unlink(missing_ok=True)
+
+        return RedirectResponse(url="/admin/import-players", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error inesperado: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+@app.post("/admin/import-players/manual")
+async def admin_import_players_manual(
+    request: Request,
+    original_id: int = Form(...),
+    nombre: str = Form(...),
+    apellido: str = Form(...),
+    genero: str = Form(...),
+    pais_cd: str = Form(...),
+    ranking_pts: float = Form(...),
+    categoria: str = Form(...),
+    seed: Optional[int] = Form(None)
+):
+    """Add a player manually."""
+    from ettem.models import Gender
+
+    try:
+        # Validate inputs
+        if genero not in ("M", "F"):
+            request.session["flash_message"] = "El género debe ser M o F"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        if len(pais_cd.strip()) != 3:
+            request.session["flash_message"] = "El código de país debe tener 3 caracteres (ISO-3)"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        if ranking_pts < 0:
+            request.session["flash_message"] = "Los puntos de ranking no pueden ser negativos"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        # Create player
+        player = Player(
+            id=0,  # Auto-generated
+            nombre=nombre.strip(),
+            apellido=apellido.strip(),
+            genero=Gender.MALE if genero == "M" else Gender.FEMALE,
+            pais_cd=pais_cd.strip().upper(),
+            ranking_pts=ranking_pts,
+            categoria=categoria.strip().upper(),
+            original_id=original_id,
+            seed=seed if seed and seed > 0 else None
+        )
+
+        # Save to database
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        player_repo.create(player)
+
+        # If seed wasn't provided, auto-assign
+        if not seed:
+            player_repo.assign_seeds(player.categoria)
+
+        request.session["flash_message"] = f"Jugador {player.full_name} agregado exitosamente"
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al agregar jugador: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+@app.get("/admin/create-groups", response_class=HTMLResponse)
+async def admin_create_groups_form(request: Request):
+    """Show create groups form."""
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+    group_repo = GroupRepository(session)
+    match_repo = MatchRepository(session)
+
+    # Get all players grouped by category
+    all_players = player_repo.get_all()
+    categories_dict = {}
+    for player in all_players:
+        if player.categoria not in categories_dict:
+            categories_dict[player.categoria] = 0
+        categories_dict[player.categoria] += 1
+
+    # Convert to list for template
+    available_categories = [
+        {"name": cat, "count": count}
+        for cat, count in sorted(categories_dict.items())
+    ]
+
+    # Get existing groups
+    all_groups = group_repo.get_all()
+    existing_groups = []
+    for group in all_groups:
+        match_count = len(match_repo.get_by_group(group.id))
+        existing_groups.append({
+            "category": group.category,
+            "name": group.name,
+            "player_count": len(group.player_ids),
+            "match_count": match_count
+        })
+
+    return render_template(
+        "admin_create_groups.html",
+        {
+            "request": request,
+            "available_categories": available_categories,
+            "existing_groups": existing_groups
+        }
+    )
+
+
+@app.post("/admin/create-groups/execute")
+async def admin_create_groups_execute(
+    request: Request,
+    category: str = Form(...),
+    group_size_preference: int = Form(...),
+    random_seed: Optional[int] = Form(None)
+):
+    """Execute group creation."""
+    from ettem.group_builder import create_groups
+
+    try:
+        # Initialize repositories
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+
+        # Get players for this category
+        player_orms = player_repo.get_by_category_sorted_by_seed(category)
+
+        if not player_orms:
+            request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}. Importa jugadores primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+        # Convert ORM to domain models
+        players = []
+        for p_orm in player_orms:
+            player = Player(
+                id=p_orm.id,
+                nombre=p_orm.nombre,
+                apellido=p_orm.apellido,
+                genero=p_orm.genero,
+                pais_cd=p_orm.pais_cd,
+                ranking_pts=p_orm.ranking_pts,
+                categoria=p_orm.categoria,
+                seed=p_orm.seed,
+                original_id=p_orm.original_id,
+                tournament_number=p_orm.tournament_number,
+                group_id=p_orm.group_id,
+                group_number=p_orm.group_number,
+                checked_in=p_orm.checked_in,
+                notes=p_orm.notes,
+            )
+            players.append(player)
+
+        # Delete existing groups and matches for this category
+        existing_groups = group_repo.get_by_category(category)
+        for group in existing_groups:
+            # Delete matches first
+            matches = match_repo.get_by_group(group.id)
+            for match in matches:
+                match_repo.delete(match.id)
+            # Then delete group
+            group_repo.delete(group.id)
+
+        # Create groups
+        groups, matches = create_groups(
+            players=players,
+            category=category,
+            group_size_preference=group_size_preference,
+            random_seed=random_seed if random_seed else 42,
+        )
+
+        # Save to database
+        for group in groups:
+            # Save group
+            group_orm = group_repo.create(group)
+
+            # Update players' group assignment
+            for player_id in group.player_ids:
+                player_orm = player_repo.get_by_id(player_id)
+                if player_orm:
+                    player_orm.group_id = group_orm.id
+                    # Find group_number from players list
+                    for p in players:
+                        if p.id == player_id:
+                            player_orm.group_number = p.group_number
+                            break
+            player_repo.session.commit()
+
+            # Save matches for this group
+            for match in matches:
+                if match.player1_id in group.player_ids and match.player2_id in group.player_ids:
+                    match.group_id = group_orm.id
+                    match_repo.create(match)
+
+        request.session["flash_message"] = f"Se crearon exitosamente {len(groups)} grupos con {len(matches)} partidos para la categoría {category}"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al crear grupos: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+
+@app.get("/admin/calculate-standings", response_class=HTMLResponse)
+async def admin_calculate_standings_form(request: Request):
+    """Show calculate standings form."""
+    session = get_db_session()
+    group_repo = GroupRepository(session)
+    match_repo = MatchRepository(session)
+    standing_repo = StandingRepository(session)
+    player_repo = PlayerRepository(session)
+
+    # Get all groups grouped by category
+    all_groups = group_repo.get_all()
+    categories_dict = {}
+    for group in all_groups:
+        if group.category not in categories_dict:
+            categories_dict[group.category] = {
+                "groups": 0,
+                "matches": 0
+            }
+        categories_dict[group.category]["groups"] += 1
+        categories_dict[group.category]["matches"] += len(match_repo.get_by_group(group.id))
+
+    # Convert to list for template
+    available_categories = [
+        {
+            "name": cat,
+            "groups": data["groups"],
+            "matches": data["matches"]
+        }
+        for cat, data in sorted(categories_dict.items())
+    ]
+
+    # Get current standings summary
+    all_standings = standing_repo.get_all()
+    standings_by_group = {}
+    for standing in all_standings:
+        if standing.group_id not in standings_by_group:
+            standings_by_group[standing.group_id] = []
+        standings_by_group[standing.group_id].append(standing)
+
+    standings_summary = []
+    for group in all_groups:
+        if group.id in standings_by_group:
+            standings_summary.append({
+                "category": group.category,
+                "group_name": group.name,
+                "count": len(standings_by_group[group.id]),
+                "last_updated": None  # Could add timestamp to standings in future
+            })
+
+    return render_template(
+        "admin_calculate_standings.html",
+        {
+            "request": request,
+            "available_categories": available_categories,
+            "standings_summary": standings_summary
+        }
+    )
+
+
+@app.post("/admin/calculate-standings/all")
+async def admin_calculate_standings_all(request: Request):
+    """Calculate standings for all categories."""
+    try:
+        session = get_db_session()
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+        standing_repo = StandingRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Get all groups
+        all_groups = group_repo.get_all()
+
+        if not all_groups:
+            request.session["flash_message"] = "No hay grupos creados. Crea grupos primero."
+            request.session["flash_type"] = "warning"
+            return RedirectResponse(url="/admin/calculate-standings", status_code=303)
+
+        total_standings = 0
+        categories_processed = set()
+
+        for group_orm in all_groups:
+            categories_processed.add(group_orm.category)
+
+            # Get matches for this group
+            match_orms = match_repo.get_by_group(group_orm.id)
+
+            # Convert to domain models
+            matches = []
+            for m_orm in match_orms:
+                sets = [
+                    Set(
+                        set_number=s["set_number"],
+                        player1_points=s["player1_points"],
+                        player2_points=s["player2_points"],
+                    )
+                    for s in m_orm.sets
+                ]
+                match = Match(
+                    id=m_orm.id,
+                    player1_id=m_orm.player1_id,
+                    player2_id=m_orm.player2_id,
+                    group_id=m_orm.group_id,
+                    round_type=m_orm.round_type,
+                    round_name=m_orm.round_name,
+                    match_number=m_orm.match_number,
+                    status=m_orm.status,
+                    sets=sets,
+                    winner_id=m_orm.winner_id,
+                )
+                matches.append(match)
+
+            # Calculate standings
+            standings = calculate_standings(matches, group_orm.id, player_repo)
+
+            # Delete old standings for this group
+            standing_repo.delete_by_group(group_orm.id)
+
+            # Save new standings
+            for standing in standings:
+                standing_repo.create(standing)
+
+            total_standings += len(standings)
+
+        request.session["flash_message"] = f"Se calcularon {total_standings} clasificaciones para {len(categories_processed)} categorías"
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al calcular clasificaciones: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/calculate-standings", status_code=303)
+
+
+@app.post("/admin/calculate-standings/category")
+async def admin_calculate_standings_category(
+    request: Request,
+    category: str = Form(...)
+):
+    """Calculate standings for a specific category."""
+    try:
+        session = get_db_session()
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+        standing_repo = StandingRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Get all groups for this category
+        group_orms = group_repo.get_by_category(category)
+
+        if not group_orms:
+            request.session["flash_message"] = f"No hay grupos para la categoría {category}"
+            request.session["flash_type"] = "warning"
+            return RedirectResponse(url="/admin/calculate-standings", status_code=303)
+
+        total_standings = 0
+
+        for group_orm in group_orms:
+            # Get matches for this group
+            match_orms = match_repo.get_by_group(group_orm.id)
+
+            # Convert to domain models
+            matches = []
+            for m_orm in match_orms:
+                sets = [
+                    Set(
+                        set_number=s["set_number"],
+                        player1_points=s["player1_points"],
+                        player2_points=s["player2_points"],
+                    )
+                    for s in m_orm.sets
+                ]
+                match = Match(
+                    id=m_orm.id,
+                    player1_id=m_orm.player1_id,
+                    player2_id=m_orm.player2_id,
+                    group_id=m_orm.group_id,
+                    round_type=m_orm.round_type,
+                    round_name=m_orm.round_name,
+                    match_number=m_orm.match_number,
+                    status=m_orm.status,
+                    sets=sets,
+                    winner_id=m_orm.winner_id,
+                )
+                matches.append(match)
+
+            # Calculate standings
+            standings = calculate_standings(matches, group_orm.id, player_repo)
+
+            # Delete old standings for this group
+            standing_repo.delete_by_group(group_orm.id)
+
+            # Save new standings
+            for standing in standings:
+                standing_repo.create(standing)
+
+            total_standings += len(standings)
+
+        request.session["flash_message"] = f"Se calcularon {total_standings} clasificaciones para la categoría {category}"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al calcular clasificaciones: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/calculate-standings", status_code=303)
+
+
+@app.get("/admin/generate-bracket", response_class=HTMLResponse)
+async def admin_generate_bracket_form(request: Request):
+    """Show generate bracket form."""
+    session = get_db_session()
+    group_repo = GroupRepository(session)
+    standing_repo = StandingRepository(session)
+    player_repo = PlayerRepository(session)
+    bracket_repo = BracketRepository(session)
+
+    # Get all groups grouped by category with standings count
+    all_groups = group_repo.get_all()
+    all_standings = standing_repo.get_all()
+
+    # Count standings per category
+    standings_by_category = {}
+    for standing in all_standings:
+        player = player_repo.get_by_id(standing.player_id)
+        if player:
+            if player.categoria not in standings_by_category:
+                standings_by_category[player.categoria] = 0
+            standings_by_category[player.categoria] += 1
+
+    # Count groups per category
+    groups_by_category = {}
+    for group in all_groups:
+        if group.category not in groups_by_category:
+            groups_by_category[group.category] = 0
+        groups_by_category[group.category] += 1
+
+    # Available categories
+    available_categories = [
+        {
+            "name": cat,
+            "groups": groups_by_category.get(cat, 0),
+            "standings": count
+        }
+        for cat, count in sorted(standings_by_category.items())
+    ]
+
+    # Get existing brackets
+    all_players = player_repo.get_all()
+    categories = list(set(p.categoria for p in all_players))
+    existing_brackets = []
+
+    for category in categories:
+        bracket_slots = bracket_repo.get_by_category(category)
+        if bracket_slots:
+            # Count non-BYE players
+            players_count = sum(1 for slot in bracket_slots if not slot.is_bye and slot.player_id)
+            # Get bracket size from R1 (first round)
+            r1_slots = [s for s in bracket_slots if s.round_type == "R1"]
+            size = len(r1_slots) if r1_slots else 0
+
+            existing_brackets.append({
+                "category": category,
+                "size": size,
+                "players": players_count
+            })
+
+    return render_template(
+        "admin_generate_bracket.html",
+        {
+            "request": request,
+            "available_categories": available_categories,
+            "existing_brackets": existing_brackets
+        }
+    )
+
+
+@app.post("/admin/generate-bracket/execute")
+async def admin_generate_bracket_execute(
+    request: Request,
+    category: str = Form(...),
+    advance_per_group: int = Form(...),
+    random_seed: Optional[int] = Form(None)
+):
+    """Execute bracket generation."""
+    from ettem.bracket import build_bracket
+    from ettem.models import GroupStanding
+
+    try:
+        # Initialize repositories
+        session = get_db_session()
+        standing_repo = StandingRepository(session)
+        player_repo = PlayerRepository(session)
+        bracket_repo = BracketRepository(session)
+
+        # Get all standings for this category
+        all_standings = standing_repo.get_all()
+
+        # Filter by category and get top N per group
+        category_standings = []
+        groups_processed = set()
+
+        for standing_orm in all_standings:
+            player_orm = player_repo.get_by_id(standing_orm.player_id)
+            if not player_orm or player_orm.categoria != category:
+                continue
+
+            if standing_orm.group_id not in groups_processed:
+                groups_processed.add(standing_orm.group_id)
+
+            # Get qualifiers (top N positions)
+            if standing_orm.position and standing_orm.position <= advance_per_group:
+                category_standings.append(standing_orm)
+
+        if not category_standings:
+            request.session["flash_message"] = f"No hay clasificaciones para la categoría {category}. Calcula standings primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/generate-bracket", status_code=303)
+
+        # Convert to domain models with players
+        qualifiers = []
+        for standing_orm in category_standings:
+            player_orm = player_repo.get_by_id(standing_orm.player_id)
+            if player_orm:
+                player = Player(
+                    id=player_orm.id,
+                    nombre=player_orm.nombre,
+                    apellido=player_orm.apellido,
+                    genero=player_orm.genero,
+                    pais_cd=player_orm.pais_cd,
+                    ranking_pts=player_orm.ranking_pts,
+                    categoria=player_orm.categoria,
+                    seed=player_orm.seed,
+                )
+                standing = GroupStanding(
+                    player_id=standing_orm.player_id,
+                    group_id=standing_orm.group_id,
+                    points_total=standing_orm.points_total,
+                    wins=standing_orm.wins,
+                    losses=standing_orm.losses,
+                    sets_w=standing_orm.sets_w,
+                    sets_l=standing_orm.sets_l,
+                    points_w=standing_orm.points_w,
+                    points_l=standing_orm.points_l,
+                    position=standing_orm.position,
+                )
+                qualifiers.append((player, standing))
+
+        # Build bracket
+        bracket = build_bracket(
+            qualifiers=qualifiers,
+            category=category,
+            random_seed=random_seed if random_seed else 42,
+            player_repo=player_repo,
+        )
+
+        # Save bracket to database
+        bracket_repo.delete_by_category(category)  # Clear old bracket
+
+        total_slots = 0
+        for round_type, slots in bracket.slots.items():
+            for slot in slots:
+                bracket_repo.create_slot(slot, category)
+                total_slots += 1
+
+        request.session["flash_message"] = f"Bracket generado exitosamente con {total_slots} slots para {len(qualifiers)} clasificados"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/bracket/{category}", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al generar bracket: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/generate-bracket", status_code=303)
 
 
 if __name__ == "__main__":

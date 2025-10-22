@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Grupos - ETTEM{% endblock %}
+
+{% block page_title %}Crear Grupos{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Inicio</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Configuration Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Configuración de Grupos</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/create-groups/execute">
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Categoría *</label>
+                    <select name="category" required class="form-control" id="category-select" onchange="updatePlayerCount()">
+                        <option value="">-Seleccionar Categoría-</option>
+                        {% for cat in available_categories %}
+                        <option value="{{ cat.name }}" data-count="{{ cat.count }}">{{ cat.name }} ({{ cat.count }} jugadores)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Tamaño Preferido de Grupo *</label>
+                    <select name="group_size_preference" required class="form-control">
+                        <option value="3">3 jugadores (más grupos pequeños)</option>
+                        <option value="4" selected>4 jugadores (recomendado)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section mb-3">
+                <label class="form-label">Semilla Aleatoria (Random Seed)</label>
+                <input type="number" name="random_seed" class="form-control" placeholder="42" value="42" style="max-width: 200px;">
+                <p class="form-help">Para resultados reproducibles. Usa el mismo valor para obtener la misma distribución de grupos.</p>
+            </div>
+
+            <div class="alert alert-info mb-3" id="player-info" style="display: none;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Vista Previa</div>
+                    <div id="preview-text">Selecciona una categoría para ver la distribución de grupos</div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mb-3">
+                <span class="icon">⚠️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Importante</div>
+                    <div>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li>Se crearán grupos round-robin con distribución en serpiente (snake seeding)</li>
+                            <li>Se generarán todos los partidos de cada grupo automáticamente</li>
+                            <li>Si ya existen grupos para esta categoría, se eliminarán y crearán nuevos</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Grupos</span>
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Existing Groups (if any) -->
+{% if existing_groups %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Grupos Existentes</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Grupo</th>
+                        <th>Jugadores</th>
+                        <th>Partidos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in existing_groups %}
+                    <tr>
+                        <td><span class="badge badge-primary">{{ group.category }}</span></td>
+                        <td><strong>{{ group.name }}</strong></td>
+                        <td>{{ group.player_count }}</td>
+                        <td>{{ group.match_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function updatePlayerCount() {
+    const select = document.getElementById('category-select');
+    const selectedOption = select.options[select.selectedIndex];
+    const playerInfo = document.getElementById('player-info');
+    const previewText = document.getElementById('preview-text');
+
+    if (selectedOption.value) {
+        const count = parseInt(selectedOption.getAttribute('data-count'));
+        const groupSize = parseInt(document.querySelector('[name="group_size_preference"]').value);
+
+        // Calculate group distribution
+        let groups4 = 0;
+        let groups3 = 0;
+
+        if (groupSize === 4) {
+            const remainder = count % 4;
+            if (remainder === 0) {
+                groups4 = count / 4;
+            } else if (remainder === 1) {
+                // 1 extra: create 1 group of 3 and rest of 4
+                groups3 = 1;
+                groups4 = Math.floor(count / 4) - 1;
+            } else if (remainder === 2) {
+                // 2 extra: create 2 groups of 3
+                groups3 = 2;
+                groups4 = Math.floor(count / 4) - 1;
+            } else {
+                // 3 extra: create 1 group of 3 + round up
+                groups3 = 1;
+                groups4 = Math.floor(count / 4);
+            }
+        } else {
+            const remainder = count % 3;
+            if (remainder === 0) {
+                groups3 = count / 3;
+            } else if (remainder === 1) {
+                // 1 extra: create 1 group of 4
+                groups4 = 1;
+                groups3 = Math.floor(count / 3) - 1;
+            } else {
+                // 2 extra: create 1 group of 4 + round up
+                groups4 = 1;
+                groups3 = Math.floor(count / 3);
+            }
+        }
+
+        let text = `Se crearán aproximadamente `;
+        const parts = [];
+        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4 jugadores`);
+        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3 jugadores`);
+        text += parts.join(' y ');
+        text += ` para ${count} jugadores en total.`;
+
+        previewText.textContent = text;
+        playerInfo.style.display = 'flex';
+    } else {
+        playerInfo.style.display = 'none';
+    }
+}
+
+// Update on group size change
+document.querySelector('[name="group_size_preference"]').addEventListener('change', updatePlayerCount);
+</script>
+{% endblock %}
