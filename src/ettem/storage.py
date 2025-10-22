@@ -803,3 +803,25 @@ class BracketRepository:
         count = self.session.query(BracketSlotORM).filter(BracketSlotORM.category == category).delete()
         self.session.commit()
         return count
+
+    def update_slot_warning(self, category: str, round_type: str, slot_number: int, warning: bool):
+        """Update same_country_warning flag for a specific slot.
+
+        Args:
+            category: Category name
+            round_type: Round type
+            slot_number: Slot number
+            warning: Warning flag value
+        """
+        slot = (
+            self.session.query(BracketSlotORM)
+            .filter(
+                BracketSlotORM.category == category,
+                BracketSlotORM.round_type == round_type,
+                BracketSlotORM.slot_number == slot_number
+            )
+            .first()
+        )
+        if slot:
+            slot.same_country_warning = warning
+            self.session.commit()

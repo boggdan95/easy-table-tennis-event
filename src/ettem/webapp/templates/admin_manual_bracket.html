@@ -1,0 +1,714 @@
+{% extends "base.html" %}
+
+{% block title %}Bracket Manual - {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Bracket Manual: {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/generate-bracket" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.drag-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.players-pool {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.player-list {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.player-list-title {
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-item {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: move;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-item:hover {
+    background: var(--hover-bg, #f8f9fa);
+    border-color: var(--primary-color);
+    transform: translateX(5px);
+}
+
+.player-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.player-name {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.player-meta {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 1rem;
+}
+
+.bracket-slots {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.bracket-title {
+    font-weight: bold;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--warning-color);
+}
+
+.bracket-half {
+    margin-bottom: 1.5rem;
+}
+
+.half-label {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.slot-item {
+    background: white;
+    border: 2px dashed var(--border-color);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+}
+
+.slot-item.drag-over {
+    background: var(--primary-bg, #e7f3ff);
+    border-color: var(--primary-color);
+    border-style: solid;
+}
+
+.slot-item.occupied {
+    background: var(--success-bg, #d4edda);
+    border-style: solid;
+    border-color: var(--success-color);
+}
+
+.slot-item.occupied:hover {
+    background: #c3e6cb;
+}
+
+.slot-item.dragging {
+    opacity: 0.5;
+    border: 2px dashed var(--primary-color);
+}
+
+.slot-number {
+    font-weight: bold;
+    color: var(--text-muted);
+    font-size: 1.25rem;
+    min-width: 40px;
+}
+
+.slot-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.slot-player {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.slot-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-remove {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.btn-remove:hover {
+    background: #c82333;
+}
+
+.warning-badge {
+    background: var(--warning-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.error-badge {
+    background: var(--danger-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.bye-slot {
+    background: #fff3cd !important;
+    border: 2px solid var(--warning-color) !important;
+    cursor: not-allowed !important;
+    opacity: 0.8;
+}
+
+.bye-slot:hover {
+    background: #fff3cd !important;
+    transform: none !important;
+}
+
+.group-badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .drag-container {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="alert alert-info mb-3">
+    <span class="icon">ℹ️</span>
+    <div class="alert-content">
+        <div class="alert-title">Instrucciones</div>
+        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            <li>Arrastra jugadores desde las listas izquierda hacia las posiciones del bracket</li>
+            <li><strong>Restricción importante:</strong> Dos jugadores del mismo grupo NO pueden ir en la misma mitad del bracket</li>
+            <li>Se mostrarán alertas si dos jugadores del mismo país se enfrentan en primera ronda</li>
+            <li>Haz clic en el botón "✕" para remover un jugador de una posición</li>
+        </ul>
+    </div>
+</div>
+
+<div class="drag-container">
+    <!-- Players Pool (Left Side) -->
+    <div class="players-pool">
+        <!-- First Place Finishers -->
+        <div class="player-list">
+            <div class="player-list-title">
+                <span>🥇</span>
+                <span>Primeros de Grupo ({{ firsts|length }})</span>
+            </div>
+            <div id="firsts-pool">
+                {% for player in firsts %}
+                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-country="{{ player.pais_cd }}">
+                    <div class="player-info">
+                        <div class="player-name">
+                            <span class="group-badge">G{{ player.group_id }}</span>
+                            {{ player.nombre }} {{ player.apellido }}
+                        </div>
+                        <div class="player-meta">
+                            <span class="badge badge-secondary">{{ player.pais_cd }}</span>
+                            <span>{{ player.points_total }} pts</span>
+                        </div>
+                    </div>
+                    <span style="font-size: 1.5rem; color: var(--text-muted);">⋮⋮</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Second Place Finishers -->
+        <div class="player-list">
+            <div class="player-list-title">
+                <span>🥈</span>
+                <span>Segundos de Grupo ({{ seconds|length }})</span>
+            </div>
+            <div id="seconds-pool">
+                {% for player in seconds %}
+                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-country="{{ player.pais_cd }}">
+                    <div class="player-info">
+                        <div class="player-name">
+                            <span class="group-badge">G{{ player.group_id }}</span>
+                            {{ player.nombre }} {{ player.apellido }}
+                        </div>
+                        <div class="player-meta">
+                            <span class="badge badge-secondary">{{ player.pais_cd }}</span>
+                            <span>{{ player.points_total }} pts</span>
+                        </div>
+                    </div>
+                    <span style="font-size: 1.5rem; color: var(--text-muted);">⋮⋮</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bracket Slots (Right Side) -->
+    <div class="bracket-slots">
+        <div class="bracket-title">
+            <span>🏆 Bracket ({{ bracket_size }} posiciones)</span>
+        </div>
+
+        <form method="post" action="/admin/manual-bracket/{{ category }}/save" id="bracket-form">
+            <!-- Top Half -->
+            <div class="bracket-half">
+                <div class="half-label">
+                    <span>⬆️</span>
+                    <span>Mitad Superior (Posiciones 1-{{ bracket_size // 2 }})</span>
+                </div>
+                {% for slot in slots %}
+                {% if slot.slot_number <= bracket_size // 2 %}
+                <div class="slot-item {% if slot.is_bye %}bye-slot{% endif %}"
+                     data-slot-number="{{ slot.slot_number }}"
+                     data-half="top"
+                     data-is-bye="{{ 'true' if slot.is_bye else 'false' }}">
+                    <div class="slot-number">{{ slot.slot_number }}</div>
+                    <div class="slot-content">
+                        <div class="slot-player">
+                            {% if slot.is_bye %}
+                            <span class="slot-placeholder" style="color: var(--warning-color); font-weight: bold;">🔒 BYE (pre-colocado)</span>
+                            {% else %}
+                            <span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <input type="hidden" name="slot_{{ slot.slot_number }}" value="{% if slot.is_bye %}BYE{% endif %}">
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Half -->
+            <div class="bracket-half">
+                <div class="half-label">
+                    <span>⬇️</span>
+                    <span>Mitad Inferior (Posiciones {{ (bracket_size // 2) + 1 }}-{{ bracket_size }})</span>
+                </div>
+                {% for slot in slots %}
+                {% if slot.slot_number > bracket_size // 2 %}
+                <div class="slot-item {% if slot.is_bye %}bye-slot{% endif %}"
+                     data-slot-number="{{ slot.slot_number }}"
+                     data-half="bottom"
+                     data-is-bye="{{ 'true' if slot.is_bye else 'false' }}">
+                    <div class="slot-number">{{ slot.slot_number }}</div>
+                    <div class="slot-content">
+                        <div class="slot-player">
+                            {% if slot.is_bye %}
+                            <span class="slot-placeholder" style="color: var(--warning-color); font-weight: bold;">🔒 BYE (pre-colocado)</span>
+                            {% else %}
+                            <span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <input type="hidden" name="slot_{{ slot.slot_number }}" value="{% if slot.is_bye %}BYE{% endif %}">
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="d-flex gap-2" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>💾</span>
+                    <span>Guardar Bracket</span>
+                </button>
+                <a href="/admin/generate-bracket" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+                <button type="button" class="btn btn-warning" onclick="clearAllSlots()">
+                    <span>🗑️</span>
+                    <span>Limpiar Todo</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Track slot assignments for validation
+const slotAssignments = {};
+const bracketSize = {{ bracket_size }};
+const halfPoint = Math.floor(bracketSize / 2);
+
+// Drag and Drop Event Handlers
+let draggedElement = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners to player items
+    const playerItems = document.querySelectorAll('.player-item');
+    playerItems.forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Add event listeners to slot items
+    const slotItems = document.querySelectorAll('.slot-item');
+    slotItems.forEach(slot => {
+        slot.addEventListener('dragover', handleDragOver);
+        slot.addEventListener('dragleave', handleDragLeave);
+        slot.addEventListener('drop', handleDrop);
+    });
+});
+
+function handleDragStart(e) {
+    draggedElement = e.target;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedElement = null;
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+    return false;
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    e.preventDefault();
+
+    const targetSlot = e.currentTarget;
+    targetSlot.classList.remove('drag-over');
+
+    // Check if target slot is a BYE slot (cannot drop on BYE)
+    if (targetSlot.dataset.isBye === 'true') {
+        alert('No puedes colocar un jugador en un slot de BYE');
+        return false;
+    }
+
+    if (!draggedElement) {
+        return false;
+    }
+
+    // Case 1: Dragging from player list
+    if (draggedElement.classList.contains('player-item')) {
+        const playerId = draggedElement.dataset.playerId;
+        const groupId = draggedElement.dataset.groupId;
+        const country = draggedElement.dataset.country;
+        const slotNumber = parseInt(targetSlot.dataset.slotNumber);
+        const playerName = draggedElement.querySelector('.player-name').textContent.trim();
+
+        // Check if player is already in bracket
+        const existingSlots = Object.values(slotAssignments);
+        const isAlreadyPlaced = existingSlots.some(s => s.playerId === playerId);
+
+        if (isAlreadyPlaced) {
+            alert('Este jugador ya está colocado en el bracket');
+            return false;
+        }
+
+        // Assign player to slot
+        assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country);
+    }
+    // Case 2: Dragging from another slot (moving within bracket)
+    else if (draggedElement.classList.contains('slot-item')) {
+        const sourceSlotNumber = parseInt(draggedElement.dataset.slotNumber);
+        const targetSlotNumber = parseInt(targetSlot.dataset.slotNumber);
+
+        // Don't do anything if dropping on same slot
+        if (sourceSlotNumber === targetSlotNumber) {
+            return false;
+        }
+
+        // Check if source slot is a BYE
+        if (draggedElement.dataset.isBye === 'true') {
+            alert('No puedes mover un BYE');
+            return false;
+        }
+
+        // Get source player data
+        const sourceData = slotAssignments[sourceSlotNumber];
+        if (!sourceData) {
+            return false; // No player in source slot
+        }
+
+        // If target slot has a player, swap them
+        const targetData = slotAssignments[targetSlotNumber];
+
+        if (targetData) {
+            // Swap: move target player to source slot
+            assignPlayerToSlot(
+                sourceSlotNumber,
+                targetData.playerId,
+                targetData.playerName,
+                targetData.groupId,
+                targetData.country
+            );
+        } else {
+            // Just move: clear source slot
+            removePlayerFromSlot(sourceSlotNumber);
+        }
+
+        // Move source player to target slot
+        assignPlayerToSlot(
+            targetSlotNumber,
+            sourceData.playerId,
+            sourceData.playerName,
+            sourceData.groupId,
+            sourceData.country
+        );
+    }
+
+    return false;
+}
+
+function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    // Update slot
+    slot.classList.add('occupied');
+    input.value = playerId;
+
+    contentDiv.innerHTML = `
+        <div>
+            <div style="font-weight: bold;">
+                <span class="group-badge">G${groupId}</span>
+                ${playerName}
+            </div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">
+                País: ${country}
+            </div>
+        </div>
+        <div class="slot-actions">
+            <button type="button" class="btn-remove" onclick="removePlayerFromSlot(${slotNumber})">✕</button>
+        </div>
+    `;
+
+    // Make the slot draggable
+    slot.draggable = true;
+    slot.style.cursor = 'move';
+
+    // Add drag event listeners if not already added
+    if (!slot.hasAttribute('data-drag-enabled')) {
+        slot.addEventListener('dragstart', handleDragStart);
+        slot.addEventListener('dragend', handleDragEnd);
+        slot.setAttribute('data-drag-enabled', 'true');
+    }
+
+    // Track assignment (include playerName for swapping)
+    slotAssignments[slotNumber] = { playerId, playerName, groupId, country };
+
+    // Validate constraints
+    validateConstraints();
+}
+
+function removePlayerFromSlot(slotNumber) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    // Clear slot
+    slot.classList.remove('occupied');
+    input.value = '';
+    contentDiv.innerHTML = '<span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>';
+
+    // Make the slot non-draggable again
+    slot.draggable = false;
+    slot.style.cursor = '';
+    slot.removeAttribute('data-drag-enabled');
+
+    // Remove from tracking
+    delete slotAssignments[slotNumber];
+
+    // Revalidate
+    validateConstraints();
+}
+
+function clearAllSlots() {
+    if (confirm('¿Seguro que quieres limpiar todas las posiciones?')) {
+        Object.keys(slotAssignments).forEach(slotNumber => {
+            removePlayerFromSlot(parseInt(slotNumber));
+        });
+    }
+}
+
+function validateConstraints() {
+    // Clear all warnings
+    document.querySelectorAll('.warning-badge, .error-badge').forEach(badge => badge.remove());
+
+    // Check same-group constraint
+    const topHalfGroups = new Set();
+    const bottomHalfGroups = new Set();
+    let violations = [];
+
+    Object.entries(slotAssignments).forEach(([slotNumber, data]) => {
+        const slot = parseInt(slotNumber);
+        const half = slot <= halfPoint ? 'top' : 'bottom';
+
+        if (half === 'top') {
+            if (topHalfGroups.has(data.groupId)) {
+                violations.push(`Grupo ${data.groupId} repetido en mitad superior`);
+            }
+            topHalfGroups.add(data.groupId);
+        } else {
+            if (bottomHalfGroups.has(data.groupId)) {
+                violations.push(`Grupo ${data.groupId} repetido en mitad inferior`);
+            }
+            bottomHalfGroups.add(data.groupId);
+        }
+    });
+
+    // Show violations
+    if (violations.length > 0) {
+        alert('ADVERTENCIA DE VALIDACIÓN:\n\n' + violations.join('\n'));
+    }
+
+    // Check same-country warnings in first round matchups
+    for (let i = 1; i < bracketSize; i += 2) {
+        const slot1 = slotAssignments[i];
+        const slot2 = slotAssignments[i + 1];
+
+        if (slot1 && slot2 && slot1.country === slot2.country) {
+            const slotElement1 = document.querySelector(`.slot-item[data-slot-number="${i}"] .slot-content`);
+            const slotElement2 = document.querySelector(`.slot-item[data-slot-number="${i + 1}"] .slot-content`);
+
+            const warning = '<span class="warning-badge">⚠️ Mismo país</span>';
+            slotElement1.insertAdjacentHTML('beforeend', warning);
+            slotElement2.insertAdjacentHTML('beforeend', warning);
+        }
+    }
+}
+
+// Form validation before submit
+document.getElementById('bracket-form').addEventListener('submit', function(e) {
+    const assignedCount = Object.keys(slotAssignments).length;
+    if (assignedCount === 0) {
+        e.preventDefault();
+        alert('Debes asignar al menos un jugador al bracket');
+        return false;
+    }
+
+    // Double-check same-group constraint
+    const topHalfGroups = [];
+    const bottomHalfGroups = [];
+
+    Object.entries(slotAssignments).forEach(([slotNumber, data]) => {
+        const slot = parseInt(slotNumber);
+        if (slot <= halfPoint) {
+            topHalfGroups.push(data.groupId);
+        } else {
+            bottomHalfGroups.push(data.groupId);
+        }
+    });
+
+    const topDupes = topHalfGroups.length !== new Set(topHalfGroups).size;
+    const bottomDupes = bottomHalfGroups.length !== new Set(bottomHalfGroups).size;
+
+    if (topDupes || bottomDupes) {
+        e.preventDefault();
+        alert('ERROR: Hay jugadores del mismo grupo en la misma mitad del bracket. Por favor corrige las asignaciones.');
+        return false;
+    }
+
+    return true;
+});
+
+// Restore form state if there was a validation error
+{% if saved_assignments %}
+(function() {
+    const savedData = {{ saved_assignments | tojson }};
+    const allPlayers = [...{{ firsts | tojson }}, ...{{ seconds | tojson }}];
+
+    // Convert saved form data (slot_1: player_id, slot_2: BYE, etc.) to assignments
+    Object.entries(savedData).forEach(([key, value]) => {
+        if (key.startsWith('slot_')) {
+            const slotNumber = parseInt(key.replace('slot_', ''));
+
+            // Skip BYE slots
+            if (value === 'BYE' || value === '') {
+                return;
+            }
+
+            // Find player data
+            const playerId = parseInt(value);
+            const player = allPlayers.find(p => p.player_id === playerId);
+
+            if (player) {
+                const playerName = `${player.nombre} ${player.apellido}`;
+                assignPlayerToSlot(
+                    slotNumber,
+                    player.player_id,
+                    playerName,
+                    player.group_id,
+                    player.pais_cd
+                );
+            }
+        }
+    });
+})();
+{% endif %}
+</script>
+
+{% endblock %}

@@ -1,5 +1,6 @@
 """FastAPI web application for Easy Table Tennis Event Manager."""
 
+import math
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -1443,6 +1444,293 @@ async def admin_generate_bracket_execute(
         request.session["flash_message"] = f"Error al generar bracket: {str(e)}"
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/admin/generate-bracket", status_code=303)
+
+
+def get_bye_positions(num_groups: int) -> list[int]:
+    """
+    Get the exact BYE positions based on the number of groups.
+
+    BYE positions are predefined for each configuration to ensure proper tournament structure.
+    The fewer groups, the more BYEs needed to fill the draw to the next power of 2.
+
+    Args:
+        num_groups: Number of groups in the category
+
+    Returns:
+        List of positions where BYEs should be placed (1-indexed)
+    """
+    # Map: num_groups -> BYE positions
+    # Each group contributes 2 qualifiers (1st and 2nd place)
+    bye_map = {
+        3: [2, 7],  # 6 players -> draw of 8
+        5: [2, 6, 7, 10, 11, 15],  # 10 players -> draw of 16
+        6: [2, 7, 10, 15],  # 12 players -> draw of 16
+        7: [2, 15],  # 14 players -> draw of 16
+        8: [],  # 16 players -> draw of 16, no BYEs
+        9: [2, 3, 6, 7, 10, 11, 15, 18, 22, 23, 26, 27, 30, 31],  # 18 players -> draw of 32
+        10: [2, 6, 7, 10, 11, 15, 18, 22, 23, 26, 27, 31],  # 20 players -> draw of 32
+        11: [2, 6, 7, 10, 11, 15, 18, 22, 23, 26],  # 22 players -> draw of 32
+        12: [2, 7, 10, 11, 15, 18, 23, 26],  # 24 players -> draw of 32
+        13: [2, 7, 15, 18, 26, 31],  # 26 players -> draw of 32
+        14: [2, 15, 18, 31],  # 28 players -> draw of 32
+        15: [2, 31],  # 30 players -> draw of 32
+        16: [],  # 32 players -> draw of 32, no BYEs
+        17: [2, 3, 6, 7, 10, 11, 14, 15, 18, 22, 23, 26, 27, 30, 31, 34,
+             35, 38, 39, 42, 43, 47, 50, 51, 54, 55, 58, 59, 62, 63],  # 34 players -> draw of 64
+        18: [2, 3, 6, 7, 10, 11, 14, 15, 18, 22, 23, 26, 27, 30, 31, 34,
+             35, 38, 39, 42, 43, 47, 50, 51, 54, 55, 58, 59],  # 36 players -> draw of 64
+        19: [2, 6, 7, 10, 11, 15, 18, 22, 23, 26, 27, 30, 31, 34, 35, 38,
+             39, 42, 43, 47, 50, 54, 55, 58, 59, 63],  # 38 players -> draw of 64
+        20: [2, 6, 7, 10, 11, 15, 18, 22, 23, 26, 27, 30, 31, 34, 38, 39,
+             42, 43, 47, 50, 54, 55, 58, 59],  # 40 players -> draw of 64
+    }
+
+    return bye_map.get(num_groups, [])
+
+
+@app.get("/admin/manual-bracket/{category}", response_class=HTMLResponse)
+async def admin_manual_bracket_form(request: Request, category: str):
+    """Show manual bracket positioning form with drag-and-drop interface."""
+    session = get_db_session()
+    try:
+        standing_repo = StandingRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+
+        # First, validate that groups exist for this category
+        all_groups = group_repo.get_all()
+        category_groups = [g for g in all_groups if g.category == category]
+
+        if not category_groups:
+            request.session["flash_message"] = f"No hay grupos creados para la categoría {category}. Crea grupos primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/generate-bracket", status_code=303)
+
+        # Validate that all matches are completed
+        all_matches = match_repo.get_all()
+        category_matches = [m for m in all_matches if m.group_id in [g.id for g in category_groups]]
+        pending_matches = [m for m in category_matches if m.status == MatchStatus.PENDING]
+
+        if pending_matches:
+            request.session["flash_message"] = f"Hay {len(pending_matches)} partidos pendientes en {category}. Completa todos los partidos antes de generar el bracket."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/generate-bracket", status_code=303)
+
+        # Get all standings for this category
+        all_standings = standing_repo.get_all()
+
+        # Filter by category and separate by position
+        firsts = []
+        seconds = []
+
+        for standing_orm in all_standings:
+            player_orm = player_repo.get_by_id(standing_orm.player_id)
+            if not player_orm or player_orm.categoria != category:
+                continue
+
+            # Calculate ratios
+            sets_ratio = standing_orm.sets_w / standing_orm.sets_l if standing_orm.sets_l > 0 else 999.0
+            points_ratio = standing_orm.points_w / standing_orm.points_l if standing_orm.points_l > 0 else 999.0
+
+            if standing_orm.position == 1:
+                firsts.append({
+                    "player_id": player_orm.id,
+                    "nombre": player_orm.nombre,
+                    "apellido": player_orm.apellido,
+                    "pais_cd": player_orm.pais_cd,
+                    "group_id": standing_orm.group_id,
+                    "points_total": standing_orm.points_total,
+                    "sets_ratio": sets_ratio,
+                    "points_ratio": points_ratio,
+                    "seed": player_orm.seed or 999
+                })
+            elif standing_orm.position == 2:
+                seconds.append({
+                    "player_id": player_orm.id,
+                    "nombre": player_orm.nombre,
+                    "apellido": player_orm.apellido,
+                    "pais_cd": player_orm.pais_cd,
+                    "group_id": standing_orm.group_id,
+                    "points_total": standing_orm.points_total,
+                    "sets_ratio": sets_ratio,
+                    "points_ratio": points_ratio,
+                    "seed": player_orm.seed or 999
+                })
+
+        if not firsts and not seconds:
+            request.session["flash_message"] = f"No hay clasificados para la categoría {category}. Calcula standings primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/generate-bracket", status_code=303)
+
+        # Sort by group_id (G1, G2, G3...) - this is the natural order for bracket positioning
+        firsts.sort(key=lambda x: x["group_id"])
+        seconds.sort(key=lambda x: x["group_id"])
+
+        # Calculate bracket size and BYEs using predefined positions
+        num_groups = len(category_groups)
+        total_qualifiers = len(firsts) + len(seconds)
+        bracket_size = 2 ** math.ceil(math.log2(total_qualifiers)) if total_qualifiers > 0 else 0
+
+        # Get exact BYE positions based on number of groups
+        bye_positions = get_bye_positions(num_groups)
+        all_bye_positions = set(bye_positions)
+
+        # Create bracket slots with pre-placed BYEs
+        slots = []
+
+        for i in range(1, bracket_size + 1):
+            slots.append({
+                "slot_number": i,
+                "player_id": None,
+                "is_bye": i in all_bye_positions
+            })
+
+        # Check if there's saved form data from a previous validation error
+        saved_assignments = request.session.pop("bracket_form_data", None)
+
+        return render_template(
+            "admin_manual_bracket.html",
+            {
+                "request": request,
+                "category": category,
+                "firsts": firsts,
+                "seconds": seconds,
+                "bracket_size": bracket_size,
+                "slots": slots,
+                "saved_assignments": saved_assignments,
+            }
+        )
+    finally:
+        session.close()
+
+
+@app.post("/admin/manual-bracket/{category}/save")
+async def admin_manual_bracket_save(request: Request, category: str):
+    """Save manually positioned bracket."""
+    from ettem.models import BracketSlot, RoundType
+
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        bracket_repo = BracketRepository(session)
+        standing_repo = StandingRepository(session)
+
+        # Get form data
+        form_data = await request.form()
+
+        # Parse slot assignments (slot_1=player_id, slot_2=player_id, etc.)
+        slot_assignments = {}
+        for key, value in form_data.items():
+            if key.startswith("slot_") and value:
+                slot_num = int(key.replace("slot_", ""))
+                player_id = int(value) if value else None
+                if player_id:
+                    slot_assignments[slot_num] = player_id
+
+        if not slot_assignments:
+            request.session["flash_message"] = "Debes asignar al menos un jugador al bracket"
+            request.session["flash_type"] = "error"
+            # Save form state to preserve user's work
+            request.session["bracket_form_data"] = dict(form_data)
+            return RedirectResponse(url=f"/admin/manual-bracket/{category}", status_code=303)
+
+        # Determine bracket size
+        max_slot = max(slot_assignments.keys())
+        bracket_size = 2 ** math.ceil(math.log2(max_slot))
+
+        # Determine round type
+        if bracket_size == 2:
+            round_type = RoundType.FINAL
+        elif bracket_size == 4:
+            round_type = RoundType.SEMIFINAL
+        elif bracket_size == 8:
+            round_type = RoundType.QUARTERFINAL
+        elif bracket_size == 16:
+            round_type = RoundType.ROUND_OF_16
+        else:
+            round_type = RoundType.ROUND_OF_32
+
+        # Validate same-group constraint
+        # Build player -> group_id mapping
+        player_to_group = {}
+        all_standings = standing_repo.get_all()
+        for standing_orm in all_standings:
+            player_orm = player_repo.get_by_id(standing_orm.player_id)
+            if player_orm and player_orm.categoria == category:
+                player_to_group[standing_orm.player_id] = standing_orm.group_id
+
+        # Check same-group in same half
+        half_point = bracket_size // 2
+        top_half_players = []
+        bottom_half_players = []
+
+        for slot_num, player_id in slot_assignments.items():
+            if slot_num <= half_point:
+                top_half_players.append(player_id)
+            else:
+                bottom_half_players.append(player_id)
+
+        # Check for violations
+        violations = []
+
+        # Check top half
+        groups_in_top = [player_to_group.get(pid) for pid in top_half_players if pid in player_to_group]
+        if len(groups_in_top) != len(set(groups_in_top)):
+            violations.append("Hay jugadores del mismo grupo en la mitad superior del bracket")
+
+        # Check bottom half
+        groups_in_bottom = [player_to_group.get(pid) for pid in bottom_half_players if pid in player_to_group]
+        if len(groups_in_bottom) != len(set(groups_in_bottom)):
+            violations.append("Hay jugadores del mismo grupo en la mitad inferior del bracket")
+
+        if violations:
+            request.session["flash_message"] = "; ".join(violations)
+            request.session["flash_type"] = "error"
+            # Save form state to preserve user's work
+            request.session["bracket_form_data"] = dict(form_data)
+            return RedirectResponse(url=f"/admin/manual-bracket/{category}", status_code=303)
+
+        # Create bracket slots
+        bracket_repo.delete_by_category(category)  # Clear old bracket
+
+        for slot_num in range(1, bracket_size + 1):
+            player_id = slot_assignments.get(slot_num)
+            is_bye = player_id is None
+
+            slot = BracketSlot(
+                slot_number=slot_num,
+                round_type=round_type,
+                player_id=player_id,
+                is_bye=is_bye,
+                same_country_warning=False
+            )
+            bracket_repo.create_slot(slot, category)
+
+        # Annotate same-country warnings
+        # Check adjacent pairs
+        for i in range(1, bracket_size, 2):
+            slot1_player_id = slot_assignments.get(i)
+            slot2_player_id = slot_assignments.get(i + 1)
+
+            if slot1_player_id and slot2_player_id:
+                player1 = player_repo.get_by_id(slot1_player_id)
+                player2 = player_repo.get_by_id(slot2_player_id)
+
+                if player1 and player2 and player1.pais_cd == player2.pais_cd:
+                    # Update slots with warning
+                    bracket_repo.update_slot_warning(category, round_type, i, True)
+                    bracket_repo.update_slot_warning(category, round_type, i + 1, True)
+
+        request.session["flash_message"] = f"Bracket configurado manualmente con éxito"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/bracket/{category}", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al guardar bracket: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url=f"/admin/manual-bracket/{category}", status_code=303)
 
 
 if __name__ == "__main__":

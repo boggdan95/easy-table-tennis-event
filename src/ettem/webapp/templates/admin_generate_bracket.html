@@ -73,7 +73,11 @@
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-success">
                     <span>🏆</span>
-                    <span>Generar Bracket</span>
+                    <span>Generar Bracket Automático</span>
+                </button>
+                <button type="button" class="btn btn-warning" onclick="goToManualBracket()">
+                    <span>🎯</span>
+                    <span>Bracket Manual (Drag & Drop)</span>
                 </button>
                 <a href="/" class="btn btn-secondary">
                     <span>✕</span>
@@ -193,6 +197,18 @@ function updateQualifiersPreview() {
     } else {
         qualifiersInfo.style.display = 'none';
     }
+}
+
+function goToManualBracket() {
+    const categorySelect = document.getElementById('category-select');
+    const selectedCategory = categorySelect.value;
+
+    if (!selectedCategory) {
+        alert('Por favor selecciona una categoría primero');
+        return;
+    }
+
+    window.location.href = `/admin/manual-bracket/${selectedCategory}`;
 }
 </script>
 {% endblock %}
