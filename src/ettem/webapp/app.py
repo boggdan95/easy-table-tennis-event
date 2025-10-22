@@ -346,6 +346,14 @@ async def save_result(
         if not sets_data:
             request.session["flash_message"] = "Error: Debe ingresar al menos un set"
             request.session["flash_type"] = "error"
+            # Save form values even when no sets were entered
+            form_vals = {}
+            for i in range(1, 6):
+                p1_val = form_data.get(f"set{i}_p1", "").strip()
+                p2_val = form_data.get(f"set{i}_p2", "").strip()
+                form_vals[f"set{i}_p1"] = p1_val
+                form_vals[f"set{i}_p2"] = p2_val
+            request.session["form_values"] = form_vals
             return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
         # Validate the complete match
@@ -356,13 +364,15 @@ async def save_result(
             print(f"[DEBUG] Saving flash message to session: {error_text}")
             request.session["flash_message"] = error_text
             request.session["flash_type"] = "error"
-            # Save form values to preserve them on error
+            # Save RAW form values (as submitted by user) to preserve them on error
             form_vals = {}
             for i in range(1, 6):
-                form_vals[f"set{i}_p1"] = set_inputs[i-1][0] if set_inputs[i-1][0] is not None else ""
-                form_vals[f"set{i}_p2"] = set_inputs[i-1][1] if set_inputs[i-1][1] is not None else ""
+                p1_val = form_data.get(f"set{i}_p1", "").strip()
+                p2_val = form_data.get(f"set{i}_p2", "").strip()
+                form_vals[f"set{i}_p1"] = p1_val
+                form_vals[f"set{i}_p2"] = p2_val
             request.session["form_values"] = form_vals
-            print(f"[DEBUG] Session after save: {dict(request.session)}")
+            print(f"[DEBUG] Saved form values: {form_vals}")
             return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
         # Determine winner based on sets won

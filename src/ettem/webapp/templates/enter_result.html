@@ -70,8 +70,12 @@
                                 <td><strong>{{ player1.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
-                                {% set saved_value = form_values.get('set' + i|string + '_p1', '') if form_values else '' %}
-                                {% set display_value = saved_value if saved_value != '' else (set_data.player1_points if set_data else '') %}
+                                {# If form_values exists (validation error), use it; otherwise use saved set_data #}
+                                {% if form_values %}
+                                    {% set display_value = form_values.get('set' + i|string + '_p1', '') %}
+                                {% else %}
+                                    {% set display_value = set_data.player1_points if set_data else '' %}
+                                {% endif %}
                                 <td style="text-align: center;">
                                     <input type="number"
                                            name="set{{ i }}_p1"
@@ -89,8 +93,12 @@
                                 <td><strong>{{ player2.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
-                                {% set saved_value = form_values.get('set' + i|string + '_p2', '') if form_values else '' %}
-                                {% set display_value = saved_value if saved_value != '' else (set_data.player2_points if set_data else '') %}
+                                {# If form_values exists (validation error), use it; otherwise use saved set_data #}
+                                {% if form_values %}
+                                    {% set display_value = form_values.get('set' + i|string + '_p2', '') %}
+                                {% else %}
+                                    {% set display_value = set_data.player2_points if set_data else '' %}
+                                {% endif %}
                                 <td style="text-align: center;">
                                     <input type="number"
                                            name="set{{ i }}_p2"
