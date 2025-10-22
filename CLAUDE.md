@@ -318,3 +318,32 @@ ettem export --what standings --format csv --out out/
 3. Reutilizar lógica del CLI en endpoints web
 4. Agregar feedback visual (progress bars, confirmaciones)
 5. Testing de flujo completo desde UI
+
+---
+
+## Workflow de Desarrollo
+
+### Ramas de Git
+
+**Ramas Principales:**
+- `main` - Código estable y probado (V1.0.0, V1.0.1, V1.0.2)
+- `feature/ui-management` - Nueva funcionalidad de gestión desde UI (próxima sesión)
+
+**Para la Próxima Sesión:**
+```bash
+# Cambiar a la rama de desarrollo
+git checkout feature/ui-management
+
+# Trabajar en las funcionalidades
+# ... hacer commits ...
+
+# Cuando esté listo para merge
+git checkout main
+git merge feature/ui-management
+git push
+```
+
+**Notas:**
+- Los commits V1.0.0 a V1.0.2 están directamente en `main` (decisión tomada)
+- A partir de ahora, nuevas features en ramas dedicadas
+- La rama `feature/ui-management` ya está creada y lista para usar
