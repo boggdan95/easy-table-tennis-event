@@ -85,13 +85,28 @@ When 3+ players are tied on tournament points, the following criteria are applie
 
 ## Bracket Generation
 
+### Automatic Bracket Generation
+
 - Bracket size: next power of 2 ≥ number of qualifiers
 - **G1 (best 1st place):** top slot
 - **G2 (second best 1st place):** bottom slot
 - **Other 1st place finishers:** random draw in predefined slots (deterministic with `random_seed`)
 - **2nd place finishers:** placed in opposite half from their group's 1st place
-- **BYEs:** filled automatically when needed
+- **BYEs:** filled automatically according to ITTF positioning rules
 - **Same-country annotation:** 1st round matches with same country are flagged for review (non-blocking)
+
+### Manual Bracket (Drag & Drop)
+
+The web UI includes a manual bracket builder with:
+- **Drag-and-drop interface:** Move players between slots or from lists to slots
+- **ITTF-compliant BYE positioning:** BYEs are pre-placed according to official ITTF rules based on number of groups
+  - 3 groups (6 players → 8 bracket): BYEs at positions [2, 7]
+  - 5 groups (10 players → 16 bracket): BYEs at positions [2, 6, 7, 10, 11, 15]
+  - Supports up to 20 groups with predefined positions
+- **Removable/repositionable BYEs:** Click X to remove, drag from pool to reposition
+- **Group constraint validation:** Same group cannot be in same half of bracket
+- **Same-country warnings:** Visual alerts for same-country first-round matches
+- **Player swap support:** Drag occupied slots to swap players
 
 ## Configuration
 
