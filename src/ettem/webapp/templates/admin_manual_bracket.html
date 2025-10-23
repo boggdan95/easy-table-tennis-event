@@ -241,7 +241,8 @@
             <li>Arrastra jugadores desde las listas izquierda hacia las posiciones del bracket</li>
             <li><strong>Restricción importante:</strong> Dos jugadores del mismo grupo NO pueden ir en la misma mitad del bracket</li>
             <li>Se mostrarán alertas si dos jugadores del mismo país se enfrentan en primera ronda</li>
-            <li>Haz clic en el botón "✕" para remover un jugador de una posición</li>
+            <li>Los BYEs están pre-colocados según reglas ITTF. Puedes quitarlos con "✕" y reubicarlos arrastrándolos</li>
+            <li>Haz clic en el botón "✕" para remover un jugador o BYE de una posición</li>
         </ul>
     </div>
 </div>
@@ -298,6 +299,17 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!-- BYEs Pool -->
+        <div class="player-list">
+            <div class="player-list-title">
+                <span>⏸️</span>
+                <span>BYEs Disponibles</span>
+            </div>
+            <div id="byes-pool">
+                <!-- BYEs will be added here dynamically when removed from slots -->
+            </div>
+        </div>
     </div>
 
     <!-- Bracket Slots (Right Side) -->
@@ -323,7 +335,12 @@
                     <div class="slot-content">
                         <div class="slot-player">
                             {% if slot.is_bye %}
-                            <span class="slot-placeholder" style="color: var(--warning-color); font-weight: bold;">🔒 BYE (pre-colocado)</span>
+                            <div style="font-weight: bold; color: var(--warning-color);">
+                                🔒 BYE
+                            </div>
+                            <div class="slot-actions">
+                                <button type="button" class="btn-remove" onclick="removeBye({{ slot.slot_number }})">✕</button>
+                            </div>
                             {% else %}
                             <span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>
                             {% endif %}
@@ -351,7 +368,12 @@
                     <div class="slot-content">
                         <div class="slot-player">
                             {% if slot.is_bye %}
-                            <span class="slot-placeholder" style="color: var(--warning-color); font-weight: bold;">🔒 BYE (pre-colocado)</span>
+                            <div style="font-weight: bold; color: var(--warning-color);">
+                                🔒 BYE
+                            </div>
+                            <div class="slot-actions">
+                                <button type="button" class="btn-remove" onclick="removeBye({{ slot.slot_number }})">✕</button>
+                            </div>
                             {% else %}
                             <span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>
                             {% endif %}
@@ -440,18 +462,26 @@ function handleDrop(e) {
     const targetSlot = e.currentTarget;
     targetSlot.classList.remove('drag-over');
 
-    // Check if target slot is a BYE slot (cannot drop on BYE)
-    if (targetSlot.dataset.isBye === 'true') {
-        alert('No puedes colocar un jugador en un slot de BYE');
-        return false;
-    }
-
     if (!draggedElement) {
         return false;
     }
 
+    // Check if target slot is a BYE slot and we're dragging a player (not a BYE)
+    if (targetSlot.dataset.isBye === 'true' &&
+        (draggedElement.classList.contains('player-item') && !draggedElement.classList.contains('bye-item'))) {
+        alert('No puedes colocar un jugador en un slot de BYE');
+        return false;
+    }
+
+    // Check if target slot has a player and we're dragging a BYE
+    const slotNumber = parseInt(targetSlot.dataset.slotNumber);
+    if (draggedElement.classList.contains('bye-item') && slotAssignments[slotNumber]) {
+        alert('No puedes colocar un BYE en un slot ocupado por un jugador');
+        return false;
+    }
+
     // Case 1: Dragging from player list
-    if (draggedElement.classList.contains('player-item')) {
+    if (draggedElement.classList.contains('player-item') && !draggedElement.classList.contains('bye-item')) {
         const playerId = draggedElement.dataset.playerId;
         const groupId = draggedElement.dataset.groupId;
         const country = draggedElement.dataset.country;
@@ -517,6 +547,16 @@ function handleDrop(e) {
             sourceData.groupId,
             sourceData.country
         );
+    }
+    // Case 3: Dragging a BYE from the pool
+    else if (draggedElement.classList.contains('bye-item')) {
+        const slotNumber = parseInt(targetSlot.dataset.slotNumber);
+
+        // Assign BYE to slot
+        assignByeToSlot(slotNumber);
+
+        // Remove BYE from pool
+        draggedElement.remove();
     }
 
     return false;
@@ -584,6 +624,75 @@ function removePlayerFromSlot(slotNumber) {
 
     // Revalidate
     validateConstraints();
+}
+
+function removeBye(slotNumber) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    // Remove BYE marking
+    slot.classList.remove('bye-slot');
+    slot.dataset.isBye = 'false';
+
+    // Clear input (was set to 'BYE')
+    input.value = '';
+
+    // Update UI to show empty slot
+    contentDiv.innerHTML = '<span class="slot-placeholder">Vacío - Arrastra un jugador aquí</span>';
+
+    // Add BYE back to the pool
+    addByeToPool();
+}
+
+function assignByeToSlot(slotNumber) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    // Mark slot as BYE
+    slot.classList.add('bye-slot');
+    slot.dataset.isBye = 'true';
+
+    // Set input value
+    input.value = 'BYE';
+
+    // Update UI
+    contentDiv.innerHTML = `
+        <div style="font-weight: bold; color: var(--warning-color);">
+            🔒 BYE
+        </div>
+        <div class="slot-actions">
+            <button type="button" class="btn-remove" onclick="removeBye(${slotNumber})">✕</button>
+        </div>
+    `;
+}
+
+function addByeToPool() {
+    const byesPool = document.getElementById('byes-pool');
+
+    // Create BYE item
+    const byeItem = document.createElement('div');
+    byeItem.className = 'player-item bye-item';
+    byeItem.draggable = true;
+    byeItem.innerHTML = `
+        <div class="player-info">
+            <div class="player-name" style="color: var(--warning-color); font-weight: bold;">
+                🔒 BYE
+            </div>
+            <div class="player-meta">
+                <span class="badge badge-warning">Disponible</span>
+            </div>
+        </div>
+        <span style="font-size: 1.5rem; color: var(--text-muted);">⋮⋮</span>
+    `;
+
+    // Add drag event listeners
+    byeItem.addEventListener('dragstart', handleDragStart);
+    byeItem.addEventListener('dragend', handleDragEnd);
+
+    // Add to pool
+    byesPool.appendChild(byeItem);
 }
 
 function clearAllSlots() {

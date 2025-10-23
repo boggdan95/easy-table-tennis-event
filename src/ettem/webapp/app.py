@@ -1576,6 +1576,9 @@ async def admin_manual_bracket_form(request: Request, category: str):
         bye_positions = get_bye_positions(num_groups)
         all_bye_positions = set(bye_positions)
 
+        # DEBUG: Print to console
+        print(f"DEBUG: num_groups={num_groups}, bye_positions={bye_positions}, bracket_size={bracket_size}")
+
         # Create bracket slots with pre-placed BYEs
         slots = []
 
