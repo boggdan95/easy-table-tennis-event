@@ -9,6 +9,10 @@
     <span>←</span>
     <span>Volver</span>
 </a>
+<a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
+    <span>📋</span>
+    <span>Partidos de Llave</span>
+</a>
 {% endblock %}
 
 {% block content %}
@@ -40,6 +44,9 @@
                             {% elif slot1.player %}
                                 {{ slot1.player.nombre }} {{ slot1.player.apellido }}
                                 <span class="country">({{ slot1.player.pais_cd }})</span>
+                                {% if slot1.slot.advanced_by_bye %}
+                                    <span class="badge-bye-advance">✓ BYE</span>
+                                {% endif %}
                             {% else %}
                                 <em>TBD</em>
                             {% endif %}
@@ -54,6 +61,9 @@
                             {% elif slot2.player %}
                                 {{ slot2.player.nombre }} {{ slot2.player.apellido }}
                                 <span class="country">({{ slot2.player.pais_cd }})</span>
+                                {% if slot2.slot.advanced_by_bye %}
+                                    <span class="badge-bye-advance">✓ BYE</span>
+                                {% endif %}
                             {% else %}
                                 <em>TBD</em>
                             {% endif %}
@@ -174,6 +184,18 @@
     margin-left: 4px;
 }
 
+.badge-bye-advance {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 6px;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .connector-line {
     position: absolute;
     right: -40px;
@@ -208,6 +230,7 @@
         <ul style="margin: 0; padding-left: 1.5rem; line-height: 1.8;">
             <li><strong>#N</strong> - Posición en el cuadro (1 = tope, último = fondo)</li>
             <li><strong>BYE</strong> - El jugador pasa automáticamente a la siguiente ronda</li>
+            <li><strong>✓ BYE (verde)</strong> - Jugador que avanzó automáticamente por BYE</li>
             <li><strong>Borde naranja</strong> - Aviso de jugadores del mismo país (informativo)</li>
         </ul>
     </div>

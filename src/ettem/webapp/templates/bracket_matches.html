@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Bracket {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Bracket - {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+<a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
+    <span>🗂️</span>
+    <span>Llave Visual</span>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Round Display Names Mapping -->
+{% set round_names = {
+    'R32': 'Ronda de 32',
+    'R16': 'Ronda de 16',
+    'QF': 'Cuartos de Final',
+    'SF': 'Semifinales',
+    'F': 'Final'
+} %}
+
+<!-- Bracket Matches by Round -->
+{% for round_type in round_order %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ round_names.get(round_type, round_type) }}</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th>Jugador 1</th>
+                        <th style="width: 40px; text-align: center;">vs</th>
+                        <th>Jugador 2</th>
+                        <th style="width: 120px; text-align: center;">Resultado</th>
+                        <th style="width: 120px; text-align: center;">Estado</th>
+                        <th style="width: 200px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in matches_by_round[round_type] %}
+                    <tr>
+                        <td><span class="badge badge-secondary">{{ m.match.match_number }}</span></td>
+                        <td>
+                            <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>
+                        </td>
+                        <td style="text-align: center; color: var(--text-muted);">vs</td>
+                        <td>
+                            <strong>{{ m.player2.nombre }} {{ m.player2.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player2.pais_cd }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.match.status == 'WALKOVER' %}
+                                {% if m.match.winner_id == m.player1.id %}
+                                    <span class="badge badge-warning">3-0 (WO)</span>
+                                {% else %}
+                                    <span class="badge badge-warning">0-3 (WO)</span>
+                                {% endif %}
+                            {% elif m.match.status != 'pending' %}
+                                <!-- Calculate sets won for each player -->
+                                {% set p1_sets = namespace(count=0) %}
+                                {% set p2_sets = namespace(count=0) %}
+                                {% for s in m.sets %}
+                                    {% if s.player1_points > s.player2_points %}
+                                        {% set p1_sets.count = p1_sets.count + 1 %}
+                                    {% else %}
+                                        {% set p2_sets.count = p2_sets.count + 1 %}
+                                    {% endif %}
+                                {% endfor %}
+                                <span class="badge badge-success" style="font-size: 1rem;">{{ p1_sets.count }}-{{ p2_sets.count }}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.match.status == 'pending' %}
+                                <span class="badge badge-secondary">Pendiente</span>
+                            {% elif m.match.status == 'WALKOVER' %}
+                                <span class="badge badge-warning">Walkover</span>
+                            {% else %}
+                                <span class="badge badge-success">Completado</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="d-flex gap-1" style="justify-content: center;">
+                                {% if m.match.status == 'pending' %}
+                                    <a href="/match/{{ m.match.id }}/enter-result"
+                                       class="btn btn-success btn-sm"
+                                       title="Ingresar resultado"
+                                       style="padding: 0.25rem 0.5rem;">
+                                        ✓
+                                    </a>
+                                {% else %}
+                                    <a href="/match/{{ m.match.id }}/enter-result"
+                                       class="btn btn-warning btn-sm"
+                                       title="Editar resultado"
+                                       style="padding: 0.25rem 0.5rem;">
+                                        ✎
+                                    </a>
+                                    <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" data-confirm="¿Está seguro de eliminar este resultado?">
+                                        <button type="submit"
+                                                class="btn btn-danger btn-sm"
+                                                title="Eliminar resultado"
+                                                style="padding: 0.25rem 0.5rem;">
+                                            ✕
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if not round_order %}
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted" style="text-align: center; margin: 2rem 0;">
+            No hay partidos de bracket creados aún. Genera el bracket primero.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -182,6 +182,7 @@ class BracketSlotORM(Base):
     player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     is_bye = Column(Boolean, nullable=False, default=False)
     same_country_warning = Column(Boolean, nullable=False, default=False)
+    advanced_by_bye = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

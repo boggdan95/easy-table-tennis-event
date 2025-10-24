@@ -5,9 +5,13 @@
 {% block page_title %}{{ category }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}/bracket" class="btn btn-success">
-    <span>🏅</span>
-    <span>Ver Llave de Eliminación</span>
+<a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
+    <span>🗂️</span>
+    <span>Llave Visual</span>
+</a>
+<a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
+    <span>📋</span>
+    <span>Partidos de Llave</span>
 </a>
 {% endblock %}
 
