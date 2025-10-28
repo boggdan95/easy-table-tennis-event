@@ -289,35 +289,30 @@ Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
 **OBJETIVO: Correr un evento completo de 1 categoría de principio a fin**
 
 **Estado Actual (2025-10-28):**
-- ✅ Fix aplicado a creación de grupos con preview modal
-- ✅ Commit realizado: `4366ea4 Fix group creation with manual assignments from preview`
-- ⚠️ **Pendiente:** Probar flujo completo de creación de grupos desde UI con preview
+- ✅ Fix aplicado a creación de grupos con preview modal (4366ea4)
+- ✅ Preview modal con drag-and-drop implementado (0d802e0)
+- ✅ Vista de resultados finales y campeón implementada (d3e0456)
+- ✅ MVP Roadmap documentado (127dc4e)
+- ✅ Muestra de 32 jugadores para testing (127dc4e)
+- ⚠️ **Pendiente:** Probar flujo completo end-to-end de torneo completo
 
 **Tareas Críticas para MVP:**
-1. **Testing de Creación de Grupos** (PRÓXIMO)
-   - Probar creación directa sin preview
-   - Probar creación con preview y sin drag-and-drop
-   - Probar creación con preview y drag-and-drop de jugadores
-   - Verificar que group_number se asigna correctamente
-   - Verificar que los partidos se generan correctamente
+1. **Testing End-to-End Completo** (PRÓXIMO - PRIORITARIO)
+   - [ ] Eliminar base de datos actual y empezar desde cero
+   - [ ] Importar 32 jugadores desde `data/samples/players_32.csv`
+   - [ ] Crear grupos con preview y drag-and-drop
+   - [ ] Ingresar todos los resultados de grupos
+   - [ ] Calcular standings
+   - [ ] Generar bracket (probar auto y manual)
+   - [ ] Ingresar todos los resultados de bracket
+   - [ ] Validar avance automático de ganadores
+   - [ ] Verificar identificación de campeón
+   - [ ] Ver resultados finales y podio
 
-2. **Vista de Resultados Finales** (`/category/{category}/results`)
-   - Mostrar campeón (ganador de Final)
-   - Mostrar podio completo (1°, 2°, 3°/4°)
-   - Mostrar clasificación final de bracket
-   - Navegación desde página de categoría
-
-3. **Mejoras UX para Completar Torneo:**
-   - Botón "Ver Resultados Finales" en navbar cuando bracket está completo
-   - Indicador de progreso del torneo (Grupos → Bracket → Finalizado)
-   - Badge de "CAMPEÓN" en vista de bracket cuando hay ganador
-
-4. **Testing End-to-End:**
-   - Test manual de flujo completo (12+ jugadores)
-   - Validar partidos de grupos
-   - Validar partidos de bracket
-   - Validar avance automático
-   - Validar identificación de campeón
+2. **Ajustes Post-Testing** (según bugs encontrados)
+   - Corregir cualquier error encontrado en testing
+   - Mejorar mensajes de error si es necesario
+   - Ajustar validaciones si es necesario
 
 **Mejoras Futuras (V1.2+):**
 - Edición de jugadores desde UI
