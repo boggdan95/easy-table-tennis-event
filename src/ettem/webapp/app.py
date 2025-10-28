@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Request, Form, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -44,6 +44,7 @@ if static_dir.exists():
 
 # Database manager (shared instance)
 db_manager = DatabaseManager()
+db_manager.create_tables()  # Ensure tables exist
 
 
 def get_db_session():
@@ -784,12 +785,28 @@ async def view_bracket(request: Request, category: str):
         if player_orm and player_orm.categoria == category:
             standings_dict[standing_orm.player_id] = standing_orm
 
+    # Check if there's a champion (final match completed)
+    match_repo = MatchRepository(session)
+    from ettem.models import MatchStatus
+    champion_id = None
+    final_matches = [
+        m for m in match_repo.get_all()
+        if m.round_type == RoundType.FINAL.value
+        and m.group_id is None  # bracket match
+    ]
+    for m in final_matches:
+        p1 = player_repo.get_by_id(m.player1_id)
+        if p1 and p1.categoria == category and m.winner_id:
+            champion_id = m.winner_id
+            break
+
     return templates.TemplateResponse(
         "bracket.html",
         {
             "request": request,
             "category": category,
             "slots_by_round": slots_with_players,
+            "champion_id": champion_id,
             "groups_dict": groups_dict,
             "standings_dict": standings_dict,
         }
@@ -873,6 +890,226 @@ async def view_bracket_matches(request: Request, category: str):
             "round_order": round_order,
         }
     )
+
+
+@app.get("/category/{category}/results", response_class=HTMLResponse)
+async def view_final_results(request: Request, category: str):
+    """View final results and podium for a category."""
+    from ettem.models import RoundType, MatchStatus
+
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+    match_repo = MatchRepository(session)
+    bracket_repo = BracketRepository(session)
+
+    # Verify bracket exists
+    bracket_slots = bracket_repo.get_by_category(category)
+    if not bracket_slots:
+        return HTMLResponse(
+            content="No bracket found for this category. Generate bracket first.",
+            status_code=404
+        )
+
+    # Get the final match
+    final_matches = [
+        m for m in match_repo.get_all()
+        if m.round_type == RoundType.FINAL.value
+        and m.group_id is None  # bracket match
+    ]
+
+    # Filter by category
+    final_match = None
+    for m in final_matches:
+        p1 = player_repo.get_by_id(m.player1_id)
+        if p1 and p1.categoria == category:
+            final_match = m
+            break
+
+    champion = None
+    second_place = None
+    third_fourth = []
+    all_players = []
+
+    if final_match and final_match.winner_id:
+        # Tournament is complete
+        champion = player_repo.get_by_id(final_match.winner_id)
+        loser_id = final_match.player2_id if final_match.winner_id == final_match.player1_id else final_match.player1_id
+        second_place = player_repo.get_by_id(loser_id)
+
+        # Get semifinal losers (3rd/4th place)
+        semifinal_matches = [
+            m for m in match_repo.get_all()
+            if m.round_type == RoundType.SEMIFINAL.value
+            and m.group_id is None
+        ]
+
+        for sf_match in semifinal_matches:
+            p1 = player_repo.get_by_id(sf_match.player1_id)
+            if p1 and p1.categoria == category and sf_match.winner_id:
+                loser_id = sf_match.player2_id if sf_match.winner_id == sf_match.player1_id else sf_match.player1_id
+                if loser_id:
+                    loser = player_repo.get_by_id(loser_id)
+                    if loser:
+                        third_fourth.append(loser)
+
+    # Build complete ranking
+    # Get all players in this category
+    all_category_players = [p for p in player_repo.get_all() if p.categoria == category]
+
+    # Determine elimination round for each player
+    player_rankings = []
+
+    for player in all_category_players:
+        # Check if player is in bracket
+        player_in_bracket = any(
+            slot.player_id == player.id for slot in bracket_slots if slot.player_id
+        )
+
+        if not player_in_bracket:
+            # Player didn't qualify for bracket
+            player_rankings.append({
+                'player': player,
+                'final_position': 99,  # Group stage only
+                'elimination_round': 'Fase de Grupos'
+            })
+            continue
+
+        # Find last match for this player
+        player_matches = [
+            m for m in match_repo.get_all()
+            if m.group_id is None  # bracket matches
+            and (m.player1_id == player.id or m.player2_id == player.id)
+            and m.status == MatchStatus.COMPLETED.value
+        ]
+
+        if not player_matches:
+            # In bracket but no matches played yet
+            player_rankings.append({
+                'player': player,
+                'final_position': 50,
+                'elimination_round': 'Por Jugar'
+            })
+            continue
+
+        # Find the highest round reached
+        rounds_reached = [m.round_type for m in player_matches]
+
+        # Determine final position based on elimination round
+        if player.id == champion.id if champion else None:
+            position = 1
+            round_name = 'Campeón'
+        elif player.id == second_place.id if second_place else None:
+            position = 2
+            round_name = 'Subcampeón'
+        elif any(player.id == p.id for p in third_fourth):
+            position = 3
+            round_name = 'Semifinal'
+        elif RoundType.SEMIFINAL.value in rounds_reached:
+            # Lost in semifinal
+            position = 3
+            round_name = 'Semifinal'
+        elif RoundType.QUARTERFINAL.value in rounds_reached:
+            # Lost in quarterfinal
+            position = 5
+            round_name = 'Cuartos de Final'
+        elif RoundType.ROUND_OF_16.value in rounds_reached:
+            # Lost in R16
+            position = 9
+            round_name = 'Ronda de 16'
+        elif RoundType.ROUND_OF_32.value in rounds_reached:
+            # Lost in R32
+            position = 17
+            round_name = 'Ronda de 32'
+        else:
+            # First round
+            position = 20
+            round_name = 'Primera Ronda'
+
+        player_rankings.append({
+            'player': player,
+            'final_position': position,
+            'elimination_round': round_name
+        })
+
+    # Sort by position
+    player_rankings.sort(key=lambda x: (x['final_position'], x['player'].seed))
+
+    return render_template(
+        "results.html",
+        {
+            "request": request,
+            "category": category,
+            "champion": champion,
+            "second_place": second_place,
+            "third_fourth": third_fourth,
+            "all_players": player_rankings,
+        }
+    )
+
+
+# ========================================
+# HELPER FUNCTIONS
+# ========================================
+
+def create_groups_from_manual_assignments(players, category, assignments):
+    """
+    Create groups from manual drag-and-drop assignments.
+
+    Args:
+        players: List of Player objects
+        category: Category name
+        assignments: Dict mapping group names to lists of player IDs
+
+    Returns:
+        Tuple of (groups, matches)
+    """
+    from ettem.models import Group, Match, MatchStatus, RoundType
+    from ettem.group_builder import generate_round_robin_fixtures
+
+    groups = []
+    all_matches = []
+    match_counter = 1
+
+    for group_name, player_ids in assignments.items():
+        # Create group
+        group = Group(
+            id=None,  # Will be assigned by database
+            name=group_name,
+            category=category,
+            player_ids=player_ids
+        )
+        groups.append(group)
+
+        # Get players for this group and assign group numbers
+        group_players = [p for p in players if p.id in player_ids]
+
+        # IMPORTANT: Assign group_number to each player (1-indexed position within group)
+        for pos, player in enumerate(group_players, start=1):
+            player.group_number = pos
+
+        # Generate matches for this group using fixtures
+        fixtures = generate_round_robin_fixtures(len(group_players))
+
+        for fixture_idx, (p1_num, p2_num) in enumerate(fixtures, start=1):
+            # Map group numbers to player IDs
+            player1 = group_players[p1_num - 1]  # Convert to 0-indexed
+            player2 = group_players[p2_num - 1]
+
+            match = Match(
+                id=0,  # Will be set by database
+                player1_id=player1.id,
+                player2_id=player2.id,
+                group_id=0,  # Will be set when group is saved to DB
+                round_type=RoundType.ROUND_ROBIN,
+                round_name=f"Group {group_name} Match {fixture_idx}",
+                match_number=match_counter,
+                status=MatchStatus.PENDING,
+                sets=[],
+            )
+            all_matches.append(match)
+            match_counter += 1
+
+    return groups, all_matches
 
 
 # ========================================
@@ -1039,14 +1276,27 @@ async def admin_create_groups_form(request: Request):
     # Get all players grouped by category
     all_players = player_repo.get_all()
     categories_dict = {}
+    countries_by_category = {}  # Track country distribution per category
+
     for player in all_players:
         if player.categoria not in categories_dict:
             categories_dict[player.categoria] = 0
+            countries_by_category[player.categoria] = {}
         categories_dict[player.categoria] += 1
 
-    # Convert to list for template
+        # Count countries per category
+        if player.pais_cd not in countries_by_category[player.categoria]:
+            countries_by_category[player.categoria][player.pais_cd] = 0
+        countries_by_category[player.categoria][player.pais_cd] += 1
+
+    # Convert to list for template with country stats
+    import json
     available_categories = [
-        {"name": cat, "count": count}
+        {
+            "name": cat,
+            "count": count,
+            "countries": json.dumps(countries_by_category.get(cat, {}))
+        }
         for cat, count in sorted(categories_dict.items())
     ]
 
@@ -1072,15 +1322,102 @@ async def admin_create_groups_form(request: Request):
     )
 
 
-@app.post("/admin/create-groups/execute")
-async def admin_create_groups_execute(
+@app.post("/admin/create-groups/preview")
+async def admin_create_groups_preview(
     request: Request,
     category: str = Form(...),
     group_size_preference: int = Form(...),
     random_seed: Optional[int] = Form(None)
 ):
+    """Generate preview of group distribution with snake seeding."""
+    from ettem.group_builder import create_groups
+
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+
+        # Get players for this category
+        player_orms = player_repo.get_by_category_sorted_by_seed(category)
+
+        if not player_orms:
+            request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+        # Convert ORM to domain models
+        players = []
+        for p_orm in player_orms:
+            player = Player(
+                id=p_orm.id,
+                nombre=p_orm.nombre,
+                apellido=p_orm.apellido,
+                genero=p_orm.genero,
+                pais_cd=p_orm.pais_cd,
+                ranking_pts=p_orm.ranking_pts,
+                categoria=p_orm.categoria,
+                seed=p_orm.seed,
+                original_id=p_orm.original_id,
+                tournament_number=p_orm.tournament_number,
+                group_id=p_orm.group_id,
+                group_number=p_orm.group_number,
+                checked_in=p_orm.checked_in,
+                notes=p_orm.notes,
+            )
+            players.append(player)
+
+        # Create groups (preview only, not saved)
+        groups, _ = create_groups(
+            players=players,
+            category=category,
+            group_size_preference=group_size_preference,
+            random_seed=random_seed if random_seed else 42,
+        )
+
+        # Organize groups for display
+        groups_preview = []
+        for group in groups:
+            group_players = []
+            for player_id in group.player_ids:
+                player = next((p for p in players if p.id == player_id), None)
+                if player:
+                    group_players.append({
+                        "id": player.id,
+                        "nombre": player.nombre,
+                        "apellido": player.apellido,
+                        "pais_cd": player.pais_cd,
+                        "ranking_pts": player.ranking_pts,
+                        "seed": player.seed
+                    })
+
+            groups_preview.append({
+                "name": group.name,
+                "players": group_players
+            })
+
+        # Return JSON for modal rendering
+        return JSONResponse({
+            "category": category,
+            "group_size_preference": group_size_preference,
+            "random_seed": random_seed if random_seed else 42,
+            "groups": groups_preview,
+            "total_players": len(players)
+        })
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/admin/create-groups/execute")
+async def admin_create_groups_execute(
+    request: Request,
+    category: str = Form(...),
+    group_size_preference: int = Form(...),
+    random_seed: Optional[int] = Form(None),
+    manual_assignments: Optional[str] = Form(None)
+):
     """Execute group creation."""
     from ettem.group_builder import create_groups
+    import json
 
     try:
         # Initialize repositories
@@ -1128,13 +1465,23 @@ async def admin_create_groups_execute(
             # Then delete group
             group_repo.delete(group.id)
 
-        # Create groups
-        groups, matches = create_groups(
-            players=players,
-            category=category,
-            group_size_preference=group_size_preference,
-            random_seed=random_seed if random_seed else 42,
-        )
+        # Check if we have manual assignments
+        if manual_assignments and manual_assignments.strip():
+            # Use manual assignments from preview
+            assignments = json.loads(manual_assignments)
+            groups, matches = create_groups_from_manual_assignments(
+                players=players,
+                category=category,
+                assignments=assignments
+            )
+        else:
+            # Create groups automatically
+            groups, matches = create_groups(
+                players=players,
+                category=category,
+                group_size_preference=group_size_preference,
+                random_seed=random_seed if random_seed else 42,
+            )
 
         # Save to database
         for group in groups:
