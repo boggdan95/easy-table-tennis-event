@@ -176,14 +176,40 @@ easy-table-tennis-event/
 └── CLAUDE.md                    # Claude Code guidance
 ```
 
-## Roadmap (V1.1+)
+## Roadmap
 
-- Scheduler with table/time assignments
-- Break and buffer management
-- PDF printable schedules
-- User roles and credentials
-- Multiple simultaneous categories
-- Real-time updates in web panel
+See **MVP_ROADMAP.md** for detailed roadmap and version planning.
+
+### Current Focus: V1.1.1 (Complete MVP)
+
+**Goal:** Run a complete tournament for 1 category from start to finish.
+
+**What's Missing:**
+- [ ] Final results and podium view
+- [ ] Champion identification
+- [ ] Tournament completion status
+
+**Everything else works!** You can already:
+- ✅ Import players
+- ✅ Create groups
+- ✅ Enter group results
+- ✅ Calculate standings
+- ✅ Generate bracket (auto + manual)
+- ✅ Enter bracket results
+- ✅ Auto-advance winners
+
+### Future Versions
+
+- **V1.2:** Usability improvements (edit players, delete categories, etc.)
+- **V1.3:** Export & print (PDFs, certificates, group sheets)
+- **V1.4:** Multiple simultaneous categories
+- **V2.0:** Scheduler with table/time assignments
+- **V2.1:** Live operation (displays, notifications, table panels)
+- **V3.0:** Advanced features (roles, multi-tenant, API, mobile app)
+
+## Contributing
+
+Private project. For bugs or feature requests, create an issue or contact the maintainer.
 
 ## License
 

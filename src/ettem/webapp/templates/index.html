@@ -96,26 +96,62 @@
         <span class="icon">⚠️</span>
         <div class="alert-content">
             <div class="alert-title">Sin Categorías</div>
-            <div>No hay categorías registradas. Importa jugadores primero usando el comando CLI:</div>
-            <code style="display: block; margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.1); border-radius: 4px;">
-                ettem import-players --csv data/samples/players.csv --category U13
-            </code>
+            <div>No hay jugadores ni categorías registradas. Comienza importando jugadores para crear tu primer torneo.</div>
         </div>
     </div>
 
     <!-- Getting Started Guide -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">🚀 Guía de Inicio</h3>
+            <h3 class="card-title">🚀 Guía de Inicio Rápido</h3>
         </div>
         <div class="card-body">
-            <ol style="padding-left: 1.5rem; line-height: 1.8;">
-                <li><strong>Importar jugadores:</strong> <code>ettem import-players --csv tu_archivo.csv --category U13</code></li>
-                <li><strong>Crear grupos:</strong> <code>ettem build-groups --config config/sample_config.yaml --category U13</code></li>
-                <li><strong>Ingresar resultados:</strong> Usa esta interfaz web para registrar los partidos</li>
-                <li><strong>Calcular standings:</strong> <code>ettem compute-standings --category U13</code></li>
-                <li><strong>Generar bracket:</strong> <code>ettem build-bracket --category U13 --config config/sample_config.yaml</code></li>
-            </ol>
+            <p style="margin-bottom: 1.5rem;">Sigue estos pasos para configurar tu torneo:</p>
+            <div class="grid grid-1" style="gap: 1rem;">
+                <div class="alert alert-info" style="margin: 0;">
+                    <span class="icon" style="font-size: 2rem;">1️⃣</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Importar Jugadores</div>
+                        <div style="margin-bottom: 1rem;">Carga los jugadores desde un archivo CSV o agrégalos manualmente.</div>
+                        <a href="/admin/import-players" class="btn btn-primary">
+                            <span>📥</span>
+                            <span>Ir a Importar Jugadores</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
+                    <span class="icon" style="font-size: 2rem;">2️⃣</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Crear Grupos</div>
+                        <div>Organiza los jugadores en grupos de round robin (disponible después de importar).</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
+                    <span class="icon" style="font-size: 2rem;">3️⃣</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Registrar Resultados</div>
+                        <div>Ingresa los resultados de los partidos desde la interfaz web.</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
+                    <span class="icon" style="font-size: 2rem;">4️⃣</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Generar Bracket</div>
+                        <div>Crea la llave eliminatoria con los clasificados de cada grupo.</div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
+                    <span class="icon" style="font-size: 2rem;">5️⃣</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Ver Resultados Finales</div>
+                        <div>Consulta el podio y los resultados finales del torneo.</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 {% endif %}
