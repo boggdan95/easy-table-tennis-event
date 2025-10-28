@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Vista Previa de Grupos - ETTEM{% endblock %}
+
+{% block page_title %}Vista Previa de Grupos con Serpenteo{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/create-groups" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Info Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">📋 Distribución de Grupos - {{ category }}</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-3 mb-3">
+            <div>
+                <strong>Total de jugadores:</strong> {{ total_players }}
+            </div>
+            <div>
+                <strong>Número de grupos:</strong> {{ groups|length }}
+            </div>
+            <div>
+                <strong>Método:</strong> Serpenteo (Snake Seeding)
+            </div>
+        </div>
+        <div class="alert alert-info" style="margin: 0;">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">Serpenteo (Snake Seeding)</div>
+                <div>
+                    Los jugadores se distribuyen en orden de seed en forma de serpiente para equilibrar los grupos.
+                    <strong>Puedes arrastrar jugadores entre grupos</strong> para hacer ajustes manuales antes de confirmar.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Groups Grid with Drag and Drop -->
+<div class="grid grid-2 mb-3" id="groups-container">
+    {% for group_data in groups %}
+    <div class="card group-card" data-group-name="{{ group_data.name }}">
+        <div class="card-header" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white;">
+            <h3 class="card-title" style="margin: 0; font-size: 1.2rem;">{{ group_data.name }}</h3>
+            <div style="font-size: 0.9rem; opacity: 0.9;">{{ group_data.players|length }} jugadores</div>
+        </div>
+        <div class="card-body player-drop-zone" style="padding: 0.5rem; min-height: 100px;">
+            {% for player in group_data.players %}
+            <div class="player-card"
+                 draggable="true"
+                 data-player-id="{{ player.id }}"
+                 data-player-name="{{ player.nombre }} {{ player.apellido }}"
+                 data-seed="{{ player.seed }}">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="drag-handle" style="font-size: 1rem; cursor: grab; color: var(--text-muted);">⋮⋮</span>
+                    <span class="badge badge-primary" style="min-width: 35px; font-size: 0.9rem; padding: 0.25rem 0.5rem;">{{ player.seed }}</span>
+                    <div style="flex: 1;">
+                        <strong style="font-size: 0.95rem;">{{ player.nombre }} {{ player.apellido }}</strong>
+                        <span style="font-size: 0.8em; color: var(--text-muted); margin-left: 0.5rem;">
+                            {{ player.pais_cd }} • {{ player.ranking_pts }} pts
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Confirmation Form -->
+<form method="post" action="/admin/create-groups/execute" id="confirm-form">
+    <input type="hidden" name="category" value="{{ category }}">
+    <input type="hidden" name="group_size_preference" value="{{ group_size_preference }}">
+    <input type="hidden" name="random_seed" value="{{ random_seed }}">
+    <input type="hidden" name="manual_assignments" id="manual-assignments" value="">
+
+    <div class="card">
+        <div class="card-body">
+            <div class="alert alert-success" style="margin-bottom: 1rem;">
+                <span class="icon">✓</span>
+                <div class="alert-content">
+                    <div class="alert-title">Revisión Completa</div>
+                    <div>Revisa la distribución de grupos. Puedes arrastrar jugadores para ajustar manualmente antes de confirmar.</div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Confirmar y Crear Grupos</span>
+                </button>
+                <a href="/admin/create-groups" class="btn btn-secondary">
+                    <span>←</span>
+                    <span>Volver a Configuración</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<style>
+.player-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin-bottom: 0.35rem;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.player-card:last-child {
+    margin-bottom: 0;
+}
+
+.player-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.player-card.dragging {
+    opacity: 0.5;
+    transform: rotate(3deg);
+}
+
+.player-drop-zone {
+    min-height: 100px;
+    transition: background-color 0.2s ease;
+}
+
+.player-drop-zone.drag-over {
+    background-color: rgba(var(--primary-rgb), 0.1);
+    border: 2px dashed var(--primary-color);
+    border-radius: var(--border-radius);
+}
+
+.group-card {
+    transition: all 0.2s ease;
+}
+
+.group-card.drag-over {
+    box-shadow: 0 0 0 3px var(--primary-color);
+    transform: scale(1.02);
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Compact grid for more groups */
+@media (min-width: 1400px) {
+    #groups-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 1800px) {
+    #groups-container {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+</style>
+
+<script>
+// Drag and Drop functionality
+let draggedElement = null;
+let sourceGroup = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupDragAndDrop();
+});
+
+function setupDragAndDrop() {
+    const playerCards = document.querySelectorAll('.player-card');
+    const dropZones = document.querySelectorAll('.player-drop-zone');
+
+    // Setup draggable players
+    playerCards.forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Setup drop zones
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('drop', handleDrop);
+        zone.addEventListener('dragleave', handleDragLeave);
+        zone.addEventListener('dragenter', handleDragEnter);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    sourceGroup = this.closest('.group-card');
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.innerHTML);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+
+    // Remove drag-over class from all drop zones
+    document.querySelectorAll('.player-drop-zone').forEach(zone => {
+        zone.classList.remove('drag-over');
+    });
+    document.querySelectorAll('.group-card').forEach(card => {
+        card.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    const dropZone = e.currentTarget;
+    const groupCard = dropZone.closest('.group-card');
+
+    if (sourceGroup !== groupCard) {
+        dropZone.classList.add('drag-over');
+        groupCard.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    if (e.target.classList.contains('player-drop-zone')) {
+        e.target.classList.remove('drag-over');
+        e.target.closest('.group-card').classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    e.preventDefault();
+
+    const dropZone = e.currentTarget;
+    const targetGroup = dropZone.closest('.group-card');
+
+    // Don't drop on same group
+    if (sourceGroup === targetGroup) {
+        return false;
+    }
+
+    // Move the player card
+    dropZone.appendChild(draggedElement);
+
+    // Update group player counts
+    updateGroupCounts();
+
+    // Show toast notification
+    const groupName = targetGroup.querySelector('.card-title').textContent;
+    const playerName = draggedElement.dataset.playerName;
+    showToast(`${playerName} movido a ${groupName}`, 'success');
+
+    return false;
+}
+
+function updateGroupCounts() {
+    document.querySelectorAll('.group-card').forEach(card => {
+        const dropZone = card.querySelector('.player-drop-zone');
+        const count = dropZone.querySelectorAll('.player-card').length;
+        const countDisplay = card.querySelector('.card-header div');
+        countDisplay.textContent = `${count} jugadores`;
+    });
+}
+
+// Capture manual assignments before submit
+document.getElementById('confirm-form').addEventListener('submit', function(e) {
+    const assignments = {};
+
+    document.querySelectorAll('.group-card').forEach(groupCard => {
+        const groupName = groupCard.dataset.groupName;
+        const playerIds = [];
+
+        groupCard.querySelectorAll('.player-card').forEach(playerCard => {
+            playerIds.push(parseInt(playerCard.dataset.playerId));
+        });
+
+        assignments[groupName] = playerIds;
+    });
+
+    document.getElementById('manual-assignments').value = JSON.stringify(assignments);
+});
+</script>
+{% endblock %}
