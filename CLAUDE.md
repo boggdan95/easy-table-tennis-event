@@ -166,8 +166,18 @@ easy-tt-event-manager/
   5) `build-bracket`
   6) `export`
 
-## Roadmap (README)
-- V1.1: Scheduler/mesas, breaks, buffers, PDF imprimibles, roles/credenciales, múltiples categorías simultáneas.
+## Roadmap
+
+Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
+
+**Resumen:**
+- **V1.1.1 (MVP):** Vista de resultados finales y podio → Correr evento completo
+- **V1.2:** Mejoras de usabilidad (editar jugadores, eliminar categorías, etc.)
+- **V1.3:** Exportación e impresión (PDFs, certificados, hojas de grupo)
+- **V1.4:** Múltiples categorías simultáneas
+- **V2.0:** Scheduler/asignación de mesas y horarios
+- **V2.1:** Operación en vivo (displays, notificaciones, panel de mesa)
+- **V3.0:** Funcionalidades avanzadas (roles, multi-tenant, API, app móvil)
 
 ---
 
@@ -234,9 +244,13 @@ easy-tt-event-manager/
 - ✅ **Crear Grupos** 👥
   - Página de configuración con selector de categoría
   - Configuración de tamaño preferido (3 o 4 jugadores)
-  - Preview dinámico de distribución de grupos
+  - Preview dinámico de distribución de grupos con serpenteo (snake seeding)
+  - Drag-and-drop para ajustes manuales en preview
   - Random seed configurable para reproducibilidad
   - Eliminación de grupos existentes y creación de nuevos
+  - **FIX (2025-10-28):** Corregido error al crear grupos desde preview modal
+    * Ahora asigna correctamente group_number a jugadores en asignaciones manuales
+    * Implementada generación de partidos usando generate_round_robin_fixtures()
 
 - ✅ **Calcular Standings** 📊
   - Recalcular todas las categorías de una vez
@@ -270,21 +284,47 @@ easy-tt-event-manager/
     * 5 grupos (10 jugadores) → Bracket 16 → BYEs en [2, 6, 7, 10, 11, 15]
     * ... hasta 20 grupos con posiciones predefinidas
 
-### 🚧 Próxima Sesión (V1.2+)
+### 🚧 Próxima Sesión (V1.1.1 - Completar MVP)
 
-**Pendientes del Bracket Manual:**
-- Botón para "rellenar vacíos con BYEs" cuando todos los jugadores están asignados
-- Auto-sugerencia de segunda posición cuando se coloca primero de grupo
-- Restauración completa del estado del formulario desde sesión (falta cargar datos guardados)
-- Reglas de posicionamiento dinámicas según tamaño de bracket (32, 64, etc.)
+**OBJETIVO: Correr un evento completo de 1 categoría de principio a fin**
 
-**Mejoras Potenciales:**
+**Estado Actual (2025-10-28):**
+- ✅ Fix aplicado a creación de grupos con preview modal
+- ✅ Commit realizado: `4366ea4 Fix group creation with manual assignments from preview`
+- ⚠️ **Pendiente:** Probar flujo completo de creación de grupos desde UI con preview
+
+**Tareas Críticas para MVP:**
+1. **Testing de Creación de Grupos** (PRÓXIMO)
+   - Probar creación directa sin preview
+   - Probar creación con preview y sin drag-and-drop
+   - Probar creación con preview y drag-and-drop de jugadores
+   - Verificar que group_number se asigna correctamente
+   - Verificar que los partidos se generan correctamente
+
+2. **Vista de Resultados Finales** (`/category/{category}/results`)
+   - Mostrar campeón (ganador de Final)
+   - Mostrar podio completo (1°, 2°, 3°/4°)
+   - Mostrar clasificación final de bracket
+   - Navegación desde página de categoría
+
+3. **Mejoras UX para Completar Torneo:**
+   - Botón "Ver Resultados Finales" en navbar cuando bracket está completo
+   - Indicador de progreso del torneo (Grupos → Bracket → Finalizado)
+   - Badge de "CAMPEÓN" en vista de bracket cuando hay ganador
+
+4. **Testing End-to-End:**
+   - Test manual de flujo completo (12+ jugadores)
+   - Validar partidos de grupos
+   - Validar partidos de bracket
+   - Validar avance automático
+   - Validar identificación de campeón
+
+**Mejoras Futuras (V1.2+):**
 - Edición de jugadores desde UI
 - Eliminación de categorías completas
 - Exportación a CSV desde UI
 - Impresión de hojas de grupo (PDF)
-- Registro de resultados de bracket
-- Scheduler/asignación de mesas y horarios
+- Mejoras al bracket manual (auto-sugerencias, rellenar BYEs)
 
 ### Flujo de Trabajo Actual
 
