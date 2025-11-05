@@ -2170,36 +2170,31 @@ def create_bracket_matches(category: str, bracket_repo, match_repo):
             if slot1.is_bye and slot2.is_bye:
                 continue
 
-            # Determine player IDs (None for BYE)
+            # Determine player IDs (None for BYE or empty slot)
             player1_id = slot1.player_id if not slot1.is_bye else None
             player2_id = slot2.player_id if not slot2.is_bye else None
 
-            # If one player has a BYE, they advance automatically
-            if slot1.is_bye and player2_id:
-                # Player 2 gets automatic win - will be handled when viewing bracket
-                continue  # Don't create match for automatic advance
-            elif slot2.is_bye and player1_id:
-                # Player 1 gets automatic win - will be handled when viewing bracket
-                continue  # Don't create match for automatic advance
+            # Skip if both slots are BYEs (shouldn't happen but safety check)
+            # But DO create matches even if one or both players are None (will be filled later)
 
-            # Both players present - create match
-            if player1_id and player2_id:
-                match_number = (i // 2) + 1
-                round_name = f"{round_type.value}{match_number}"
+            match_number = (i // 2) + 1
+            round_name = f"{round_type.value}{match_number}"
 
-                match = Match(
-                    id=0,  # Will be assigned by DB
-                    player1_id=player1_id,
-                    player2_id=player2_id,
-                    group_id=None,  # Bracket match
-                    round_type=round_type,
-                    round_name=round_name,
-                    match_number=match_number,
-                    status=MatchStatus.PENDING,
-                )
+            # Create match regardless of whether players are assigned yet
+            # This allows future rounds to exist and be updated when winners advance
+            match = Match(
+                id=0,  # Will be assigned by DB
+                player1_id=player1_id,  # Can be None
+                player2_id=player2_id,  # Can be None
+                group_id=None,  # Bracket match
+                round_type=round_type,
+                round_name=round_name,
+                match_number=match_number,
+                status=MatchStatus.PENDING,
+            )
 
-                match_repo.create(match)
-                matches_created += 1
+            match_repo.create(match)
+            matches_created += 1
 
     return matches_created
 

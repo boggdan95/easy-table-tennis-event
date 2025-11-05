@@ -97,6 +97,11 @@ def break_ties(
         points_ratio = compute_points_ratio(stats["points_w"], stats["points_l"])
         seed = player_seeds[standing.player_id]
 
+        # DEBUG: Print tie-breaking stats
+        player = player_repo.get_by_id(standing.player_id)
+        player_name = f"{player.nombre} {player.apellido}" if player else "Unknown"
+        print(f"[TIE-BREAK] {player_name}: sets={stats['sets_w']}-{stats['sets_l']} (ratio={sets_ratio:.2f}), points={stats['points_w']}-{stats['points_l']} (ratio={points_ratio:.2f}), seed={seed}")
+
         # Return tuple for sorting (negatives for DESC, positive for ASC)
         return (-sets_ratio, -points_ratio, seed)
 
@@ -216,21 +221,12 @@ def calculate_standings(
     for standing in standings_list:
         points_groups[standing.points_total].append(standing)
 
-    # Break ties for groups with 3+ players
+    # Break ties for groups with 2+ players
     final_standings = []
     for points, group in sorted(points_groups.items(), reverse=True):
-        if len(group) >= 3:
-            # Apply tie-breaking rules
+        if len(group) >= 2:
+            # Apply tie-breaking rules using head-to-head for 2+ players
             sorted_group = break_ties(group, player_repo, matches)
-            final_standings.extend(sorted_group)
-        elif len(group) == 2:
-            # For 2-way ties, use overall stats (not head-to-head)
-            def sort_key_2way(s: GroupStanding):
-                player = player_repo.get_by_id(s.player_id)
-                seed = player.seed if player and player.seed else 999
-                return (-s.sets_ratio, -s.points_ratio, seed)
-
-            sorted_group = sorted(group, key=sort_key_2way)
             final_standings.extend(sorted_group)
         else:
             # No tie
