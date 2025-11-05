@@ -350,12 +350,11 @@ async def save_result(
             request.session["flash_message"] = "Error: Debe ingresar al menos un set"
             request.session["flash_type"] = "error"
             # Save form values even when no sets were entered
+            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2]
             form_vals = {}
             for i in range(1, 6):
-                p1_val = form_data.get(f"set{i}_p1", "").strip()
-                p2_val = form_data.get(f"set{i}_p2", "").strip()
-                form_vals[f"set{i}_p1"] = p1_val
-                form_vals[f"set{i}_p2"] = p2_val
+                form_vals[f"set{i}_p1"] = raw_inputs[(i-1)*2] or ""
+                form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals
             return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
@@ -368,12 +367,11 @@ async def save_result(
             request.session["flash_message"] = error_text
             request.session["flash_type"] = "error"
             # Save RAW form values (as submitted by user) to preserve them on error
+            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2]
             form_vals = {}
             for i in range(1, 6):
-                p1_val = form_data.get(f"set{i}_p1", "").strip()
-                p2_val = form_data.get(f"set{i}_p2", "").strip()
-                form_vals[f"set{i}_p1"] = p1_val
-                form_vals[f"set{i}_p2"] = p2_val
+                form_vals[f"set{i}_p1"] = raw_inputs[(i-1)*2] or ""
+                form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals
             print(f"[DEBUG] Saved form values: {form_vals}")
             return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
