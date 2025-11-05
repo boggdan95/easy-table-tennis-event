@@ -81,7 +81,6 @@
                                            name="set{{ i }}_p1"
                                            min="0"
                                            max="99"
-                                           maxlength="2"
                                            class="form-control score-input"
                                            tabindex="{{ (i-1)*2 + 1 }}"
                                            style="width: 80px; margin: 0 auto; text-align: center;"
@@ -105,7 +104,6 @@
                                            name="set{{ i }}_p2"
                                            min="0"
                                            max="99"
-                                           maxlength="2"
                                            class="form-control score-input"
                                            tabindex="{{ (i-1)*2 + 2 }}"
                                            style="width: 80px; margin: 0 auto; text-align: center;"
@@ -174,6 +172,21 @@
                     toggle.textContent = '▶';
                 }
             }
+
+            // Limit score inputs to 2 digits
+            document.addEventListener('DOMContentLoaded', function() {
+                const scoreInputs = document.querySelectorAll('.score-input');
+                scoreInputs.forEach(input => {
+                    input.addEventListener('input', function(e) {
+                        // Only allow numbers
+                        this.value = this.value.replace(/[^0-9]/g, '');
+                        // Limit to 2 digits
+                        if (this.value.length > 2) {
+                            this.value = this.value.slice(0, 2);
+                        }
+                    });
+                });
+            });
             </script>
 
             <div class="d-flex gap-2" style="margin-top: 1.5rem;">
