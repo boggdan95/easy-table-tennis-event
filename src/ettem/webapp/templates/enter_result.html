@@ -81,6 +81,7 @@
                                            name="set{{ i }}_p1"
                                            min="0"
                                            max="99"
+                                           maxlength="2"
                                            class="form-control score-input"
                                            tabindex="{{ (i-1)*2 + 1 }}"
                                            style="width: 80px; margin: 0 auto; text-align: center;"
@@ -104,6 +105,7 @@
                                            name="set{{ i }}_p2"
                                            min="0"
                                            max="99"
+                                           maxlength="2"
                                            class="form-control score-input"
                                            tabindex="{{ (i-1)*2 + 2 }}"
                                            style="width: 80px; margin: 0 auto; text-align: center;"
@@ -144,11 +146,14 @@
                 </div>
             </div>
 
-            <div class="alert alert-info">
+            <div class="alert alert-info" style="margin-bottom: 1rem;">
                 <span class="icon">ℹ️</span>
-                <div class="alert-content">
-                    <div class="alert-title">Instrucciones</div>
-                    <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                <div class="alert-content" style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="toggleInstructions()">
+                        <div class="alert-title">Instrucciones</div>
+                        <span id="instructions-toggle" style="font-size: 1.2rem; user-select: none;">▼</span>
+                    </div>
+                    <ul id="instructions-content" style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
                         <li>Ingresa los puntos de cada set jugado</li>
                         <li>Deja vacíos los sets no jugados</li>
                         <li>Para un walkover: marca la casilla y selecciona el ganador</li>
@@ -156,6 +161,20 @@
                     </ul>
                 </div>
             </div>
+
+            <script>
+            function toggleInstructions() {
+                const content = document.getElementById('instructions-content');
+                const toggle = document.getElementById('instructions-toggle');
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    toggle.textContent = '▼';
+                } else {
+                    content.style.display = 'none';
+                    toggle.textContent = '▶';
+                }
+            }
+            </script>
 
             <div class="d-flex gap-2" style="margin-top: 1.5rem;">
                 <button type="submit" class="btn btn-success">
