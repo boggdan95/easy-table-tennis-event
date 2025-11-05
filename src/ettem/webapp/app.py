@@ -1036,6 +1036,65 @@ async def view_bracket_matches(request: Request, category: str):
     )
 
 
+@app.get("/bracket/{category}/quick-entry", response_class=HTMLResponse)
+async def bracket_quick_entry_view(request: Request, category: str):
+    """Quick entry view for bracket matches."""
+    from ettem.models import RoundType
+    from collections import defaultdict
+
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+    bracket_repo = BracketRepository(session)
+
+    # Verify bracket exists
+    bracket_slots = bracket_repo.get_by_category(category)
+    if not bracket_slots:
+        return HTMLResponse(content="No bracket found for this category. Generate bracket first.", status_code=404)
+
+    # Get all bracket matches for this category
+    all_matches = match_repo.session.query(MatchORM).filter(MatchORM.group_id == None).all()
+
+    # Filter by category and only pending matches
+    pending_matches_by_round = defaultdict(list)
+    for match_orm in all_matches:
+        if match_orm.status != MatchStatus.PENDING:
+            continue
+
+        player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+        player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+        # Check if match belongs to this category
+        if player1 and player1.categoria == category:
+            # Only include if both players are assigned (no TBD)
+            if player1 and player2:
+                pending_matches_by_round[match_orm.round_type].append({
+                    "match": match_orm,
+                    "player1": player1,
+                    "player2": player2,
+                })
+
+    # Determine round display order
+    round_order = []
+    all_round_types = [RoundType.ROUND_OF_32, RoundType.ROUND_OF_16,
+                      RoundType.QUARTERFINAL, RoundType.SEMIFINAL, RoundType.FINAL]
+    for rt in all_round_types:
+        if rt.value in pending_matches_by_round:
+            round_order.append(rt.value)
+            # Sort matches within each round
+            pending_matches_by_round[rt.value].sort(key=lambda m: m["match"].match_number)
+
+    return templates.TemplateResponse(
+        "bracket_quick_entry.html",
+        {
+            "request": request,
+            "category": category,
+            "matches_by_round": pending_matches_by_round,
+            "round_order": round_order,
+        }
+    )
+
+
 @app.get("/category/{category}/results", response_class=HTMLResponse)
 async def view_final_results(request: Request, category: str):
     """View final results and podium for a category."""
