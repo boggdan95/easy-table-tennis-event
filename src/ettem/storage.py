@@ -112,8 +112,8 @@ class MatchORM(Base):
     __tablename__ = "matches"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    player1_id = Column(Integer, ForeignKey("players.id"), nullable=False)
-    player2_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player1_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
+    player2_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     round_type = Column(String(10), nullable=False, default="RR")  # RR, R16, QF, SF, F
     round_name = Column(String(50), nullable=True)
