@@ -224,6 +224,152 @@ async def view_group_matches(request: Request, group_id: int):
     )
 
 
+@app.get("/group/{group_id}/quick-entry", response_class=HTMLResponse)
+async def quick_entry_view(request: Request, group_id: int):
+    """Quick entry view for entering multiple match results."""
+    session = get_db_session()
+    group_repo = GroupRepository(session)
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+
+    # Get group
+    group = group_repo.get_by_id(group_id)
+    if not group:
+        return HTMLResponse(content="Group not found", status_code=404)
+
+    # Get only pending matches
+    all_matches = match_repo.get_by_group(group_id)
+    pending_match_orms = [m for m in all_matches if m.status == MatchStatus.PENDING]
+
+    # Convert to domain models with player names
+    pending_matches = []
+    for m_orm in pending_match_orms:
+        player1 = player_repo.get_by_id(m_orm.player1_id)
+        player2 = player_repo.get_by_id(m_orm.player2_id)
+
+        match = Match(
+            id=m_orm.id,
+            player1_id=m_orm.player1_id,
+            player2_id=m_orm.player2_id,
+            group_id=m_orm.group_id,
+            round_type=m_orm.round_type,
+            round_name=m_orm.round_name,
+            match_number=m_orm.match_number,
+            status=m_orm.status,
+            sets=[],
+            winner_id=None,
+        )
+
+        pending_matches.append({
+            "match": match,
+            "player1": player1,
+            "player2": player2,
+        })
+
+    return render_template(
+        "quick_entry.html",
+        {
+            "request": request,
+            "group": group,
+            "pending_matches": pending_matches,
+        }
+    )
+
+
+@app.post("/match/{match_id}/quick-save")
+async def quick_save_result(request: Request, match_id: int):
+    """Save match result from quick entry mode."""
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+
+    # Get match
+    match_orm = match_repo.get_by_id(match_id)
+    if not match_orm:
+        return JSONResponse(content={"error": "Partido no encontrado"}, status_code=404)
+
+    try:
+        # Parse JSON body
+        body = await request.json()
+        winner_id = int(body.get("winner_id"))
+        score = body.get("score")  # e.g., "3-0", "3-1", "3-2"
+        is_walkover = body.get("is_walkover", False)
+
+        # Handle walkover
+        if is_walkover:
+            match_orm.status = MatchStatus.WALKOVER
+            match_orm.winner_id = winner_id
+            match_orm.sets = []
+            match_repo.update(match_orm)
+            return JSONResponse(content={"message": "Resultado guardado (WO)"})
+
+        # Parse score
+        if not score or "-" not in score:
+            return JSONResponse(content={"error": "Score inválido"}, status_code=400)
+
+        winner_sets, loser_sets = map(int, score.split("-"))
+
+        # Validate score (best of 5)
+        if winner_sets != 3:
+            return JSONResponse(content={"error": "El ganador debe tener 3 sets"}, status_code=400)
+        if loser_sets not in [0, 1, 2]:
+            return JSONResponse(content={"error": "Score inválido"}, status_code=400)
+
+        # Generate default set scores
+        # Winner sets: 11-9, 11-8, 11-7
+        # Loser sets: 11-9, 11-7 (when they win)
+        winner_scores = [
+            (11, 9),
+            (11, 8),
+            (11, 7),
+            (11, 6),
+            (11, 9),  # 5th set if needed
+        ]
+        loser_scores = [
+            (9, 11),
+            (7, 11),
+        ]
+
+        # Build sets based on score
+        sets = []
+        set_number = 1
+        loser_sets_used = 0
+
+        for i in range(winner_sets + loser_sets):
+            if loser_sets_used < loser_sets and i % 2 == 1:  # Loser wins this set
+                p1_pts, p2_pts = loser_scores[loser_sets_used]
+                loser_sets_used += 1
+            else:  # Winner wins this set
+                p1_pts, p2_pts = winner_scores[i]
+
+            # Determine if winner is player1 or player2
+            if winner_id == match_orm.player1_id:
+                sets.append({
+                    "set_number": set_number,
+                    "player1_points": p1_pts,
+                    "player2_points": p2_pts,
+                })
+            else:
+                sets.append({
+                    "set_number": set_number,
+                    "player1_points": p2_pts,
+                    "player2_points": p1_pts,
+                })
+
+            set_number += 1
+
+        # Save result
+        match_orm.status = MatchStatus.COMPLETED
+        match_orm.winner_id = winner_id
+        match_orm.sets = sets
+        match_repo.update(match_orm)
+
+        return JSONResponse(content={"message": "Resultado guardado exitosamente"})
+
+    except Exception as e:
+        print(f"[ERROR] Quick save failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
 @app.get("/match/{match_id}/enter-result", response_class=HTMLResponse)
 async def enter_result_form(request: Request, match_id: int):
     """Show form to enter match result."""
