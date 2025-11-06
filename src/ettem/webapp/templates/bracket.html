@@ -63,7 +63,8 @@
 
             <div class="match {% if is_clickable %}clickable-match{% endif %}"
                  {% if is_clickable and match %}onclick="window.location.href='/match/{{ match.id }}/enter-result'"{% endif %}
-                 {% if is_clickable %}style="cursor: pointer;"{% endif %}>
+                 style="{% if is_clickable %}cursor: pointer;{% endif %}"
+>
                 <div class="match-line">
                     <div class="player-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% endif %} {% if slot1.slot.same_country_warning %}warning{% endif %}">
                         <span class="slot-num">#{{ slot1.slot.slot_number }}</span>

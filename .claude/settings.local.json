@@ -65,7 +65,8 @@
       "Bash(powershell -Command:*)",
       "Bash(test_output.txt)",
       "Bash(echo:*)",
-      "Bash(cmd /c \"taskkill /F /PID 20832\")"
+      "Bash(cmd /c \"taskkill /F /PID 20832\")",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []
