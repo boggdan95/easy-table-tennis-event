@@ -13,6 +13,17 @@
     <span>📋</span>
     <span>Partidos de Llave</span>
 </a>
+<div class="btn-group" style="margin-left: 0.5rem;">
+    <button onclick="zoomOut()" class="btn btn-secondary btn-sm" title="Zoom Out">
+        <span>🔍−</span>
+    </button>
+    <button onclick="resetZoom()" class="btn btn-secondary btn-sm" title="Tamaño Normal">
+        <span>100%</span>
+    </button>
+    <button onclick="zoomIn()" class="btn btn-secondary btn-sm" title="Zoom In">
+        <span>🔍+</span>
+    </button>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -36,7 +47,7 @@
     </div>
 </div>
 
-<div class="bracket-container">
+<div class="bracket-container" id="bracket-container">
     {% for round_type, slots in slots_by_round.items() %}
     <div class="bracket-column">
         <h3 class="round-header">{{ round_type }}</h3>
@@ -44,7 +55,15 @@
             {% for i in range(0, slots|length, 2) %}
             {% set slot1 = slots[i] %}
             {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
-            <div class="match">
+            {% set pair_index = i // 2 %}
+            {% set match = matches_by_slot_pair.get((round_type, pair_index)) %}
+
+            {# Determine if match is clickable (both players exist and not BYE) #}
+            {% set is_clickable = slot1.player and slot2 and slot2.player and not slot1.slot.is_bye and not slot2.slot.is_bye %}
+
+            <div class="match {% if is_clickable %}clickable-match{% endif %}"
+                 {% if is_clickable and match %}onclick="window.location.href='/match/{{ match.id }}/enter-result'"{% endif %}
+                 {% if is_clickable %}style="cursor: pointer;"{% endif %}>
                 <div class="match-line">
                     <div class="player-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% endif %} {% if slot1.slot.same_country_warning %}warning{% endif %}">
                         <span class="slot-num">#{{ slot1.slot.slot_number }}</span>
@@ -63,6 +82,12 @@
                                 <em>TBD</em>
                             {% endif %}
                         </span>
+                        {# Show indicator if match exists and is completed #}
+                        {% if match and match.status != 'pending' and slot1.player %}
+                            {% if match.winner_id == slot1.player.id %}
+                                <span class="match-score winner">✓</span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     {% if slot2 %}
                     <div class="player-slot {% if slot2.slot.is_bye %}bye{% elif not slot2.player %}tbd{% endif %} {% if slot2.slot.same_country_warning %}warning{% endif %}">
@@ -82,10 +107,30 @@
                                 <em>TBD</em>
                             {% endif %}
                         </span>
+                        {# Show indicator if match exists and is completed #}
+                        {% if match and match.status != 'pending' and slot2.player %}
+                            {% if match.winner_id == slot2.player.id %}
+                                <span class="match-score winner">✓</span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
                 <div class="connector-line"></div>
+                {# Show match status indicator #}
+                {% if is_clickable %}
+                    {% if match %}
+                        {% if match.status == 'pending' %}
+                            <div class="match-status-indicator pending" title="Click para ingresar resultado">⏱️</div>
+                        {% elif match.status == 'WALKOVER' %}
+                            <div class="match-status-indicator completed" title="Walkover">WO</div>
+                        {% else %}
+                            <div class="match-status-indicator completed" title="Completado">✓</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="match-status-indicator pending" title="Click para ingresar resultado">⏱️</div>
+                    {% endif %}
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -100,6 +145,8 @@
     overflow-x: auto;
     padding: 20px 0;
     margin: 20px 0;
+    transform-origin: top left;
+    transition: transform 0.3s ease;
 }
 
 .bracket-column {
@@ -130,6 +177,18 @@
     display: flex;
     margin-bottom: 40px;
     position: relative;
+}
+
+.clickable-match {
+    border-radius: var(--border-radius);
+    padding: 4px;
+    margin: -4px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-match:hover {
+    background-color: rgba(33, 150, 243, 0.08);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
 }
 
 .match-line {
@@ -257,7 +316,106 @@
         display: none;
     }
 }
+
+/* Match scores */
+.match-score {
+    background: #e0e0e0;
+    color: #555;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85em;
+    margin-left: 8px;
+    display: inline-block;
+    min-width: 20px;
+    text-align: center;
+}
+
+.match-score.winner {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+/* Match status indicator */
+.match-status-indicator {
+    position: absolute;
+    top: 50%;
+    left: -30px;
+    transform: translateY(-50%);
+    font-size: 1.2em;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.clickable-match:hover .match-status-indicator {
+    opacity: 1;
+}
+
+.match-status-indicator.pending {
+    color: #FF9800;
+}
+
+.match-status-indicator.completed {
+    color: #4CAF50;
+}
+
+/* Zoom controls button group */
+.btn-group {
+    display: inline-flex;
+    gap: 0;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+    border-left: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-group .btn:first-child {
+    border-left: none;
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
 </style>
+
+<script>
+// Zoom functionality
+let currentZoom = 1.0;
+const zoomStep = 0.2;
+const minZoom = 0.4;
+const maxZoom = 2.0;
+
+function zoomIn() {
+    if (currentZoom < maxZoom) {
+        currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+        applyZoom();
+    }
+}
+
+function zoomOut() {
+    if (currentZoom > minZoom) {
+        currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+        applyZoom();
+    }
+}
+
+function resetZoom() {
+    currentZoom = 1.0;
+    applyZoom();
+}
+
+function applyZoom() {
+    const container = document.getElementById('bracket-container');
+    container.style.transform = `scale(${currentZoom})`;
+}
+</script>
 
 <!-- Legend Card -->
 <div class="card" style="margin-top: 2rem;">

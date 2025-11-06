@@ -37,6 +37,10 @@ app.add_middleware(
 templates_dir = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(templates_dir))
 
+# Add custom Jinja2 filters
+import json
+templates.env.filters['from_json'] = json.loads
+
 # Setup static files directory
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
@@ -798,6 +802,41 @@ async def view_bracket(request: Request, category: str):
             champion_id = m.winner_id
             break
 
+    # Get all bracket matches for this category and map them to slot pairs
+    all_bracket_matches = [
+        m for m in match_repo.get_all()
+        if m.group_id is None  # bracket matches have no group_id
+    ]
+
+    # Filter by category
+    bracket_matches = []
+    for match_orm in all_bracket_matches:
+        p1 = player_repo.get_by_id(match_orm.player1_id)
+        if p1 and p1.categoria == category:
+            bracket_matches.append(match_orm)
+
+    # Create a mapping from (round_type, slot_pair) to match
+    # Each match corresponds to a pair of consecutive slots (slot_number 1-2, 3-4, etc.)
+    matches_by_slot_pair = {}
+    for match_orm in bracket_matches:
+        # Find the slots for this match from slots_with_players
+        round_slots_with_players = slots_with_players.get(match_orm.round_type, [])
+        for i in range(0, len(round_slots_with_players), 2):
+            slot_data1 = round_slots_with_players[i]
+            slot_data2 = round_slots_with_players[i+1] if i+1 < len(round_slots_with_players) else None
+
+            if slot_data2:
+                slot1 = slot_data1['slot']
+                slot2 = slot_data2['slot']
+
+                if slot1.player_id and slot2.player_id:
+                    # Check if this match corresponds to these slots
+                    if ((match_orm.player1_id == slot1.player_id and match_orm.player2_id == slot2.player_id) or
+                        (match_orm.player1_id == slot2.player_id and match_orm.player2_id == slot1.player_id)):
+                        key = (match_orm.round_type, i // 2)  # i//2 gives us the pair index (0, 1, 2, ...)
+                        matches_by_slot_pair[key] = match_orm
+                        break
+
     return templates.TemplateResponse(
         "bracket.html",
         {
@@ -807,6 +846,7 @@ async def view_bracket(request: Request, category: str):
             "champion_id": champion_id,
             "groups_dict": groups_dict,
             "standings_dict": standings_dict,
+            "matches_by_slot_pair": matches_by_slot_pair,
         }
     )
 
