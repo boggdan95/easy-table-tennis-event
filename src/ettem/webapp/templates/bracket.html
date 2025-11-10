@@ -47,8 +47,9 @@
     </div>
 </div>
 
-<div class="bracket-container" id="bracket-container">
-    {% for round_type, slots in slots_by_round.items() %}
+<div class="bracket-wrapper">
+    <div class="bracket-container" id="bracket-container">
+        {% for round_type, slots in slots_by_round.items() %}
     <div class="bracket-column">
         <h3 class="round-header">{{ round_type }}</h3>
         <div class="matches-container">
@@ -56,14 +57,11 @@
             {% set slot1 = slots[i] %}
             {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
             {% set pair_index = i // 2 %}
-            {% set match = matches_by_slot_pair.get((round_type, pair_index)) %}
 
             {# Determine if match is clickable (both players exist and not BYE) #}
             {% set is_clickable = slot1.player and slot2 and slot2.player and not slot1.slot.is_bye and not slot2.slot.is_bye %}
 
-            <div class="match {% if is_clickable %}clickable-match{% endif %}"
-                 {% if is_clickable and match %}onclick="window.location.href='/match/{{ match.id }}/enter-result'"{% endif %}
-                 style="{% if is_clickable %}cursor: pointer;{% endif %}"
+            <div class="match"
 >
                 <div class="match-line">
                     <div class="player-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% endif %} {% if slot1.slot.same_country_warning %}warning{% endif %}">
@@ -83,12 +81,6 @@
                                 <em>TBD</em>
                             {% endif %}
                         </span>
-                        {# Show indicator if match exists and is completed #}
-                        {% if match and match.status != 'pending' and slot1.player %}
-                            {% if match.winner_id == slot1.player.id %}
-                                <span class="match-score winner">✓</span>
-                            {% endif %}
-                        {% endif %}
                     </div>
                     {% if slot2 %}
                     <div class="player-slot {% if slot2.slot.is_bye %}bye{% elif not slot2.player %}tbd{% endif %} {% if slot2.slot.same_country_warning %}warning{% endif %}">
@@ -108,52 +100,45 @@
                                 <em>TBD</em>
                             {% endif %}
                         </span>
-                        {# Show indicator if match exists and is completed #}
-                        {% if match and match.status != 'pending' and slot2.player %}
-                            {% if match.winner_id == slot2.player.id %}
-                                <span class="match-score winner">✓</span>
-                            {% endif %}
-                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
                 <div class="connector-line"></div>
-                {# Show match status indicator #}
-                {% if is_clickable %}
-                    {% if match %}
-                        {% if match.status == 'pending' %}
-                            <div class="match-status-indicator pending" title="Click para ingresar resultado">⏱️</div>
-                        {% elif match.status == 'WALKOVER' %}
-                            <div class="match-status-indicator completed" title="Walkover">WO</div>
-                        {% else %}
-                            <div class="match-status-indicator completed" title="Completado">✓</div>
-                        {% endif %}
-                    {% else %}
-                        <div class="match-status-indicator pending" title="Click para ingresar resultado">⏱️</div>
-                    {% endif %}
-                {% endif %}
             </div>
             {% endfor %}
         </div>
     </div>
     {% endfor %}
 </div>
+</div>
 
 <style>
+.bracket-wrapper {
+    overflow: auto;
+    width: 100%;
+    min-height: 600px;
+    max-height: calc(100vh - 200px);
+    padding: 10px;
+}
+
 .bracket-container {
     display: flex;
-    gap: 40px;
-    overflow-x: auto;
+    gap: 60px;
+    overflow-x: visible;
+    overflow-y: visible;
     padding: 20px 0;
     margin: 20px 0;
     transform-origin: top left;
     transition: transform 0.3s ease;
+    min-width: min-content;
+    min-height: 600px;
 }
 
 .bracket-column {
     display: flex;
     flex-direction: column;
     min-width: 280px;
+    flex: 1;
 }
 
 .round-header {
@@ -172,12 +157,15 @@
     flex-direction: column;
     justify-content: space-around;
     flex-grow: 1;
+    min-height: 100%;
 }
 
 .match {
     display: flex;
-    margin-bottom: 40px;
+    margin-bottom: 0;
     position: relative;
+    flex: 1;
+    align-items: center;
 }
 
 .clickable-match {
@@ -298,7 +286,29 @@
     position: absolute;
     right: -40px;
     top: 50%;
-    width: 40px;
+    width: 20px;
+    height: 2px;
+    background-color: #333;
+}
+
+/* Vertical connector for bracket pairs */
+.match:nth-child(odd) .connector-line::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 2px;
+    height: 200%;
+    background-color: #333;
+}
+
+/* Right horizontal connector to next round */
+.match .connector-line::before {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    width: 20px;
     height: 2px;
     background-color: #333;
     transform: translateY(-50%);
@@ -412,9 +422,18 @@ function resetZoom() {
     applyZoom();
 }
 
+function updateZoomButton() {
+    const zoomBtn = document.querySelector('.btn-group .btn:nth-child(2) span');
+    if (zoomBtn) {
+        const percentage = Math.round(currentZoom * 100);
+        zoomBtn.textContent = `${percentage}%`;
+    }
+}
+
 function applyZoom() {
     const container = document.getElementById('bracket-container');
     container.style.transform = `scale(${currentZoom})`;
+    updateZoomButton();
 }
 </script>
 
