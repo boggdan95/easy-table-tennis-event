@@ -291,6 +291,116 @@ const utils = {
     }
 };
 
+// Sidebar submenu toggle
+function toggleSubmenu(event, category) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const link = event.currentTarget;
+    const submenu = document.getElementById('submenu-' + category);
+
+    // Toggle expanded classes
+    link.classList.toggle('expanded');
+    submenu.classList.toggle('expanded');
+
+    // If clicking on the link itself (not a submenu item), navigate
+    if (event.target === link || event.target.closest('.nav-link-category') === link) {
+        // Only navigate if we're collapsing (expanded class was just removed)
+        if (!link.classList.contains('expanded')) {
+            window.location.href = link.href;
+        }
+    }
+}
+
+// Auto-expand submenu for current page
+document.addEventListener('DOMContentLoaded', function() {
+    const currentPath = window.location.pathname;
+
+    // Find all sublinks and check if any match current path
+    document.querySelectorAll('.nav-sublink').forEach(sublink => {
+        if (currentPath.includes(sublink.getAttribute('href'))) {
+            // Find parent category and expand it
+            const category = sublink.closest('.nav-category');
+            if (category) {
+                const categoryLink = category.querySelector('.nav-link-category');
+                const submenu = category.querySelector('.nav-submenu');
+                if (categoryLink && submenu) {
+                    categoryLink.classList.add('expanded');
+                    submenu.classList.add('expanded');
+                }
+            }
+        }
+    });
+});
+
+// Sidebar collapse/expand functionality
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+
+    if (!sidebar) {
+        console.error('[toggleSidebar] Sidebar element not found!');
+        return;
+    }
+
+    sidebar.classList.toggle('collapsed');
+    const isCollapsed = sidebar.classList.contains('collapsed');
+
+    // Update toggle button icon
+    const toggleIcon = document.querySelector('.toggle-icon');
+    if (toggleIcon) {
+        toggleIcon.textContent = isCollapsed ? '🏓' : '◀';
+    }
+
+    // Save state to localStorage
+    localStorage.setItem('sidebarCollapsed', isCollapsed.toString());
+
+    // If collapsing, close all submenus
+    if (isCollapsed) {
+        document.querySelectorAll('.nav-submenu.expanded').forEach(submenu => {
+            submenu.classList.remove('expanded');
+        });
+        document.querySelectorAll('.nav-link-category.expanded').forEach(link => {
+            link.classList.remove('expanded');
+        });
+    }
+}
+
+// Restore sidebar state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+
+    if (!sidebar) return;
+
+    const storedState = localStorage.getItem('sidebarCollapsed');
+    const toggleIcon = document.querySelector('.toggle-icon');
+
+    // Only apply if we have a valid stored state
+    if (storedState === 'true') {
+        sidebar.classList.add('collapsed');
+        if (toggleIcon) {
+            toggleIcon.textContent = '🏓';
+        }
+    } else if (storedState === 'false') {
+        sidebar.classList.remove('collapsed');
+        if (toggleIcon) {
+            toggleIcon.textContent = '◀';
+        }
+    }
+    // If storedState is null (first time), leave it as default (expanded)
+
+    // Make logo clickable when sidebar is collapsed
+    const logo = document.querySelector('.logo');
+    if (logo) {
+        logo.addEventListener('click', function() {
+            if (sidebar.classList.contains('collapsed')) {
+                toggleSidebar();
+            }
+        });
+    }
+});
+
 // Export for use in other scripts
 window.toast = toast;
 window.utils = utils;
+window.toggleSubmenu = toggleSubmenu;
+window.toggleSidebar = toggleSidebar;

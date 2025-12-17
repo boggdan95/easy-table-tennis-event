@@ -89,8 +89,11 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
         all_players = player_repo.get_all()
         categories = sorted(set(p.categoria for p in all_players))
         context["categories"] = categories
+        print(f"[DEBUG] Categories loaded: {categories}")
     except Exception as e:
         print(f"[ERROR] Failed to load categories: {e}")
+        import traceback
+        traceback.print_exc()
         context["categories"] = []
     finally:
         if session:
@@ -511,15 +514,12 @@ async def view_standings(request: Request, group_id: int):
                 "player": player
             })
 
-    return templates.TemplateResponse(
-        "standings.html",
-        {
-            "request": request,
-            "group": group,
-            "standings": standings_data,
-            "category": group.category
-        }
-    )
+    return render_template("standings.html", {
+        "request": request,
+        "group": group,
+        "standings": standings_data,
+        "category": group.category
+    })
 
 
 @app.get("/group/{group_id}/sheet", response_class=HTMLResponse)
@@ -630,16 +630,13 @@ async def view_group_sheet(request: Request, group_id: int):
             "standing": standing,
         })
 
-    return templates.TemplateResponse(
-        "group_sheet.html",
-        {
-            "request": request,
-            "group": group,
-            "players": players_data,
-            "results_matrix": results_matrix,
-            "category": group.category,
-        }
-    )
+    return render_template("group_sheet.html", {
+        "request": request,
+        "group": group,
+        "players": players_data,
+        "results_matrix": results_matrix,
+        "category": group.category,
+    })
 
 
 @app.post("/category/{category}/recalculate-standings")
@@ -826,18 +823,15 @@ async def view_bracket(request: Request, category: str):
 
         sys.stderr.write("[DEBUG] About to render template\n")
         sys.stderr.flush()
-        return templates.TemplateResponse(
-            "bracket.html",
-            {
-                "request": request,
-                "category": category,
-                "slots_by_round": slots_with_players,
-                "champion_id": champion_id,
-                "groups_dict": groups_dict,
-                "standings_dict": standings_dict,
-                "matches_by_slot_pair": {},  # TODO: Fix this later
-            }
-        )
+        return render_template("bracket.html", {
+            "request": request,
+            "category": category,
+            "slots_by_round": slots_with_players,
+            "champion_id": champion_id,
+            "groups_dict": groups_dict,
+            "standings_dict": standings_dict,
+            "matches_by_slot_pair": {},  # TODO: Fix this later
+        })
     except Exception as e:
         sys.stderr.write(f"[ERROR] Exception in view_bracket: {e}\n")
         sys.stderr.flush()
@@ -913,15 +907,12 @@ async def view_bracket_matches(request: Request, category: str):
             if rt.value in matches_by_round:
                 round_order.append(rt.value)
 
-    return templates.TemplateResponse(
-        "bracket_matches.html",
-        {
-            "request": request,
-            "category": category,
-            "matches_by_round": matches_with_players,
-            "round_order": round_order,
-        }
-    )
+    return render_template("bracket_matches.html", {
+        "request": request,
+        "category": category,
+        "matches_by_round": matches_with_players,
+        "round_order": round_order,
+    })
 
 
 @app.get("/category/{category}/results", response_class=HTMLResponse)
@@ -1066,17 +1057,14 @@ async def view_final_results(request: Request, category: str):
     # Sort by position
     player_rankings.sort(key=lambda x: (x['final_position'], x['player'].seed))
 
-    return render_template(
-        "results.html",
-        {
-            "request": request,
-            "category": category,
-            "champion": champion,
-            "second_place": second_place,
-            "third_fourth": third_fourth,
-            "all_players": player_rankings,
-        }
-    )
+    return render_template("results.html", {
+        "request": request,
+        "category": category,
+        "champion": champion,
+        "second_place": second_place,
+        "third_fourth": third_fourth,
+        "all_players": player_rankings,
+    })
 
 
 # ========================================
@@ -1215,7 +1203,10 @@ async def admin_import_players_csv(
                 for cat in categories:
                     player_repo.assign_seeds(cat)
 
-            request.session["flash_message"] = f"Se importaron exitosamente {imported_count} jugadores"
+            # Get imported category for redirect
+            imported_category = players[0].categoria if players else None
+
+            request.session["flash_message"] = f"✅ Se importaron exitosamente {imported_count} jugadores para la categoría {imported_category}"
             request.session["flash_type"] = "success"
 
         except CSVImportError as e:
@@ -1225,7 +1216,8 @@ async def admin_import_players_csv(
             # Clean up temp file
             Path(tmp_path).unlink(missing_ok=True)
 
-        return RedirectResponse(url="/admin/import-players", status_code=303)
+        # Redirect to home page to see the new category
+        return RedirectResponse(url="/", status_code=303)
 
     except Exception as e:
         request.session["flash_message"] = f"Error inesperado: {str(e)}"

@@ -10,21 +10,23 @@
 <body>
     <div class="app-container">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h1>
+                <div class="sidebar-title-wrapper">
                     <span class="logo">🏓</span>
-                    ETTEM
-                </h1>
-                <div class="subtitle">Table Tennis Manager</div>
+                    <span class="sidebar-text">ETTEM</span>
+                </div>
+                <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar/Expandir menú">
+                    <span class="toggle-icon">◀</span>
+                </button>
             </div>
 
             <nav class="sidebar-nav">
                 <div class="nav-section">
                     <div class="nav-section-title">Principal</div>
-                    <a href="/" class="nav-link">
+                    <a href="/" class="nav-link" title="Inicio">
                         <span class="icon">🏠</span>
-                        <span>Inicio</span>
+                        <span class="sidebar-text">Inicio</span>
                     </a>
                 </div>
 
@@ -32,10 +34,31 @@
                 <div class="nav-section">
                     <div class="nav-section-title">Categorías</div>
                     {% for cat in categories %}
-                    <a href="/category/{{ cat }}" class="nav-link">
-                        <span class="icon">🏆</span>
-                        <span>{{ cat }}</span>
-                    </a>
+                    <div class="nav-category">
+                        <button type="button" class="nav-link nav-link-category" onclick="toggleSubmenu(event, '{{ cat }}')" title="Categoría {{ cat }}">
+                            <span class="icon">🏆</span>
+                            <span class="sidebar-text">{{ cat }}</span>
+                            <span class="submenu-arrow sidebar-text">▼</span>
+                        </button>
+                        <div class="nav-submenu" id="submenu-{{ cat }}">
+                            <a href="/category/{{ cat }}" class="nav-sublink" title="Vista general de {{ cat }}">
+                                <span class="icon">📋</span>
+                                <span class="sidebar-text">General</span>
+                            </a>
+                            <a href="/category/{{ cat }}/bracket" class="nav-sublink" title="Llave de {{ cat }}">
+                                <span class="icon">🗂️</span>
+                                <span class="sidebar-text">Llave</span>
+                            </a>
+                            <a href="/bracket/{{ cat }}" class="nav-sublink" title="Partidos de {{ cat }}">
+                                <span class="icon">📊</span>
+                                <span class="sidebar-text">Partidos</span>
+                            </a>
+                            <a href="/category/{{ cat }}/results" class="nav-sublink" title="Resultados de {{ cat }}">
+                                <span class="icon">🏅</span>
+                                <span class="sidebar-text">Resultados</span>
+                            </a>
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -44,8 +67,8 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div>ETTEM v1.0.2</div>
-                <div style="opacity: 0.6; font-size: 0.75rem;">Easy Table Tennis Event Manager</div>
+                <div class="sidebar-text">ETTEM v1.0.2</div>
+                <div class="sidebar-text" style="opacity: 0.6; font-size: 0.75rem;">Easy Table Tennis Event Manager</div>
             </div>
         </aside>
 
