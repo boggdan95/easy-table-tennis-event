@@ -821,6 +821,27 @@ async def view_bracket(request: Request, category: str):
                 champion_id = m.winner_id
                 break
 
+        # Get all bracket matches with scores for this category
+        all_bracket_matches = [
+            m for m in match_repo.get_all()
+            if m.group_id is None  # bracket match
+        ]
+
+        # Filter matches for this category and build matches dict
+        matches_by_round = {}
+        for match in all_bracket_matches:
+            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            if p1 and p1.categoria == category:
+                if match.round_type not in matches_by_round:
+                    matches_by_round[match.round_type] = []
+
+                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+                matches_by_round[match.round_type].append({
+                    "match": match,
+                    "player1": p1,
+                    "player2": p2,
+                })
+
         sys.stderr.write("[DEBUG] About to render template\n")
         sys.stderr.flush()
         return render_template("bracket.html", {
@@ -830,7 +851,7 @@ async def view_bracket(request: Request, category: str):
             "champion_id": champion_id,
             "groups_dict": groups_dict,
             "standings_dict": standings_dict,
-            "matches_by_slot_pair": {},  # TODO: Fix this later
+            "matches_by_round": matches_by_round,
         })
     except Exception as e:
         sys.stderr.write(f"[ERROR] Exception in view_bracket: {e}\n")
