@@ -435,8 +435,11 @@ async def save_result(
 @app.post("/match/{match_id}/delete-result")
 async def delete_result(request: Request, match_id: int):
     """Delete match result and reset to pending status."""
+    from ettem.models import RoundType
+
     session = get_db_session()
     match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
 
     # Get match
     match_orm = match_repo.get_by_id(match_id)
@@ -444,6 +447,41 @@ async def delete_result(request: Request, match_id: int):
         request.session["flash_message"] = "Partido no encontrado"
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/", status_code=303)
+
+    # For bracket matches, check if the winner has already played in the next round
+    category = None
+    if match_orm.group_id is None and match_orm.winner_id is not None:
+        # This is a bracket match with a result
+        player = player_repo.get_by_id(match_orm.player1_id)
+        if player:
+            category = player.categoria
+
+            # Check if winner has played in next round
+            round_progression = {
+                RoundType.ROUND_OF_32.value: RoundType.ROUND_OF_16.value,
+                RoundType.ROUND_OF_16.value: RoundType.QUARTERFINAL.value,
+                RoundType.QUARTERFINAL.value: RoundType.SEMIFINAL.value,
+                RoundType.SEMIFINAL.value: RoundType.FINAL.value,
+                RoundType.FINAL.value: None,
+            }
+            next_round = round_progression.get(match_orm.round_type)
+
+            if next_round:
+                # Check if there's a completed match in next round with this winner
+                next_round_match = session.query(MatchORM).filter(
+                    MatchORM.group_id == None,
+                    MatchORM.round_type == next_round,
+                    MatchORM.status == MatchStatus.COMPLETED.value,
+                    (MatchORM.player1_id == match_orm.winner_id) | (MatchORM.player2_id == match_orm.winner_id)
+                ).first()
+
+                if next_round_match:
+                    request.session["flash_message"] = f"No se puede eliminar: el ganador ya tiene resultado en {next_round}. Elimina primero ese resultado."
+                    request.session["flash_type"] = "error"
+                    return RedirectResponse(url=f"/bracket/{category}", status_code=303)
+
+            # Safe to rollback
+            rollback_bracket_advancement(match_orm, match_orm.winner_id, category, session)
 
     # Reset match to pending state
     match_repo.update_result(
@@ -457,8 +495,20 @@ async def delete_result(request: Request, match_id: int):
     request.session["flash_message"] = "Resultado eliminado exitosamente"
     request.session["flash_type"] = "success"
 
-    # Redirect back to group matches
-    return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
+    # Redirect based on match type (group or bracket)
+    if match_orm.group_id is not None:
+        # Group match - redirect to group matches page
+        return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
+    else:
+        # Bracket match - redirect to bracket page
+        if category is None:
+            player = player_repo.get_by_id(match_orm.player1_id)
+            if player:
+                category = player.categoria
+        if category:
+            return RedirectResponse(url=f"/bracket/{category}", status_code=303)
+        else:
+            return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/group/{group_id}/standings", response_class=HTMLResponse)
@@ -928,11 +978,23 @@ async def view_bracket_matches(request: Request, category: str):
             if rt.value in matches_by_round:
                 round_order.append(rt.value)
 
+    # Check if there's a champion (final match completed)
+    champion = None
+    champion_id = None
+    if RoundType.FINAL.value in matches_by_round:
+        for match_data in matches_with_players[RoundType.FINAL.value]:
+            if match_data["match"].winner_id:
+                champion_id = match_data["match"].winner_id
+                champion = player_repo.get_by_id(champion_id)
+                break
+
     return render_template("bracket_matches.html", {
         "request": request,
         "category": category,
         "matches_by_round": matches_with_players,
         "round_order": round_order,
+        "champion": champion,
+        "champion_id": champion_id,
     })
 
 
@@ -2188,6 +2250,112 @@ def advance_bracket_winner(match_orm, winner_id, category, session):
         match_repo.session.commit()
 
     return True
+
+
+def rollback_bracket_advancement(match_orm, winner_id, category, session):
+    """
+    Rollback the advancement of a bracket winner when a result is deleted.
+
+    This reverses the effect of advance_bracket_winner by:
+    1. Finding the slot in the next round where the winner was placed
+    2. Clearing that slot (setting player_id to None)
+    3. Updating the corresponding match in the next round
+
+    Args:
+        match_orm: The match whose result is being deleted
+        winner_id: ID of the winner who needs to be removed from next round
+        category: Category name
+        session: Database session
+
+    Returns:
+        True if rollback was successful, False if no rollback needed (e.g., final)
+    """
+    from ettem.models import RoundType, MatchStatus
+    from ettem.storage import BracketSlotORM
+
+    # Map rounds to next round (same as advance_bracket_winner)
+    round_progression = {
+        RoundType.ROUND_OF_32.value: RoundType.ROUND_OF_16.value,
+        RoundType.ROUND_OF_16.value: RoundType.QUARTERFINAL.value,
+        RoundType.QUARTERFINAL.value: RoundType.SEMIFINAL.value,
+        RoundType.SEMIFINAL.value: RoundType.FINAL.value,
+        RoundType.FINAL.value: None,
+    }
+
+    current_round = match_orm.round_type
+    next_round = round_progression.get(current_round)
+
+    if next_round is None:
+        # This is the final, no rollback needed
+        return False
+
+    # Get the match number (1-based)
+    match_number = match_orm.match_number
+
+    # The winner was placed in slot number = match_number of the next round
+    next_slot_number = match_number
+
+    bracket_repo = BracketRepository(session)
+    match_repo = MatchRepository(session)
+
+    # Find the slot in the next round where the winner was placed
+    next_round_slots = bracket_repo.get_by_category_and_round(category, next_round)
+
+    target_slot = None
+    for slot in next_round_slots:
+        if slot.slot_number == next_slot_number:
+            target_slot = slot
+            break
+
+    if target_slot and target_slot.player_id == winner_id:
+        # Clear the slot (remove the winner)
+        session.query(BracketSlotORM).filter(
+            BracketSlotORM.id == target_slot.id
+        ).update({
+            "player_id": None,
+            "is_bye": False,
+            "advanced_by_bye": False
+        })
+        session.commit()
+
+        # Also update the match in the next round to remove this player
+        # Find the pair slot
+        if next_slot_number % 2 == 1:
+            pair_slot_number = next_slot_number + 1
+        else:
+            pair_slot_number = next_slot_number - 1
+
+        # Calculate match number in next round
+        next_match_number = (min(next_slot_number, pair_slot_number) + 1) // 2
+
+        # Find the match in the next round
+        existing_match = session.query(MatchORM).filter(
+            MatchORM.group_id == None,
+            MatchORM.round_type == next_round,
+            MatchORM.match_number == next_match_number
+        ).first()
+
+        if existing_match:
+            # Determine which player position to clear based on slot number
+            if next_slot_number < pair_slot_number:
+                # Winner was player1
+                session.query(MatchORM).filter(
+                    MatchORM.id == existing_match.id
+                ).update({
+                    "player1_id": None
+                })
+            else:
+                # Winner was player2
+                session.query(MatchORM).filter(
+                    MatchORM.id == existing_match.id
+                ).update({
+                    "player2_id": None
+                })
+            session.commit()
+
+        return True
+
+    return False
 
 
 def create_bracket_matches(category: str, bracket_repo, match_repo):

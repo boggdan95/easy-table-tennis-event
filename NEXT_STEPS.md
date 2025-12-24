@@ -11,34 +11,36 @@
 
 ## 🔴 Prioridad ALTA (Crítico para V1.1)
 
-### 1. Deshacer avances de bracket
+### 1. ✅ Deshacer avances de bracket (COMPLETADO - 2025-12-18)
 **Problema:** Si eliminas un resultado de bracket, el jugador ya avanzado a la siguiente ronda NO se elimina automáticamente.
 
-**Solución propuesta:**
-- Modificar la ruta `POST /match/{match_id}/delete-result`
-- Cuando se elimine un resultado de bracket:
-  - Buscar en qué slot de la siguiente ronda está el ganador
-  - Limpiar ese slot (poner `player_id=None`, `is_bye=False`, `advanced_by_bye=False`)
-  - Si ese slot ya tenía un match creado para la siguiente ronda, eliminarlo también
+**Solución implementada:**
+- Agregada función `rollback_bracket_advancement(match_orm, winner_id, category, session)` en app.py:2193
+- Modificada ruta `POST /match/{match_id}/delete-result`:
+  - Detecta si es match de bracket (group_id == None)
+  - Verifica si el ganador ya jugó en la siguiente ronda (error si es así)
+  - Limpia el slot de la siguiente ronda (player_id = None)
+  - Actualiza el match de la siguiente ronda para quitar al jugador
+  - Redirige correctamente a la página del bracket
 
-**Archivos a modificar:**
-- `src/ettem/webapp/app.py` - Ruta de eliminación de resultados
-- Agregar función `rollback_bracket_advancement(match_id, session)`
+**Validaciones:**
+- Si el ganador ya jugó en la siguiente ronda, muestra error y pide eliminar primero ese resultado
+- Esto previene estados inconsistentes en el bracket
 
 ---
 
-### 2. Vista del campeón
+### 2. ✅ Vista del campeón (COMPLETADO - 2025-12-18)
 **Problema:** No hay una vista clara que muestre quién ganó el torneo cuando se completa la final.
 
-**Solución propuesta:**
-- Cuando se complete la FINAL, mostrar un mensaje especial
-- Agregar en la vista de bracket un banner/card destacando al campeón
-- Opcional: Agregar emoji/medalla 🏆
+**Ya implementado previamente:**
+- `bracket.html`: Banner "¡Torneo Finalizado!" con link a resultados + badge 👑 en campeón
+- `results.html`: Vista completa de resultados finales con podio (1°, 2°, 3°/4°)
+- `category.html`: Botón "🏆 Resultados Finales" en topbar
 
-**Archivos a modificar:**
-- `src/ettem/webapp/templates/bracket.html` - Agregar sección de campeón
-- `src/ettem/webapp/templates/bracket_matches.html` - Banner cuando se completa final
-- `src/ettem/webapp/app.py` - Detectar cuando final está completa
+**Agregado en esta sesión:**
+- `view_bracket_matches` (app.py:981-989): Detecta campeón y lo pasa al template
+- `bracket_matches.html`: Banner de campeón con "Ver Podio Completo →"
+- `bracket_matches.html`: Botón "🏆 Resultados" en topbar
 
 ---
 

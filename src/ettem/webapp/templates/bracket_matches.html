@@ -13,9 +13,34 @@
     <span>🗂️</span>
     <span>Llave Visual</span>
 </a>
+<a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
+    <span>🏆</span>
+    <span>Resultados</span>
+</a>
 {% endblock %}
 
 {% block content %}
+
+<!-- Champion Banner (if tournament is complete) -->
+{% if champion %}
+<div class="card mb-3" style="border: 3px solid #FFD700; box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);">
+    <div class="card-body" style="text-align: center; padding: 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <span style="font-size: 2rem;">🎉</span>
+            <div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem;">¡Torneo Finalizado!</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">
+                    👑 Campeón: <span style="color: var(--primary-color);">{{ champion.nombre }} {{ champion.apellido }}</span>
+                    <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ champion.pais_cd }}</span>
+                </div>
+            </div>
+            <a href="/category/{{ category }}/results" class="btn btn-warning" style="margin-left: 1rem;">
+                Ver Podio Completo →
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Round Display Names Mapping -->
 {% set round_names = {
