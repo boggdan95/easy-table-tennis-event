@@ -1,0 +1,629 @@
+{% extends "base.html" %}
+
+{% block title %}Crear Grupos - ETTEM{% endblock %}
+
+{% block page_title %}Crear Grupos{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Inicio</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Configuration Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Configuración de Grupos</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/create-groups/execute">
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Categoría *</label>
+                    <select name="category" required class="form-control" id="category-select" onchange="updatePlayerCount()">
+                        <option value="">-Seleccionar Categoría-</option>
+                        {% for cat in available_categories %}
+                        <option value="{{ cat.name }}" data-count="{{ cat.count }}" data-countries='{{ cat.countries|safe }}'>{{ cat.name }} ({{ cat.count }} jugadores)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Tamaño Preferido de Grupo *</label>
+                    <select name="group_size_preference" required class="form-control">
+                        <option value="3">3 jugadores (más grupos pequeños)</option>
+                        <option value="4" selected>4 jugadores (recomendado)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section mb-3">
+                <label class="form-label">Semilla Aleatoria (Random Seed)</label>
+                <input type="number" name="random_seed" class="form-control" placeholder="42" value="42" style="max-width: 200px;">
+                <p class="form-help">Para resultados reproducibles. Usa el mismo valor para obtener la misma distribución de grupos.</p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button" onclick="openPreviewModal()" class="btn btn-primary">
+                    <span>👁️</span>
+                    <span>Vista Previa con Serpenteo</span>
+                </button>
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Directamente</span>
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Collapsible Information Alerts -->
+<div class="alert alert-info collapsible-alert mb-3" id="player-info" style="display: none;">
+    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">Vista Previa de Distribución</div>
+            </div>
+        </div>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="alert-body" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+        <div id="preview-text">Selecciona una categoría para ver la distribución de grupos</div>
+    </div>
+</div>
+
+<div class="alert alert-secondary collapsible-alert mb-3" id="country-stats" style="display: none;">
+    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span class="icon">🌍</span>
+            <div class="alert-content">
+                <div class="alert-title">Distribución por País</div>
+            </div>
+        </div>
+        <span class="toggle-icon">▼</span>
+    </div>
+    <div class="alert-body" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+        <div id="country-stats-content"></div>
+    </div>
+</div>
+
+<div class="alert alert-warning collapsible-alert mb-3">
+    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span class="icon">⚠️</span>
+            <div class="alert-content">
+                <div class="alert-title">Información Importante</div>
+            </div>
+        </div>
+        <span class="toggle-icon">▶</span>
+    </div>
+    <div class="alert-body" style="display: none; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+            <li>Se crearán grupos round-robin con distribución en serpiente (snake seeding)</li>
+            <li>Se generarán todos los partidos de cada grupo automáticamente</li>
+            <li>Si ya existen grupos para esta categoría, se eliminarán y crearán nuevos</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="preview-modal" class="modal">
+    <div class="modal-content" style="width: 95vw;">
+        <div class="modal-header">
+            <h3>📋 Distribución en Serpenteo</h3>
+            <button class="modal-close" onclick="closePreviewModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="preview-modal-body" style="padding: 0;">
+            <!-- Content will be loaded here -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-success" onclick="confirmGroupCreation()">
+                <span>✓</span>
+                <span>Confirmar y Crear Grupos</span>
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="closePreviewModal()">
+                <span>✕</span>
+                <span>Cancelar</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Existing Groups (if any) -->
+{% if existing_groups %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Grupos Existentes</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Grupo</th>
+                        <th>Jugadores</th>
+                        <th>Partidos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in existing_groups %}
+                    <tr>
+                        <td><span class="badge badge-primary">{{ group.category }}</span></td>
+                        <td><strong>{{ group.name }}</strong></td>
+                        <td>{{ group.player_count }}</td>
+                        <td>{{ group.match_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+let previewGroupsData = null;
+
+function updatePlayerCount() {
+    const select = document.getElementById('category-select');
+    const selectedOption = select.options[select.selectedIndex];
+    const playerInfo = document.getElementById('player-info');
+    const previewText = document.getElementById('preview-text');
+    const countryStats = document.getElementById('country-stats');
+    const countryStatsContent = document.getElementById('country-stats-content');
+
+    if (selectedOption.value) {
+        const count = parseInt(selectedOption.getAttribute('data-count'));
+        const groupSize = parseInt(document.querySelector('[name="group_size_preference"]').value);
+        const countries = JSON.parse(selectedOption.getAttribute('data-countries') || '{}');
+
+        // Calculate group distribution
+        let groups4 = 0;
+        let groups3 = 0;
+
+        if (groupSize === 4) {
+            const remainder = count % 4;
+            if (remainder === 0) {
+                groups4 = count / 4;
+            } else if (remainder === 1) {
+                // 1 extra: create 1 group of 3 and rest of 4
+                groups3 = 1;
+                groups4 = Math.floor(count / 4) - 1;
+            } else if (remainder === 2) {
+                // 2 extra: create 2 groups of 3
+                groups3 = 2;
+                groups4 = Math.floor(count / 4) - 1;
+            } else {
+                // 3 extra: create 1 group of 3 + round up
+                groups3 = 1;
+                groups4 = Math.floor(count / 4);
+            }
+        } else {
+            const remainder = count % 3;
+            if (remainder === 0) {
+                groups3 = count / 3;
+            } else if (remainder === 1) {
+                // 1 extra: create 1 group of 4
+                groups4 = 1;
+                groups3 = Math.floor(count / 3) - 1;
+            } else {
+                // 2 extra: create 1 group of 4 + round up
+                groups4 = 1;
+                groups3 = Math.floor(count / 3);
+            }
+        }
+
+        let text = `Se crearán aproximadamente `;
+        const parts = [];
+        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4 jugadores`);
+        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3 jugadores`);
+        text += parts.join(' y ');
+        text += ` para ${count} jugadores en total.`;
+
+        previewText.textContent = text;
+        playerInfo.style.display = 'block';
+
+        // Show country statistics
+        let countryHTML = '<div style="display: flex; gap: 1rem; flex-wrap: wrap;">';
+        Object.entries(countries).forEach(([country, countryCount]) => {
+            const percentage = ((countryCount / count) * 100).toFixed(1);
+            const color = getCountryColor(country);
+            countryHTML += `
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="badge" style="background: ${color}; color: white; font-weight: 600; min-width: 42px; text-align: center;">${country}</span>
+                    <span><strong>${countryCount}</strong> jugadores (${percentage}%)</span>
+                </div>
+            `;
+        });
+        countryHTML += '</div>';
+        countryStatsContent.innerHTML = countryHTML;
+        countryStats.style.display = 'block';
+    } else {
+        playerInfo.style.display = 'none';
+        countryStats.style.display = 'none';
+    }
+}
+
+// Toggle page alerts (different from modal alerts)
+function togglePageAlert(alertElement) {
+    const alertBody = alertElement.querySelector('.alert-body');
+    const toggleIcon = alertElement.querySelector('.toggle-icon');
+    const isExpanded = alertBody.style.display !== 'none';
+
+    if (isExpanded) {
+        alertBody.style.display = 'none';
+        toggleIcon.textContent = '▶';
+    } else {
+        alertBody.style.display = 'block';
+        toggleIcon.textContent = '▼';
+    }
+}
+
+// Update on group size change
+document.querySelector('[name="group_size_preference"]').addEventListener('change', updatePlayerCount);
+
+// Modal functions
+async function openPreviewModal() {
+    const category = document.querySelector('[name="category"]').value;
+    const groupSizePref = document.querySelector('[name="group_size_preference"]').value;
+    const randomSeed = document.querySelector('[name="random_seed"]').value;
+
+    if (!category) {
+        toast.error('Por favor selecciona una categoría');
+        return;
+    }
+
+    // Create form data
+    const formData = new FormData();
+    formData.append('category', category);
+    formData.append('group_size_preference', groupSizePref);
+    formData.append('random_seed', randomSeed);
+
+    try {
+        const response = await fetch('/admin/create-groups/preview', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            previewGroupsData = data;
+            renderPreviewModal(data);
+            document.getElementById('preview-modal').classList.add('active');
+        } else {
+            toast.error('Error al cargar la vista previa');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        toast.error('Error al cargar la vista previa');
+    }
+}
+
+function closePreviewModal() {
+    document.getElementById('preview-modal').classList.remove('active');
+}
+
+function renderPreviewModal(data) {
+    const modalBody = document.getElementById('preview-modal-body');
+
+    const tutorialMode = localStorage.getItem('groupPreviewTutorial') !== 'false';
+
+    // Build horizontal scrollable groups
+    let html = `
+        <div style="padding: 1rem; background: var(--bg-color);">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                <div><strong>Categoría:</strong> ${data.category}</div>
+                <div>•</div>
+                <div><strong>Total:</strong> ${data.total_players} jugadores</div>
+                <div>•</div>
+                <div><strong>Grupos:</strong> ${data.groups.length}</div>
+            </div>
+
+            <!-- Help Alert (collapsible) -->
+            <div class="alert alert-info collapsible-alert ${tutorialMode ? 'expanded' : ''}" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleAlert(this.parentElement)">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="icon">ℹ️</span>
+                        <div class="alert-content" style="flex: 1;">
+                            <div class="alert-title">Ayuda - Serpenteo (Snake Seeding)</div>
+                        </div>
+                    </div>
+                    <span class="toggle-icon">${tutorialMode ? '▼' : '▶'}</span>
+                </div>
+                <div class="alert-body" style="display: ${tutorialMode ? 'block' : 'none'}; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <div>
+                        Los jugadores están distribuidos en <strong>serpenteo (snake seeding)</strong>.
+                        Puedes arrastrar jugadores entre grupos para ajustes manuales.
+                        Los jugadores del mismo país están marcados con colores para facilitar su identificación y separación.
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div style="overflow-x: auto; padding: 1rem;">
+            <div style="display: flex; gap: 1rem; min-width: min-content;" id="groups-container">
+    `;
+
+    data.groups.forEach(group => {
+        html += `
+            <div class="group-card" data-group-name="${group.name}" style="min-width: 240px; flex-shrink: 0;">
+                <div style="background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)); color: white; padding: 0.75rem; border-radius: 6px 6px 0 0;">
+                    <div style="font-weight: 600; font-size: 1.1rem;">${group.name}</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;" class="group-count">${group.players.length} jugadores</div>
+                </div>
+                <div class="player-drop-zone" style="padding: 0.5rem; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; min-height: 120px;">
+        `;
+
+        group.players.forEach(player => {
+            const countryColor = getCountryColor(player.pais_cd);
+            html += `
+                <div class="player-card"
+                     draggable="true"
+                     data-player-id="${player.id}"
+                     data-player-name="${player.nombre} ${player.apellido}"
+                     data-player-country="${player.pais_cd}"
+                     data-seed="${player.seed}"
+                     style="background: white; border-left: 3px solid ${countryColor}; border: 1px solid var(--border-color); border-left: 3px solid ${countryColor}; border-radius: 4px; padding: 0.4rem; margin-bottom: 0.3rem; cursor: move; font-size: 0.85rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <span style="cursor: grab; color: var(--text-muted); font-size: 0.9rem;">⋮⋮</span>
+                        <span class="badge badge-primary" style="min-width: 28px; font-size: 0.75rem; padding: 0.15rem 0.4rem;">${player.seed}</span>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${player.nombre} ${player.apellido}</div>
+                            <div style="font-size: 0.7rem; color: var(--text-muted);">
+                                <span class="badge" style="background: ${countryColor}; color: white; padding: 0.1rem 0.3rem; font-size: 0.65rem;">${player.pais_cd}</span>
+                                <span> • ${Math.round(player.ranking_pts)} pts</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    html += `
+            </div>
+        </div>
+    `;
+
+    modalBody.innerHTML = html;
+
+    // Setup drag and drop after rendering
+    setTimeout(() => setupDragAndDrop(), 100);
+}
+
+// Drag and Drop
+let draggedElement = null;
+let sourceGroup = null;
+
+function setupDragAndDrop() {
+    const playerCards = document.querySelectorAll('.player-card');
+    const dropZones = document.querySelectorAll('.player-drop-zone');
+
+    playerCards.forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+    });
+
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('drop', handleDrop);
+        zone.addEventListener('dragleave', handleDragLeave);
+        zone.addEventListener('dragenter', handleDragEnter);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    sourceGroup = this.closest('.group-card');
+    this.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    this.style.opacity = '1';
+    document.querySelectorAll('.player-drop-zone').forEach(zone => {
+        zone.style.background = '';
+        zone.style.border = '';
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    const dropZone = e.currentTarget;
+    const groupCard = dropZone.closest('.group-card');
+
+    if (sourceGroup !== groupCard) {
+        dropZone.style.background = 'rgba(26, 167, 236, 0.1)';
+        dropZone.style.border = '2px dashed var(--accent-color)';
+    }
+}
+
+function handleDragLeave(e) {
+    if (e.target.classList.contains('player-drop-zone')) {
+        e.target.style.background = '';
+        e.target.style.border = '';
+    }
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    e.preventDefault();
+
+    const dropZone = e.currentTarget;
+    const targetGroup = dropZone.closest('.group-card');
+
+    // Don't do anything if dropping on same group
+    if (sourceGroup === targetGroup) {
+        return false;
+    }
+
+    // Get the target player card (the one being dropped ON)
+    let targetCard = e.target;
+    while (targetCard && !targetCard.classList.contains('player-card')) {
+        targetCard = targetCard.parentElement;
+    }
+
+    // If we found a player card, swap them
+    if (targetCard && targetCard !== draggedElement) {
+        const sourceDropZone = sourceGroup.querySelector('.player-drop-zone');
+        const targetDropZone = targetGroup.querySelector('.player-drop-zone');
+
+        // Get positions
+        const draggedParent = draggedElement.parentElement;
+        const draggedNext = draggedElement.nextSibling;
+        const targetParent = targetCard.parentElement;
+        const targetNext = targetCard.nextSibling;
+
+        // Swap positions
+        if (draggedNext === targetCard) {
+            // Adjacent elements - simple swap
+            draggedParent.insertBefore(targetCard, draggedElement);
+        } else {
+            // Insert dragged before target's next sibling
+            if (targetNext) {
+                targetParent.insertBefore(draggedElement, targetNext);
+            } else {
+                targetParent.appendChild(draggedElement);
+            }
+
+            // Insert target before dragged's next sibling
+            if (draggedNext) {
+                draggedParent.insertBefore(targetCard, draggedNext);
+            } else {
+                draggedParent.appendChild(targetCard);
+            }
+        }
+
+        const draggedPlayerName = draggedElement.dataset.playerName;
+        const targetPlayerName = targetCard.dataset.playerName;
+        toast.success(`${draggedPlayerName} ↔ ${targetPlayerName} intercambiados`);
+
+    } else {
+        // No specific card target, just move to end of group
+        dropZone.appendChild(draggedElement);
+        const groupName = targetGroup.querySelector('[data-group-name]').dataset.groupName;
+        const playerName = draggedElement.dataset.playerName;
+        toast.success(`${playerName} movido a ${groupName}`);
+    }
+
+    updateGroupCounts();
+    return false;
+}
+
+function updateGroupCounts() {
+    document.querySelectorAll('.group-card').forEach(card => {
+        const dropZone = card.querySelector('.player-drop-zone');
+        const count = dropZone.querySelectorAll('.player-card').length;
+        const countDisplay = card.querySelector('.group-count');
+        countDisplay.textContent = `${count} jugadores`;
+    });
+}
+
+async function confirmGroupCreation() {
+    const assignments = {};
+
+    document.querySelectorAll('.group-card').forEach(groupCard => {
+        const groupName = groupCard.dataset.groupName;
+        const playerIds = [];
+
+        groupCard.querySelectorAll('.player-card').forEach(playerCard => {
+            playerIds.push(parseInt(playerCard.dataset.playerId));
+        });
+
+        assignments[groupName] = playerIds;
+    });
+
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/admin/create-groups/execute';
+
+    const fields = {
+        'category': previewGroupsData.category,
+        'group_size_preference': previewGroupsData.group_size_preference,
+        'random_seed': previewGroupsData.random_seed,
+        'manual_assignments': JSON.stringify(assignments)
+    };
+
+    for (const [key, value] of Object.entries(fields)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Helper function to get consistent color for each country
+function getCountryColor(countryCode) {
+    const colors = {
+        'ESP': '#E74C3C',  // Red
+        'MEX': '#27AE60',  // Green
+        'ARG': '#3498DB',  // Blue
+        'BRA': '#F39C12',  // Orange
+        'CHI': '#9B59B6',  // Purple
+        'COL': '#1ABC9C',  // Teal
+        'PER': '#E67E22',  // Dark Orange
+        'URU': '#34495E',  // Dark Gray
+        'VEN': '#D35400',  // Pumpkin
+        'ECU': '#16A085',  // Green Sea
+    };
+
+    // If country not in map, generate a color based on hash
+    if (!colors[countryCode]) {
+        let hash = 0;
+        for (let i = 0; i < countryCode.length; i++) {
+            hash = countryCode.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = hash % 360;
+        return `hsl(${hue}, 65%, 50%)`;
+    }
+
+    return colors[countryCode];
+}
+
+// Toggle collapsible alerts
+function toggleAlert(alertElement) {
+    const isExpanded = alertElement.classList.contains('expanded');
+    const alertBody = alertElement.querySelector('.alert-body');
+    const toggleIcon = alertElement.querySelector('.toggle-icon');
+
+    if (isExpanded) {
+        alertElement.classList.remove('expanded');
+        alertBody.style.display = 'none';
+        toggleIcon.textContent = '▶';
+        // Save preference
+        localStorage.setItem('groupPreviewTutorial', 'false');
+    } else {
+        alertElement.classList.add('expanded');
+        alertBody.style.display = 'block';
+        toggleIcon.textContent = '▼';
+        // Save preference
+        localStorage.setItem('groupPreviewTutorial', 'true');
+    }
+}
+</script>
+{% endblock %}

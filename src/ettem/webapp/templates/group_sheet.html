@@ -78,19 +78,20 @@
     </tbody>
 </table>
     </div>
-    <div class="card-footer">
-        <div class="alert alert-info" style="margin: 0;">
-            <span class="icon">ℹ️</span>
-            <div class="alert-content">
-                <div class="alert-title">Nota sobre la Hoja de Grupo</div>
-                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0; line-height: 1.8;">
-                    <li>La posición en la tabla es el orden original de sorteo (snake seeding)</li>
-                    <li>Los números en las columnas representan la posición asignada en el grupo</li>
-                    <li>La matriz muestra el resultado desde la perspectiva del jugador de la fila</li>
-                    <li>Para ver la clasificación final ordenada por puntos, click en "Ver Clasificación Final"</li>
-                </ul>
-            </div>
-        </div>
+    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid #e0e0e0; padding-top: 1rem;">
+        <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
+            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="details-arrow">▶</span>
+                <span>ℹ️</span>
+                <span>Nota sobre la Hoja de Grupo</span>
+            </summary>
+            <ul style="margin: 0; padding: 0.5rem 1rem 1rem 2.5rem; color: #555; line-height: 1.8;">
+                <li>La posición en la tabla es el orden original de sorteo (snake seeding)</li>
+                <li>Los números en las columnas representan la posición asignada en el grupo</li>
+                <li>La matriz muestra el resultado desde la perspectiva del jugador de la fila</li>
+                <li>Para ver la clasificación final ordenada por puntos, click en "Ver Clasificación Final"</li>
+            </ul>
+        </details>
     </div>
 </div>
 
@@ -103,27 +104,28 @@
 
 .group-sheet-matrix th,
 .group-sheet-matrix td {
-    border: 1px solid #ddd;
-    padding: 8px;
+    border: 1px solid #ccc;
+    padding: 10px 8px;
     text-align: center;
 }
 
 .group-sheet-matrix th {
-    background: linear-gradient(135deg, var(--success-color), var(--success-dark));
+    background: linear-gradient(135deg, #4CAF50, #388E3C);
     color: white;
     font-weight: 600;
+    font-size: 0.9rem;
 }
 
 .group-sheet-matrix tbody tr:nth-child(even) {
-    background-color: var(--card-bg-secondary);
+    background-color: #f9f9f9;
 }
 
 .group-sheet-matrix tbody tr:hover {
-    background-color: var(--primary-light);
+    background-color: #e3f2fd;
 }
 
 .matrix-diagonal {
-    background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
+    background: linear-gradient(135deg, #9E9E9E, #616161);
     color: white;
     font-weight: bold;
 }
@@ -131,6 +133,7 @@
 .matrix-result {
     background-color: #e8f5e9;
     font-weight: bold;
+    color: #2e7d32;
 }
 
 .matrix-wo {
@@ -145,9 +148,23 @@
 }
 
 .group-sheet-matrix td:first-child {
-    background: linear-gradient(135deg, var(--primary-light), #fff);
+    background: linear-gradient(135deg, #e3f2fd, #fff);
     font-weight: bold;
-    border-right: 2px solid var(--primary-color);
+    border-right: 2px solid #2196F3;
+}
+
+.group-sheet-matrix td:nth-child(2) {
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Collapsible arrow */
+details .details-arrow {
+    transition: transform 0.2s;
+    font-size: 0.8rem;
+}
+details[open] .details-arrow {
+    transform: rotate(90deg);
 }
 </style>
 {% endblock %}

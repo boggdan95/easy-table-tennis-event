@@ -70,8 +70,12 @@
                                 <td><strong>{{ player1.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
-                                {% set saved_value = form_values.get('set' + i|string + '_p1', '') if form_values else '' %}
-                                {% set display_value = saved_value if saved_value != '' else (set_data.player1_points if set_data else '') %}
+                                {# If form_values exists (validation error), use it; otherwise use saved set_data #}
+                                {% if form_values %}
+                                    {% set display_value = form_values.get('set' + i|string + '_p1', '') %}
+                                {% else %}
+                                    {% set display_value = set_data.player1_points if set_data else '' %}
+                                {% endif %}
                                 <td style="text-align: center;">
                                     <input type="number"
                                            name="set{{ i }}_p1"
@@ -89,8 +93,12 @@
                                 <td><strong>{{ player2.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
-                                {% set saved_value = form_values.get('set' + i|string + '_p2', '') if form_values else '' %}
-                                {% set display_value = saved_value if saved_value != '' else (set_data.player2_points if set_data else '') %}
+                                {# If form_values exists (validation error), use it; otherwise use saved set_data #}
+                                {% if form_values %}
+                                    {% set display_value = form_values.get('set' + i|string + '_p2', '') %}
+                                {% else %}
+                                    {% set display_value = set_data.player2_points if set_data else '' %}
+                                {% endif %}
                                 <td style="text-align: center;">
                                     <input type="number"
                                            name="set{{ i }}_p2"
@@ -109,45 +117,72 @@
                 </div>
             </div>
 
-            <div class="form-section">
-                <div class="form-row">
-                    <label class="form-label">
+            <!-- Walkover Section -->
+            <div style="margin-top: 1.5rem; padding: 1rem; background: #fff8e1; border-radius: 8px; border: 1px solid #ffe082;">
+                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; font-weight: 600; color: #f57c00; margin: 0;">
                         <input type="checkbox"
                                name="is_walkover"
                                value="true"
                                {% if match.status == 'WALKOVER' %}checked{% endif %}
-                               style="margin-right: 0.5rem;">
+                               style="margin-right: 0.5rem; width: 18px; height: 18px;">
                         Walkover (WO)
                     </label>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #666;">Ganador:</span>
+                        <select name="winner_id" class="form-control" style="max-width: 250px; margin: 0;">
+                            <option value="">- Seleccionar -</option>
+                            <option value="{{ player1.id }}"
+                                    {% if match.winner_id == player1.id %}selected{% endif %}>
+                                {{ player1.nombre }} {{ player1.apellido }}
+                            </option>
+                            <option value="{{ player2.id }}"
+                                    {% if match.winner_id == player2.id %}selected{% endif %}>
+                                {{ player2.nombre }} {{ player2.apellido }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-row">
-                    <label class="form-label">Si es WO, seleccionar ganador:</label>
-                    <select name="winner_id" class="form-control" style="max-width: 300px;">
-                        <option value="">-</option>
-                        <option value="{{ player1.id }}"
-                                {% if match.winner_id == player1.id %}selected{% endif %}>
-                            {{ player1.nombre }} {{ player1.apellido }}
-                        </option>
-                        <option value="{{ player2.id }}"
-                                {% if match.winner_id == player2.id %}selected{% endif %}>
-                            {{ player2.nombre }} {{ player2.apellido }}
-                        </option>
-                    </select>
-                </div>
+                <p style="margin: 0.75rem 0 0 0; font-size: 0.85rem; color: #888;">
+                    Marca esta casilla solo si un jugador no se presentó. Se asignará 3-0 automáticamente.
+                </p>
             </div>
 
-            <div class="alert alert-info">
-                <span class="icon">ℹ️</span>
-                <div class="alert-content">
-                    <div class="alert-title">Instrucciones</div>
-                    <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-                        <li>Ingresa los puntos de cada set jugado</li>
-                        <li>Deja vacíos los sets no jugados</li>
-                        <li>Para un walkover: marca la casilla y selecciona el ganador</li>
-                        <li>Los errores de validación se mostrarán como notificaciones</li>
-                    </ul>
-                </div>
-            </div>
+            <!-- Instructions (collapsible) -->
+            <details style="margin-top: 1.5rem; background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
+                <summary style="padding: 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="details-arrow">▶</span>
+                    <span>ℹ️</span>
+                    <span>Instrucciones</span>
+                </summary>
+                <style>
+                details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
+                details[open] .details-arrow { transform: rotate(90deg); }
+                </style>
+                <ul style="margin: 0; padding: 0.5rem 1rem 1rem 2.5rem; color: #555;">
+                    <li>Ingresa los puntos de cada set jugado</li>
+                    <li>Deja vacíos los sets no jugados</li>
+                    <li>El ganador se determina automáticamente (mejor de 5)</li>
+                    <li>Regla deuce: a partir de 10-10, se necesitan 2 puntos de diferencia</li>
+                </ul>
+            </details>
+
+            <script>
+            // Limit score inputs to 2 digits
+            document.addEventListener('DOMContentLoaded', function() {
+                const scoreInputs = document.querySelectorAll('.score-input');
+                scoreInputs.forEach(input => {
+                    input.addEventListener('input', function(e) {
+                        // Only allow numbers
+                        this.value = this.value.replace(/[^0-9]/g, '');
+                        // Limit to 2 digits
+                        if (this.value.length > 2) {
+                            this.value = this.value.slice(0, 2);
+                        }
+                    });
+                });
+            });
+            </script>
 
             <div class="d-flex gap-2" style="margin-top: 1.5rem;">
                 <button type="submit" class="btn btn-success">

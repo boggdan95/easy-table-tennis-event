@@ -121,15 +121,17 @@ def validate_match_sets(
     p1_sets_won = sum(1 for s_a, s_b in sets if s_a > s_b)
     p2_sets_won = sum(1 for s_a, s_b in sets if s_b > s_a)
 
+    # Check if anyone won more than allowed
+    if p1_sets_won > sets_to_win or p2_sets_won > sets_to_win:
+        return False, f"Demasiados sets ganados (máximo: {sets_to_win} para mejor de {best_of}, encontrado: {max(p1_sets_won, p2_sets_won)})"
+
+    # Check if match is incomplete
     if p1_sets_won < sets_to_win and p2_sets_won < sets_to_win:
         return False, f"Partido incompleto: ningún jugador ha ganado {sets_to_win} sets (mejor de {best_of})"
 
-    # Validate that match wasn't played beyond necessary
-    if p1_sets_won == sets_to_win or p2_sets_won == sets_to_win:
-        # Check if there are extra sets after someone already won
-        sets_after_winner = len(sets) - (p1_sets_won + p2_sets_won)
-        if sets_after_winner > 0:
-            return False, "El partido tiene sets extras después de que se determinó un ganador"
+    # Validate that exactly one player won the required sets
+    if p1_sets_won != sets_to_win and p2_sets_won != sets_to_win:
+        return False, f"Debe haber exactamente un ganador con {sets_to_win} sets"
 
     return True, ""
 

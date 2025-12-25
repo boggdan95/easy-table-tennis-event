@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Calcular Standings - ETTEM{% endblock %}
+
+{% block page_title %}Calcular Clasificaciones{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Inicio</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Calculate All Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Recalcular Todas las Clasificaciones</h3>
+    </div>
+    <div class="card-body">
+        <p>Recalcula las clasificaciones (standings) para todas las categorías basándose en los resultados de partidos ingresados.</p>
+
+        <div class="alert alert-info mb-3">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">¿Cuándo recalcular?</div>
+                <div>
+                    <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                        <li>Después de ingresar o modificar resultados de partidos</li>
+                        <li>Antes de generar el bracket de eliminación directa</li>
+                        <li>Para actualizar las posiciones en los grupos</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" action="/admin/calculate-standings/all">
+            <button type="submit" class="btn btn-success">
+                <span>🔄</span>
+                <span>Recalcular Todas las Categorías</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Calculate by Category Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Recalcular por Categoría</h3>
+    </div>
+    <div class="card-body">
+        {% if available_categories %}
+        <div class="grid grid-2">
+            {% for cat in available_categories %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 1rem;">
+                    <div>
+                        <h4 style="margin: 0; color: var(--text-primary);">{{ cat.name }}</h4>
+                        <p style="margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.875rem;">
+                            {{ cat.groups }} grupo(s), {{ cat.matches }} partido(s)
+                        </p>
+                    </div>
+                    <form method="post" action="/admin/calculate-standings/category" style="margin: 0;">
+                        <input type="hidden" name="category" value="{{ cat.name }}">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <span>🔄</span>
+                            <span>Calcular</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <span class="icon">⚠️</span>
+            <div class="alert-content">
+                <div class="alert-title">Sin Categorías</div>
+                <div>No hay categorías con grupos creados. Primero crea grupos para poder calcular clasificaciones.</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Current Standings Summary (if any) -->
+{% if standings_summary %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Resumen de Clasificaciones Actuales</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Categoría</th>
+                        <th>Grupo</th>
+                        <th>Clasificaciones</th>
+                        <th>Última Actualización</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for summary in standings_summary %}
+                    <tr>
+                        <td><span class="badge badge-primary">{{ summary.category }}</span></td>
+                        <td><strong>{{ summary.group_name }}</strong></td>
+                        <td>{{ summary.count }} jugadores clasificados</td>
+                        <td>{{ summary.last_updated or 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -196,6 +196,15 @@ cython_debug/
 
 # ETTEM - Easy Table Tennis Event Manager
 .ettem/
+out/
+nul
+test_output.txt
+
+# Testing and utility scripts
+check_*.py
+fix_*.py
+generate_*.py
+E2E_TESTING_MANUAL.md
 
 # Cursor
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to

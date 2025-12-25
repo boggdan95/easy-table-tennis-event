@@ -166,14 +166,24 @@ easy-tt-event-manager/
   5) `build-bracket`
   6) `export`
 
-## Roadmap (README)
-- V1.1: Scheduler/mesas, breaks, buffers, PDF imprimibles, roles/credenciales, múltiples categorías simultáneas.
+## Roadmap
+
+Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
+
+**Resumen:**
+- **V1.1.1 (MVP):** Vista de resultados finales y podio → Correr evento completo
+- **V1.2:** Mejoras de usabilidad (editar jugadores, eliminar categorías, etc.)
+- **V1.3:** Exportación e impresión (PDFs, certificados, hojas de grupo)
+- **V1.4:** Múltiples categorías simultáneas
+- **V2.0:** Scheduler/asignación de mesas y horarios
+- **V2.1:** Operación en vivo (displays, notificaciones, panel de mesa)
+- **V3.0:** Funcionalidades avanzadas (roles, multi-tenant, API, app móvil)
 
 ---
 
-## Estado Actual del Proyecto (V1.0.2 - UI Moderna)
+## Estado Actual del Proyecto (V1.1.0 - Gestión Completa desde UI)
 
-### ✅ Completado (V1.0.0 - V1.0.2)
+### ✅ Completado (V1.0.0 - V1.1.0)
 
 **V1.0.0 - Core Funcional**
 - ✅ CLI completo con todos los comandos
@@ -187,12 +197,12 @@ easy-tt-event-manager/
 - ✅ Validación de scores de tenis de mesa
 - ✅ Módulo de validación completo (`validation.py`)
 
-**V1.0.2 - Internacionalización y Exportación**
+**V1.0.2 - Internacionalización y UI Moderna**
 - ✅ Sistema de i18n con archivos YAML (ES/EN)
 - ✅ Comando `export` para grupos/standings/bracket a CSV
 - ✅ Strings traducidos en español/inglés
 
-**V1.0.2 (Actual) - UI Moderna**
+**V1.0.2 - UI Moderna**
 - ✅ **Interfaz moderna con sidebar navegable**
   - Diseño profesional con CSS moderno (variables, gradientes, sombras)
   - Sidebar con navegación por categorías
@@ -223,36 +233,93 @@ easy-tt-event-manager/
   - Botones con solo íconos (tooltips para descripción)
   - Flash messages con SessionMiddleware
 
-### 🚧 En Progreso / Próxima Sesión
+**V1.1.0 (Actual) - Gestión Completa desde UI**
+- ✅ **Importar Jugadores** 📥
+  - Upload de archivos CSV con validación
+  - Formulario manual para agregar jugadores individualmente
+  - Validación en tiempo real (género, país ISO-3, ranking)
+  - Preview de jugadores importados
+  - Auto-asignación de seeds
 
-**V1.1 - Gestión Completa desde UI**
+- ✅ **Crear Grupos** 👥
+  - Página de configuración con selector de categoría
+  - Configuración de tamaño preferido (3 o 4 jugadores)
+  - Preview dinámico de distribución de grupos con serpenteo (snake seeding)
+  - Drag-and-drop para ajustes manuales en preview
+  - Random seed configurable para reproducibilidad
+  - Eliminación de grupos existentes y creación de nuevos
+  - **FIX (2025-10-28):** Corregido error al crear grupos desde preview modal
+    * Ahora asigna correctamente group_number a jugadores en asignaciones manuales
+    * Implementada generación de partidos usando generate_round_robin_fixtures()
 
-La UI debe ser la interfaz principal. Actualmente las siguientes operaciones solo están disponibles por CLI:
+- ✅ **Calcular Standings** 📊
+  - Recalcular todas las categorías de una vez
+  - Calcular por categoría individual
+  - Vista previa de clasificaciones actuales
+  - Notificaciones de éxito/error con toast
+  - Redirección automática a vista de categoría
 
-1. **Importar Jugadores** 📥
-   - [ ] Formulario web para upload CSV
-   - [ ] Preview de jugadores antes de importar
-   - [ ] Formulario manual para agregar jugadores
-   - [ ] Validación en tiempo real
+- ✅ **Generar Bracket** 🏅
+  - Configuración de clasificados por grupo (1º, 1º-2º, 1º-2º-3º)
+  - Preview de tamaño de bracket y BYEs
+  - Random seed para sorteo de posiciones
+  - Vista previa de jugadores clasificados
+  - Generación automática y guardado de bracket en base de datos
 
-2. **Crear Grupos** 👥
-   - [ ] Página de configuración de grupos
-   - [ ] Selector de categoría
-   - [ ] Configuración de tamaño preferido (3 o 4)
-   - [ ] Ejecutar sorteo desde UI
-   - [ ] Mostrar preview de grupos generados
+- ✅ **Bracket Manual con Drag-and-Drop** 🎯
+  - Interfaz completa de drag-and-drop para posicionamiento manual de jugadores
+  - Listas separadas de 1º y 2º lugar ordenadas por grupo (G1, G2, G3...)
+  - Arrastre desde listas hacia slots del bracket
+  - Arrastre entre slots (mover/intercambiar jugadores dentro del bracket)
+  - BYEs pre-colocados según reglas ITTF (posiciones exactas por cantidad de grupos)
+  - Validaciones estrictas:
+    * Prevención de jugadores duplicados
+    * Error bloqueante si mismo grupo en misma mitad del bracket
+    * Advertencia (no bloqueante) para mismo país
+  - Preservación de formulario en errores de validación
+  - Badges visuales con grupo de cada jugador
+  - BYEs bloqueados (no se pueden mover ni eliminar)
+  - Reglas ITTF implementadas:
+    * 3 grupos (6 jugadores) → Bracket 8 → BYEs en [2, 7]
+    * 5 grupos (10 jugadores) → Bracket 16 → BYEs en [2, 6, 7, 10, 11, 15]
+    * ... hasta 20 grupos con posiciones predefinidas
 
-3. **Calcular Standings** 📊
-   - [ ] Botón para recalcular todas las clasificaciones
-   - [ ] Notificación de éxito/error
-   - [ ] Auto-actualización después de ingresar resultados
+### 🚧 Próxima Sesión (V1.1.1 - Completar MVP)
 
-4. **Generar Bracket** 🏅
-   - [ ] Página de configuración de bracket
-   - [ ] Selector de categoría
-   - [ ] Configuración de clasificados por grupo
-   - [ ] Ejecutar generación desde UI
-   - [ ] Mostrar bracket generado
+**OBJETIVO: Correr un evento completo de 1 categoría de principio a fin**
+
+**Estado Actual (2025-10-28):**
+- ✅ Fix aplicado a creación de grupos con preview modal (4366ea4)
+- ✅ Preview modal con drag-and-drop implementado (0d802e0)
+- ✅ Vista de resultados finales y campeón implementada (d3e0456)
+- ✅ MVP Roadmap documentado (127dc4e)
+- ✅ Muestra de 32 jugadores para testing (127dc4e)
+- ⚠️ **Pendiente:** Probar flujo completo end-to-end de torneo completo
+
+**Tareas Críticas para MVP:**
+1. **Testing End-to-End Completo** (PRÓXIMO - PRIORITARIO)
+   - [ ] Eliminar base de datos actual y empezar desde cero
+   - [ ] Importar 32 jugadores desde `data/samples/players_32.csv`
+   - [ ] Crear grupos con preview y drag-and-drop
+   - [ ] Ingresar todos los resultados de grupos
+   - [ ] Calcular standings
+   - [ ] Generar bracket (probar auto y manual)
+   - [ ] Ingresar todos los resultados de bracket
+   - [ ] Validar avance automático de ganadores
+   - [ ] Verificar identificación de campeón
+   - [ ] Ver resultados finales y podio
+
+2. **Ajustes Post-Testing** (según bugs encontrados)
+   - Corregir cualquier error encontrado en testing
+   - Mejorar mensajes de error si es necesario
+   - Ajustar validaciones si es necesario
+
+**Mejoras Futuras (V1.2+):**
+- Edición de jugadores desde UI
+- Eliminación de categorías completas
+- Exportación a CSV desde UI
+- Impresión de hojas de grupo (PDF)
+- Mejoras al bracket manual (auto-sugerencias, rellenar BYEs)
 
 ### Flujo de Trabajo Actual
 
@@ -279,22 +346,22 @@ ettem build-bracket --category U13 --config config/sample_config.yaml
 ettem export --what standings --format csv --out out/
 ```
 
-**Por UI Web (parcial):**
+**Por UI Web (✅ COMPLETO en V1.1.0):**
 - ✅ Ver categorías y grupos
 - ✅ Ver partidos y standings
 - ✅ Ingresar/editar/eliminar resultados
 - ✅ Ver bracket generado
-- ❌ Importar jugadores (solo CLI)
-- ❌ Crear grupos (solo CLI)
-- ❌ Calcular standings (solo CLI)
-- ❌ Generar bracket (solo CLI)
+- ✅ **Importar jugadores (CSV + manual)**
+- ✅ **Crear grupos con configuración**
+- ✅ **Calcular standings (todas o por categoría)**
+- ✅ **Generar bracket con configuración**
 
-### Objetivo V1.1
+### Objetivo V1.1 ✅ CUMPLIDO
 
 **UI como interfaz principal completa:**
-- Todas las operaciones del CLI disponibles en la UI web
-- Usuario puede gestionar torneo 100% desde navegador
-- CLI queda como herramienta avanzada/scripts
+- ✅ Todas las operaciones del CLI disponibles en la UI web
+- ✅ Usuario puede gestionar torneo 100% desde navegador
+- ✅ CLI queda como herramienta avanzada/scripts
 
 ### Notas Técnicas
 
@@ -306,44 +373,23 @@ ettem export --what standings --format csv --out out/
 - Sesiones: SessionMiddleware para flash messages
 
 **Archivos Principales:**
-- `src/ettem/webapp/app.py` - Rutas y endpoints
+- `src/ettem/webapp/app.py` - Rutas y endpoints (~1700 líneas con admin + manual bracket)
 - `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
 - `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
 - `src/ettem/validation.py` - Reglas de validación (en español)
 - `src/ettem/i18n.py` - Sistema de traducción
+- `src/ettem/storage.py` - Repositorios SQLite con método update_slot_warning
 
-**Próximos Pasos:**
-1. Agregar endpoints POST para operaciones administrativas
-2. Crear formularios/modals para configuración
-3. Reutilizar lógica del CLI en endpoints web
-4. Agregar feedback visual (progress bars, confirmaciones)
-5. Testing de flujo completo desde UI
-
----
+**Nuevos Templates Admin (V1.1.0):**
+- `admin_import_players.html` - Upload CSV + formulario manual
+- `admin_create_groups.html` - Configuración de grupos con preview
+- `admin_calculate_standings.html` - Recalcular clasificaciones
+- `admin_generate_bracket.html` - Configuración de bracket (auto + acceso a manual)
+- `admin_manual_bracket.html` - Interfaz drag-and-drop para bracket manual (~640 líneas)
 
 ## Workflow de Desarrollo
 
 ### Ramas de Git
-
-**Ramas Principales:**
-- `main` - Código estable y probado (V1.0.0, V1.0.1, V1.0.2)
-- `feature/ui-management` - Nueva funcionalidad de gestión desde UI (próxima sesión)
-
-**Para la Próxima Sesión:**
-```bash
-# Cambiar a la rama de desarrollo
-git checkout feature/ui-management
-
-# Trabajar en las funcionalidades
-# ... hacer commits ...
-
-# Cuando esté listo para merge
-git checkout main
-git merge feature/ui-management
-git push
-```
-
-**Notas:**
-- Los commits V1.0.0 a V1.0.2 están directamente en `main` (decisión tomada)
-- A partir de ahora, nuevas features en ramas dedicadas
-- La rama `feature/ui-management` ya está creada y lista para usar
+- `main` - Código estable y probado (V1.0.0, V1.0.1, V1.0.2, V1.1.0)
+- `feature/*` - Nuevas funcionalidades en desarrollo (se mergean a main cuando están listas)
+5. Testing de flujo completo desde UI

@@ -31,8 +31,20 @@
 <!-- Standings Table Card -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">🏆 Clasificación Final</h3>
+        <h3 class="card-title">🏆 Clasificación</h3>
     </div>
+    {% set has_matches_played = standings and standings[0].standing.points_total > 0 %}
+    {% if not has_matches_played %}
+    <div class="card-body" style="text-align: center; padding: 2rem;">
+        <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+        <h3 style="color: #666; margin-bottom: 0.5rem;">Sin partidos jugados</h3>
+        <p style="color: #999;">La clasificación se actualizará cuando se ingresen resultados de partidos.</p>
+        <a href="/group/{{ group.id }}/matches" class="btn btn-primary" style="margin-top: 1rem;">
+            <span>📋</span>
+            <span>Ir a Partidos</span>
+        </a>
+    </div>
+    {% else %}
     <div class="card-body" style="padding: 0;">
         <div class="table-responsive">
             <table class="table">
@@ -48,7 +60,7 @@
                 </thead>
                 <tbody>
                     {% for s in standings %}
-                    <tr {% if s.standing.position <= 2 %}style="background-color: var(--success-light);"{% endif %}>
+                    <tr {% if s.standing.position <= 2 %}style="background-color: #e8f5e9;"{% endif %}>
                         <td style="text-align: center;">
                             {% if s.standing.position == 1 %}
                                 <span class="badge badge-success" style="font-size: 1.1rem;">🥇 1º</span>
@@ -67,7 +79,7 @@
                             </div>
                         </td>
                         <td style="text-align: center;">
-                            <strong style="font-size: 1.1rem; color: var(--primary-color);">{{ s.standing.points_total }}</strong>
+                            <strong style="font-size: 1.1rem; color: #2196F3;">{{ s.standing.points_total }}</strong>
                         </td>
                         <td style="text-align: center;">
                             <span class="badge {% if s.standing.wins > s.standing.losses %}badge-success{% elif s.standing.wins == s.standing.losses %}badge-warning{% else %}badge-danger{% endif %}">
@@ -86,20 +98,26 @@
             </table>
         </div>
     </div>
-    <div class="card-footer">
-        <div class="alert alert-info" style="margin: 0;">
-            <span class="icon">ℹ️</span>
-            <div class="alert-content">
-                <div class="alert-title">Reglas de Clasificación</div>
-                <div>
-                    <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
-                    <br>
-                    <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.
-                    <br>
-                    Los primeros 2 clasificados avanzan a la llave de eliminación directa.
-                </div>
+    {% endif %}
+    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid #e0e0e0; padding-top: 1rem;">
+        <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
+            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="details-arrow">▶</span>
+                <span>ℹ️</span>
+                <span>Reglas de Clasificación</span>
+            </summary>
+            <style>
+            details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
+            details[open] .details-arrow { transform: rotate(90deg); }
+            </style>
+            <div style="padding: 0.5rem 1rem 1rem 1rem; color: #555; line-height: 1.8;">
+                <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
+                <br>
+                <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.
+                <br>
+                Los primeros 2 clasificados avanzan a la llave de eliminación directa.
             </div>
-        </div>
+        </details>
     </div>
 </div>
 {% endblock %}

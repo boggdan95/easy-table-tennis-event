@@ -5,9 +5,17 @@
 {% block page_title %}{{ category }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}/bracket" class="btn btn-success">
-    <span>🏅</span>
-    <span>Ver Llave de Eliminación</span>
+<a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
+    <span>🏆</span>
+    <span>Resultados Finales</span>
+</a>
+<a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
+    <span>🗂️</span>
+    <span>Llave Visual</span>
+</a>
+<a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
+    <span>📋</span>
+    <span>Partidos de Llave</span>
 </a>
 {% endblock %}
 
@@ -18,7 +26,26 @@
         <h2 class="card-title">🏆 Categoría: {{ category }}</h2>
     </div>
     <div class="card-body">
-        <p>Grupos de fase round-robin. Selecciona un grupo para ver partidos, resultados y clasificación.</p>
+        <p style="margin-bottom: 1rem;">Grupos de fase round-robin. Selecciona un grupo para ver partidos, resultados y clasificación.</p>
+
+        <!-- Quick Actions -->
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: var(--text-muted);">⚡ Acciones Rápidas:</h4>
+            <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                <a href="/admin/create-groups" class="btn btn-primary btn-sm">
+                    <span>👥</span>
+                    <span>Crear/Editar Grupos</span>
+                </a>
+                <a href="/admin/calculate-standings" class="btn btn-success btn-sm">
+                    <span>📊</span>
+                    <span>Calcular Standings</span>
+                </a>
+                <a href="/admin/generate-bracket" class="btn btn-warning btn-sm">
+                    <span>🏆</span>
+                    <span>Generar Bracket</span>
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 

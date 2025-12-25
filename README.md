@@ -85,13 +85,28 @@ When 3+ players are tied on tournament points, the following criteria are applie
 
 ## Bracket Generation
 
+### Automatic Bracket Generation
+
 - Bracket size: next power of 2 ≥ number of qualifiers
 - **G1 (best 1st place):** top slot
 - **G2 (second best 1st place):** bottom slot
 - **Other 1st place finishers:** random draw in predefined slots (deterministic with `random_seed`)
 - **2nd place finishers:** placed in opposite half from their group's 1st place
-- **BYEs:** filled automatically when needed
+- **BYEs:** filled automatically according to ITTF positioning rules
 - **Same-country annotation:** 1st round matches with same country are flagged for review (non-blocking)
+
+### Manual Bracket (Drag & Drop)
+
+The web UI includes a manual bracket builder with:
+- **Drag-and-drop interface:** Move players between slots or from lists to slots
+- **ITTF-compliant BYE positioning:** BYEs are pre-placed according to official ITTF rules based on number of groups
+  - 3 groups (6 players → 8 bracket): BYEs at positions [2, 7]
+  - 5 groups (10 players → 16 bracket): BYEs at positions [2, 6, 7, 10, 11, 15]
+  - Supports up to 20 groups with predefined positions
+- **Removable/repositionable BYEs:** Click X to remove, drag from pool to reposition
+- **Group constraint validation:** Same group cannot be in same half of bracket
+- **Same-country warnings:** Visual alerts for same-country first-round matches
+- **Player swap support:** Drag occupied slots to swap players
 
 ## Configuration
 
@@ -161,14 +176,40 @@ easy-table-tennis-event/
 └── CLAUDE.md                    # Claude Code guidance
 ```
 
-## Roadmap (V1.1+)
+## Roadmap
 
-- Scheduler with table/time assignments
-- Break and buffer management
-- PDF printable schedules
-- User roles and credentials
-- Multiple simultaneous categories
-- Real-time updates in web panel
+See **MVP_ROADMAP.md** for detailed roadmap and version planning.
+
+### Current Focus: V1.1.1 (Complete MVP)
+
+**Goal:** Run a complete tournament for 1 category from start to finish.
+
+**What's Missing:**
+- [ ] Final results and podium view
+- [ ] Champion identification
+- [ ] Tournament completion status
+
+**Everything else works!** You can already:
+- ✅ Import players
+- ✅ Create groups
+- ✅ Enter group results
+- ✅ Calculate standings
+- ✅ Generate bracket (auto + manual)
+- ✅ Enter bracket results
+- ✅ Auto-advance winners
+
+### Future Versions
+
+- **V1.2:** Usability improvements (edit players, delete categories, etc.)
+- **V1.3:** Export & print (PDFs, certificates, group sheets)
+- **V1.4:** Multiple simultaneous categories
+- **V2.0:** Scheduler with table/time assignments
+- **V2.1:** Live operation (displays, notifications, table panels)
+- **V3.0:** Advanced features (roles, multi-tenant, API, mobile app)
+
+## Contributing
+
+Private project. For bugs or feature requests, create an issue or contact the maintainer.
 
 ## License
 

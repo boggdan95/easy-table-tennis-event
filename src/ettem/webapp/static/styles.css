@@ -27,6 +27,7 @@
 
     /* Layout */
     --sidebar-width: 260px;
+    --sidebar-collapsed-width: 70px;
     --topbar-height: 64px;
     --border-radius: 8px;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
@@ -82,20 +83,138 @@ body {
     top: 0;
     bottom: 0;
     z-index: 1000;
+    transition: width var(--transition-base);
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+    overflow-x: visible;
+}
+
+.sidebar-text {
+    opacity: 1;
+    transition: opacity var(--transition-fast), width var(--transition-fast);
+}
+
+.sidebar.collapsed .sidebar-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.nav-section-title {
+    transition: opacity var(--transition-fast), height var(--transition-fast);
+}
+
+.sidebar.collapsed .nav-section-title {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed .nav-submenu {
+    display: none;
+}
+
+.sidebar.collapsed .submenu-arrow {
+    display: none;
+}
+
+.sidebar-footer {
+    transition: opacity var(--transition-fast), height var(--transition-fast);
+}
+
+.sidebar.collapsed .sidebar-footer {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-header .subtitle {
+    display: none;
+}
+
+.sidebar.collapsed .nav-link,
+.sidebar.collapsed .nav-link-category {
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+}
+
+.sidebar.collapsed .nav-link .icon,
+.sidebar.collapsed .nav-link-category .icon {
+    margin: 0;
+}
+
+/* Ensure toggle button is always visible and accessible when collapsed */
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    position: relative;
+    overflow: visible;
+}
+
+.sidebar.collapsed .sidebar-title-wrapper {
+    flex-direction: column;
+    gap: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle-btn {
+    display: none;
+}
+
+.sidebar.collapsed .logo {
+    font-size: 1.75rem;
+    cursor: pointer;
+    transition: transform var(--transition-fast);
+}
+
+.sidebar.collapsed .logo:hover {
+    transform: scale(1.1);
 }
 
 .sidebar-header {
     padding: 1.5rem 1.25rem;
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-.sidebar-header h1 {
+.sidebar-title-wrapper {
     font-size: 1.25rem;
     font-weight: 700;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.sidebar-toggle-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.toggle-icon {
+    font-size: 0.875rem;
+    transition: transform var(--transition-base);
 }
 
 .sidebar-header .logo {
@@ -158,6 +277,87 @@ body {
     text-align: center;
 }
 
+/* Category navigation with submenu */
+.nav-category {
+    margin-bottom: 0;
+}
+
+.nav-link-category {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    background: none;
+    border: none;
+    border-left: 3px solid transparent;
+    font-family: inherit;
+    font-size: inherit;
+    color: rgba(255,255,255,0.85);
+    text-align: left;
+    cursor: pointer;
+    gap: 0.75rem;
+    transition: all var(--transition-fast);
+    justify-content: flex-start;
+}
+
+.nav-link-category:hover {
+    background: rgba(255,255,255,0.08);
+    border-left-color: var(--accent-color);
+    color: white;
+}
+
+.nav-link-category.expanded {
+    background: rgba(255,255,255,0.08);
+    border-left-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.submenu-arrow {
+    font-size: 0.7rem;
+    transition: transform var(--transition-fast);
+    margin-left: auto;
+}
+
+.nav-link-category.expanded .submenu-arrow {
+    transform: rotate(180deg);
+}
+
+.nav-submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-base);
+    background: rgba(0,0,0,0.15);
+}
+
+.nav-submenu.expanded {
+    max-height: 250px;
+}
+
+.nav-sublink {
+    display: flex;
+    align-items: center;
+    padding: 0.65rem 1.25rem 0.65rem 2.75rem;
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    gap: 0.6rem;
+    font-size: 0.875rem;
+    border-left: 3px solid transparent;
+}
+
+.nav-sublink:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-left-color: var(--accent-color);
+}
+
+.nav-sublink .icon {
+    font-size: 0.875rem;
+    width: 20px;
+    text-align: center;
+}
+
 .sidebar-footer {
     padding: 1rem 1.25rem;
     border-top: 1px solid rgba(255,255,255,0.1);
@@ -172,6 +372,11 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: margin-left var(--transition-base);
+}
+
+.sidebar.collapsed ~ .main-content {
+    margin-left: var(--sidebar-collapsed-width);
 }
 
 /* Top Bar */
@@ -551,12 +756,92 @@ tr:last-child td {
 }
 
 .alert-content {
-    flex: 1;
+    /* flex: 1; - Removed to avoid conflicts with collapsible alerts */
 }
 
 .alert-title {
     font-weight: 600;
     margin-bottom: 0.25rem;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9998;
+    overflow: hidden;
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    max-width: 95vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    background: var(--bg-color);
 }
 
 /* Toast Notifications (floating alerts) */
@@ -604,6 +889,17 @@ tr:last-child td {
     }
 }
 
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
 /* Loading Spinner */
 .spinner {
     border: 3px solid var(--border-color);
@@ -643,18 +939,32 @@ tr:last-child td {
 .gap-3 { gap: 1.5rem; }
 
 /* Responsive */
+@media (min-width: 1025px) {
+    /* On larger screens, sidebar is always visible */
+    .sidebar {
+        transform: translateX(0) !important;
+    }
+}
+
 @media (max-width: 1024px) {
+    /* On smaller screens, hide sidebar by default but allow toggle */
     .sidebar {
         transform: translateX(-100%);
-        transition: transform var(--transition-base);
+        transition: transform var(--transition-base), width var(--transition-base);
     }
 
     .sidebar.open {
         transform: translateX(0);
     }
 
+    /* When collapsed on mobile, still hide it */
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+        width: var(--sidebar-width);
+    }
+
     .main-content {
-        margin-left: 0;
+        margin-left: 0 !important;
     }
 
     .grid-3,

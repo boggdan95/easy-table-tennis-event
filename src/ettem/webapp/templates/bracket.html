@@ -9,6 +9,25 @@
     <span>←</span>
     <span>Volver</span>
 </a>
+<a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
+    <span>📋</span>
+    <span>Partidos de Llave</span>
+</a>
+<div class="btn-group" style="margin-left: 0.5rem;">
+    <button onclick="zoomOut()" class="btn btn-secondary btn-sm" title="Zoom Out">
+        <span>🔍−</span>
+    </button>
+    <button onclick="resetZoom()" class="btn btn-secondary btn-sm" title="Tamaño Normal">
+        <span>100%</span>
+    </button>
+    <button onclick="zoomIn()" class="btn btn-secondary btn-sm" title="Zoom In">
+        <span>🔍+</span>
+    </button>
+</div>
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" style="margin-left: 0.5rem;" title="Resetear Bracket">
+    <span>🔄</span>
+    <span>Resetear</span>
+</button>
 {% endblock %}
 
 {% block content %}
@@ -18,81 +37,174 @@
         <h2 class="card-title">🏅 Llave de Eliminación Directa</h2>
     </div>
     <div class="card-body">
-        <p>Visualización del cuadro de eliminación directa con los clasificados de los grupos.</p>
+        {% if champion_id %}
+            <div class="alert alert-success">
+                <span class="icon">🎉</span>
+                <div class="alert-content">
+                    <div class="alert-title">¡Torneo Finalizado!</div>
+                    <div>El torneo ha concluido. <a href="/category/{{ category }}/results" style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">Ver Resultados Finales y Podio</a></div>
+                </div>
+            </div>
+        {% else %}
+            <p>Visualización del cuadro de eliminación directa con los clasificados de los grupos.</p>
+        {% endif %}
     </div>
 </div>
 
-<div class="bracket-container">
-    {% for round_type, slots in slots_by_round.items() %}
-    <div class="bracket-column">
-        <h3 class="round-header">{{ round_type }}</h3>
-        <div class="matches-container">
-            {% for i in range(0, slots|length, 2) %}
-            {% set slot1 = slots[i] %}
-            {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
-            <div class="match">
-                <div class="match-line">
-                    <div class="player-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% endif %} {% if slot1.slot.same_country_warning %}warning{% endif %}">
-                        <span class="slot-num">#{{ slot1.slot.slot_number }}</span>
-                        <span class="player-name">
-                            {% if slot1.slot.is_bye %}
-                                <em>BYE</em>
-                            {% elif slot1.player %}
-                                {{ slot1.player.nombre }} {{ slot1.player.apellido }}
-                                <span class="country">({{ slot1.player.pais_cd }})</span>
-                            {% else %}
-                                <em>TBD</em>
+<div class="bracket-wrapper">
+    <div class="bracket-container" id="bracket-container">
+        {% for round_type, slots in slots_by_round.items() %}
+        <div class="bracket-column">
+            <h3 class="round-header">{{ round_type }}</h3>
+            <div class="matches-container">
+                {% for i in range(0, slots|length, 2) %}
+                {% set slot1 = slots[i] %}
+                {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
+
+                {# Find the match for this slot pair #}
+                {% set match_data = None %}
+                {% if matches_by_round.get(round_type) %}
+                    {% for m in matches_by_round[round_type] %}
+                        {% if (m.player1 and slot1.player and m.player1.id == slot1.player.id) or
+                              (m.player2 and slot1.player and m.player2.id == slot1.player.id) %}
+                            {% set match_data = m %}
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <div class="match-card {% if match_data and match_data.match.winner_id %}completed{% endif %}">
+                    {# Player 1 #}
+                    <div class="match-player {% if slot1.player and match_data and match_data.match.winner_id == slot1.player.id %}winner{% endif %}">
+                        <div class="player-info">
+                            <span class="slot-num">#{{ slot1.slot.slot_number }}</span>
+                            <span class="player-name">
+                                {% if slot1.slot.is_bye %}
+                                    <em>BYE</em>
+                                {% elif slot1.player %}
+                                    {{ slot1.player.nombre }} {{ slot1.player.apellido }}
+                                    <span class="country">({{ slot1.player.pais_cd }})</span>
+                                    {% if champion_id and slot1.player.id == champion_id %}
+                                        <span class="badge-champion">👑</span>
+                                    {% endif %}
+                                {% else %}
+                                    <em>TBD</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="player-score">
+                            {% if match_data and match_data.match.winner_id and slot1.player %}
+                                <span class="sets-won">
+                                {% if match_data.player1 and match_data.player1.id == slot1.player.id %}
+                                    {{ match_data.match.player1_sets_won }}
+                                {% elif match_data.player2 and match_data.player2.id == slot1.player.id %}
+                                    {{ match_data.match.player2_sets_won }}
+                                {% endif %}
+                                </span>
                             {% endif %}
-                        </span>
+                        </div>
                     </div>
+
+                    {# Player 2 #}
                     {% if slot2 %}
-                    <div class="player-slot {% if slot2.slot.is_bye %}bye{% elif not slot2.player %}tbd{% endif %} {% if slot2.slot.same_country_warning %}warning{% endif %}">
-                        <span class="slot-num">#{{ slot2.slot.slot_number }}</span>
-                        <span class="player-name">
-                            {% if slot2.slot.is_bye %}
-                                <em>BYE</em>
-                            {% elif slot2.player %}
-                                {{ slot2.player.nombre }} {{ slot2.player.apellido }}
-                                <span class="country">({{ slot2.player.pais_cd }})</span>
-                            {% else %}
-                                <em>TBD</em>
+                    <div class="match-player {% if slot2.player and match_data and match_data.match.winner_id == slot2.player.id %}winner{% endif %}">
+                        <div class="player-info">
+                            <span class="slot-num">#{{ slot2.slot.slot_number }}</span>
+                            <span class="player-name">
+                                {% if slot2.slot.is_bye %}
+                                    <em>BYE</em>
+                                {% elif slot2.player %}
+                                    {{ slot2.player.nombre }} {{ slot2.player.apellido }}
+                                    <span class="country">({{ slot2.player.pais_cd }})</span>
+                                    {% if champion_id and slot2.player.id == champion_id %}
+                                        <span class="badge-champion">👑</span>
+                                    {% endif %}
+                                {% else %}
+                                    <em>TBD</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="player-score">
+                            {% if match_data and match_data.match.winner_id and slot2.player %}
+                                <span class="sets-won">
+                                {% if match_data.player1 and match_data.player1.id == slot2.player.id %}
+                                    {{ match_data.match.player1_sets_won }}
+                                {% elif match_data.player2 and match_data.player2.id == slot2.player.id %}
+                                    {{ match_data.match.player2_sets_won }}
+                                {% endif %}
+                                </span>
                             {% endif %}
-                        </span>
+                        </div>
                     </div>
                     {% endif %}
+
+                    {# Detailed set scores (shown once per match) #}
+                    {% if match_data and match_data.match.winner_id %}
+                    <div class="set-scores">
+                        {% for set_obj in match_data.match.sets %}
+                            <span class="set-score">{{ set_obj.player1_points }}-{{ set_obj.player2_points }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {# Match link #}
+                    {% if match_data %}
+                    <a href="/match/{{ match_data.match.id }}/enter-result" class="match-link" title="Ver/Editar resultado">
+                        {% if match_data.match.winner_id %}
+                            ✓
+                        {% else %}
+                            📝
+                        {% endif %}
+                    </a>
+                    {% endif %}
                 </div>
-                <div class="connector-line"></div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
 <style>
+.bracket-wrapper {
+    overflow: auto;
+    width: 100%;
+    min-height: 600px;
+    max-height: calc(100vh - 200px);
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    border-radius: var(--border-radius);
+}
+
 .bracket-container {
     display: flex;
-    gap: 40px;
-    overflow-x: auto;
-    padding: 20px 0;
-    margin: 20px 0;
+    gap: 100px;
+    overflow-x: visible;
+    overflow-y: visible;
+    padding: 40px 20px;
+    transform-origin: top left;
+    transition: transform 0.3s ease;
+    min-width: min-content;
+    position: relative;
 }
 
 .bracket-column {
     display: flex;
     flex-direction: column;
-    min-width: 280px;
+    min-width: 320px;
 }
 
 .round-header {
     background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
     color: white;
-    padding: 12px;
+    padding: 16px;
     text-align: center;
     font-weight: bold;
+    font-size: 1.1rem;
     border-radius: var(--border-radius);
-    margin-bottom: 20px;
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 30px;
+    box-shadow: var(--shadow-md);
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .matches-container {
@@ -100,104 +212,320 @@
     flex-direction: column;
     justify-content: space-around;
     flex-grow: 1;
+    gap: 40px;
 }
 
-.match {
-    display: flex;
-    margin-bottom: 40px;
+.match-card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    overflow: visible;
+    border: 3px solid #e0e0e0;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Horizontal connector from each match */
+.match-card::after {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    width: 50px;
+    height: 2px;
+    background: #2196F3;
+    transform: translateY(-50%);
+    z-index: 0;
+}
+
+/* Hide connectors on last column (Final) */
+.bracket-column:last-child .match-card::after {
+    display: none;
+}
+
+/* Vertical connector for pairs of matches */
+.matches-container {
     position: relative;
 }
 
-.match-line {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
+/* Create vertical line connecting each pair of matches */
+.match-card:nth-child(odd)::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 50px);
+    top: 50%;
+    width: 2px;
+    height: calc(100% + 40px);
+    background: #2196F3;
+    z-index: 1;
 }
 
-.player-slot {
+/* For even matches (bottom of pair), connect upward */
+.match-card:nth-child(even)::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 50px);
+    bottom: 50%;
+    width: 2px;
+    height: calc(100% + 40px);
+    background: #2196F3;
+    z-index: 1;
+}
+
+/* Hide vertical connectors on last column */
+.bracket-column:last-child .match-card::before {
+    display: none;
+}
+
+.match-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.match-card.completed {
+    border-color: var(--success-color);
+}
+
+.match-player {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background-color: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
-    min-height: 40px;
-    transition: all 0.2s ease;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 2px solid #f0f0f0;
+    transition: background-color 0.2s ease;
 }
 
-.player-slot:hover {
-    box-shadow: var(--shadow-sm);
-    border-color: var(--primary-color);
+.match-player:last-child {
+    border-bottom: none;
 }
 
-.player-slot.bye {
-    background-color: #e0e0e0;
-    border-color: #999;
+.match-player.winner {
+    background: linear-gradient(90deg, #e8f5e9 0%, #ffffff 100%);
+    font-weight: 600;
 }
 
-.player-slot.warning {
-    border-color: #FF6F00;
-    background-color: #FFF3E0;
+.match-player:not(.winner) {
+    opacity: 0.7;
 }
 
-.player-slot.tbd {
-    background-color: #f5f5f5;
-    border-color: #bbb;
-    border-style: dashed;
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
 }
 
 .slot-num {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     color: white;
-    padding: 4px 8px;
-    border-radius: var(--border-radius);
+    padding: 6px 10px;
+    border-radius: 6px;
     font-weight: bold;
     font-size: 0.85em;
-    min-width: 30px;
+    min-width: 36px;
     text-align: center;
+    flex-shrink: 0;
 }
 
 .player-name {
+    font-size: 0.95rem;
     flex: 1;
-    font-weight: 500;
 }
 
 .player-name em {
-    color: #666;
+    color: #999;
+    font-style: italic;
 }
 
 .country {
     color: #666;
-    font-size: 0.9em;
-    margin-left: 4px;
+    font-size: 0.85em;
+    margin-left: 6px;
 }
 
-.connector-line {
+.player-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-color);
+    min-width: 40px;
+    text-align: center;
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.match-player.winner .player-score {
+    color: var(--success-color);
+}
+
+.sets-won {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.set-scores {
+    display: flex;
+    gap: 6px;
+    padding: 8px 16px 12px;
+    justify-content: center;
+    background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
+    border-top: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+}
+
+.set-score {
+    background: white;
+    border: 2px solid var(--primary-color);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-dark);
+    min-width: 50px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge-champion {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75em;
+    font-weight: bold;
+    margin-left: 8px;
+    display: inline-block;
+    box-shadow: 0 3px 6px rgba(255, 215, 0, 0.4);
+    animation: pulse-champion 2s ease-in-out infinite;
+}
+
+@keyframes pulse-champion {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 3px 6px rgba(255, 215, 0, 0.4);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(255, 215, 0, 0.6);
+    }
+}
+
+.match-link {
     position: absolute;
-    right: -40px;
-    top: 50%;
-    width: 40px;
-    height: 2px;
-    background-color: #333;
-    transform: translateY(-50%);
+    bottom: 0;
+    right: 0;
+    background: var(--primary-color);
+    color: white;
+    padding: 6px 12px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-top-left-radius: var(--border-radius);
+    transition: background-color 0.2s ease;
+    z-index: 10;
 }
 
-.bracket-column:last-child .connector-line {
-    display: none;
+.match-link:hover {
+    background: var(--primary-dark);
+}
+
+/* Zoom controls button group */
+.btn-group {
+    display: inline-flex;
+    gap: 0;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+    border-left: 1px solid rgba(255,255,255,0.2);
+}
+
+.btn-group .btn:first-child {
+    border-left: none;
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
 }
 
 @media (max-width: 768px) {
     .bracket-container {
         flex-direction: column;
+        gap: 40px;
     }
 
-    .connector-line {
-        display: none;
+    .bracket-column {
+        min-width: 100%;
     }
 }
 </style>
+
+<script>
+// Zoom functionality
+let currentZoom = 1.0;
+const zoomStep = 0.2;
+const minZoom = 0.4;
+const maxZoom = 2.0;
+
+function zoomIn() {
+    if (currentZoom < maxZoom) {
+        currentZoom = Math.min(currentZoom + zoomStep, maxZoom);
+        applyZoom();
+    }
+}
+
+function zoomOut() {
+    if (currentZoom > minZoom) {
+        currentZoom = Math.max(currentZoom - zoomStep, minZoom);
+        applyZoom();
+    }
+}
+
+function resetZoom() {
+    currentZoom = 1.0;
+    applyZoom();
+}
+
+function updateZoomButton() {
+    const zoomBtn = document.querySelector('.btn-group .btn:nth-child(2) span');
+    if (zoomBtn) {
+        const percentage = Math.round(currentZoom * 100);
+        zoomBtn.textContent = `${percentage}%`;
+    }
+}
+
+function applyZoom() {
+    const container = document.getElementById('bracket-container');
+    container.style.transform = `scale(${currentZoom})`;
+    updateZoomButton();
+}
+
+// Reset bracket confirmation
+function confirmResetBracket(category) {
+    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
+    message += '⚠️ ESTO ELIMINARÁ:\n';
+    message += '• Todas las posiciones del bracket\n';
+    message += '• Todos los partidos de eliminación\n';
+    message += '• Todos los resultados ingresados\n\n';
+    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
+    message += '¿Desea continuar?';
+
+    if (confirm(message)) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/bracket/' + category + '/reset';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
 
 <!-- Legend Card -->
 <div class="card" style="margin-top: 2rem;">
@@ -205,10 +533,13 @@
         <h3 class="card-title">ℹ️ Leyenda</h3>
     </div>
     <div class="card-body">
-        <ul style="margin: 0; padding-left: 1.5rem; line-height: 1.8;">
+        <ul style="margin: 0; padding-left: 1.5rem; line-height: 2;">
             <li><strong>#N</strong> - Posición en el cuadro (1 = tope, último = fondo)</li>
-            <li><strong>BYE</strong> - El jugador pasa automáticamente a la siguiente ronda</li>
-            <li><strong>Borde naranja</strong> - Aviso de jugadores del mismo país (informativo)</li>
+            <li><strong>Fondo verde claro</strong> - Ganador del partido</li>
+            <li><strong>Número a la derecha</strong> - Sets ganados</li>
+            <li><strong>✓</strong> - Partido completado (click para ver detalles)</li>
+            <li><strong>📝</strong> - Ingresar resultado</li>
+            <li><strong>👑</strong> - Campeón del torneo</li>
         </ul>
     </div>
 </div>

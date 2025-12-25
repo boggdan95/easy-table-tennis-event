@@ -20,6 +20,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from ettem.models import Gender, MatchStatus, RoundType
 
@@ -29,6 +30,29 @@ Base = declarative_base()
 # ============================================================================
 # ORM Models
 # ============================================================================
+
+
+class TournamentORM(Base):
+    """Tournament table.
+
+    Represents a tournament/event that contains categories, players, groups, etc.
+    """
+
+    __tablename__ = "tournaments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(200), nullable=False)
+    date = Column(DateTime, nullable=True)
+    location = Column(String(200), nullable=True)
+    status = Column(String(20), nullable=False, default="active")  # active, completed, archived
+    is_current = Column(Boolean, nullable=False, default=False)  # Only one tournament can be current
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    players = relationship("PlayerORM", back_populates="tournament")
+    groups = relationship("GroupORM", back_populates="tournament")
 
 
 class PlayerORM(Base):
@@ -61,6 +85,7 @@ class PlayerORM(Base):
     tournament_number = Column(Integer, nullable=True)  # Event bib number
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     group_number = Column(Integer, nullable=True)  # 1-4 within group
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
 
     # Metadata
     checked_in = Column(Boolean, nullable=False, default=False)
@@ -69,6 +94,7 @@ class PlayerORM(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    tournament = relationship("TournamentORM", back_populates="players")
     group = relationship("GroupORM", foreign_keys=[group_id])
     matches_as_player1 = relationship(
         "MatchORM", back_populates="player1", foreign_keys="MatchORM.player1_id"
@@ -86,11 +112,13 @@ class GroupORM(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(10), nullable=False)  # A, B, C, etc.
     category = Column(String(20), nullable=False)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
     # Store player_ids as JSON array
     player_ids_json = Column(Text, nullable=False, default="[]")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
+    tournament = relationship("TournamentORM", back_populates="groups")
     matches = relationship("MatchORM", back_populates="group")
     standings = relationship("GroupStandingORM", back_populates="group")
 
@@ -111,8 +139,8 @@ class MatchORM(Base):
     __tablename__ = "matches"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    player1_id = Column(Integer, ForeignKey("players.id"), nullable=False)
-    player2_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player1_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
+    player2_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     round_type = Column(String(10), nullable=False, default="RR")  # RR, R16, QF, SF, F
     round_name = Column(String(50), nullable=True)
@@ -176,11 +204,13 @@ class BracketSlotORM(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     category = Column(String(20), nullable=False)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
     slot_number = Column(Integer, nullable=False)
     round_type = Column(String(10), nullable=False)  # R32, R16, QF, SF, F
     player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     is_bye = Column(Boolean, nullable=False, default=False)
     same_country_warning = Column(Boolean, nullable=False, default=False)
+    advanced_by_bye = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -204,7 +234,13 @@ class DatabaseManager:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.engine = create_engine(f"sqlite:///{self.db_path}", echo=False)
+        # Use NullPool for SQLite to avoid connection pool issues
+        self.engine = create_engine(
+            f"sqlite:///{self.db_path}",
+            echo=False,
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False}
+        )
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def create_tables(self):
@@ -225,17 +261,96 @@ class DatabaseManager:
 # ============================================================================
 
 
+class TournamentRepository:
+    """Repository for Tournament operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, name: str, date=None, location: str = None) -> TournamentORM:
+        """Create a new tournament."""
+        tournament = TournamentORM(
+            name=name,
+            date=date,
+            location=location,
+            status="active",
+            is_current=False
+        )
+        self.session.add(tournament)
+        self.session.commit()
+        return tournament
+
+    def get_all(self) -> list[TournamentORM]:
+        """Get all tournaments ordered by date (newest first)."""
+        return self.session.query(TournamentORM).order_by(
+            TournamentORM.created_at.desc()
+        ).all()
+
+    def get_by_id(self, tournament_id: int) -> Optional[TournamentORM]:
+        """Get tournament by ID."""
+        return self.session.query(TournamentORM).filter(
+            TournamentORM.id == tournament_id
+        ).first()
+
+    def get_current(self) -> Optional[TournamentORM]:
+        """Get the current active tournament."""
+        return self.session.query(TournamentORM).filter(
+            TournamentORM.is_current == True
+        ).first()
+
+    def set_current(self, tournament_id: int) -> bool:
+        """Set a tournament as the current one (only one can be current)."""
+        # First, unset all tournaments as current
+        self.session.query(TournamentORM).update({"is_current": False})
+        # Set the specified tournament as current
+        result = self.session.query(TournamentORM).filter(
+            TournamentORM.id == tournament_id
+        ).update({"is_current": True})
+        self.session.commit()
+        return result > 0
+
+    def update_status(self, tournament_id: int, status: str) -> bool:
+        """Update tournament status (active, completed, archived)."""
+        result = self.session.query(TournamentORM).filter(
+            TournamentORM.id == tournament_id
+        ).update({"status": status})
+        self.session.commit()
+        return result > 0
+
+    def delete(self, tournament_id: int) -> bool:
+        """Delete a tournament and all its data."""
+        tournament = self.get_by_id(tournament_id)
+        if tournament:
+            self.session.delete(tournament)
+            self.session.commit()
+            return True
+        return False
+
+    def get_active(self) -> list[TournamentORM]:
+        """Get all active tournaments."""
+        return self.session.query(TournamentORM).filter(
+            TournamentORM.status == "active"
+        ).order_by(TournamentORM.created_at.desc()).all()
+
+    def get_archived(self) -> list[TournamentORM]:
+        """Get all archived tournaments."""
+        return self.session.query(TournamentORM).filter(
+            TournamentORM.status == "archived"
+        ).order_by(TournamentORM.created_at.desc()).all()
+
+
 class PlayerRepository:
     """Repository for Player operations."""
 
     def __init__(self, session):
         self.session = session
 
-    def create(self, player: "Player") -> PlayerORM:
+    def create(self, player: "Player", tournament_id: int = None) -> PlayerORM:
         """Create a new player in the database.
 
         Args:
             player: Player domain model
+            tournament_id: ID of the tournament this player belongs to
 
         Returns:
             Created PlayerORM instance with auto-generated ID
@@ -256,6 +371,7 @@ class PlayerRepository:
             group_number=player.group_number,
             checked_in=player.checked_in,
             notes=player.notes,
+            tournament_id=tournament_id,
         )
         self.session.add(player_orm)
         self.session.commit()
@@ -288,37 +404,53 @@ class PlayerRepository:
             .first()
         )
 
-    def get_by_category(self, category: str) -> list[PlayerORM]:
+    def get_by_category(self, category: str, tournament_id: int = None) -> list[PlayerORM]:
         """Get all players in a category.
 
         Args:
             category: Category name (e.g., 'U13', 'U15')
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             List of PlayerORM instances
         """
-        return self.session.query(PlayerORM).filter(PlayerORM.categoria == category).all()
+        query = self.session.query(PlayerORM).filter(PlayerORM.categoria == category)
+        if tournament_id is not None:
+            query = query.filter(PlayerORM.tournament_id == tournament_id)
+        return query.all()
 
-    def get_by_category_sorted_by_seed(self, category: str) -> list[PlayerORM]:
+    def get_by_category_sorted_by_seed(self, category: str, tournament_id: int = None) -> list[PlayerORM]:
         """Get players in a category sorted by seed.
 
         Args:
             category: Category name
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             List of PlayerORM instances sorted by seed (1 first)
         """
-        return (
+        query = (
             self.session.query(PlayerORM)
             .filter(PlayerORM.categoria == category)
             .filter(PlayerORM.seed.isnot(None))
-            .order_by(PlayerORM.seed)
-            .all()
         )
+        if tournament_id is not None:
+            query = query.filter(PlayerORM.tournament_id == tournament_id)
+        return query.order_by(PlayerORM.seed).all()
 
-    def get_all(self) -> list[PlayerORM]:
-        """Get all players."""
-        return self.session.query(PlayerORM).all()
+    def get_all(self, tournament_id: int = None) -> list[PlayerORM]:
+        """Get all players, optionally filtered by tournament.
+
+        Args:
+            tournament_id: Optional tournament ID to filter by
+
+        Returns:
+            List of PlayerORM instances
+        """
+        query = self.session.query(PlayerORM)
+        if tournament_id is not None:
+            query = query.filter(PlayerORM.tournament_id == tournament_id)
+        return query.all()
 
     def update(self, player_orm: PlayerORM) -> PlayerORM:
         """Update an existing player.
@@ -372,11 +504,12 @@ class GroupRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, group: "Group") -> GroupORM:
+    def create(self, group: "Group", tournament_id: int = None) -> GroupORM:
         """Create a new group in the database.
 
         Args:
             group: Group domain model
+            tournament_id: ID of the tournament this group belongs to
 
         Returns:
             Created GroupORM instance
@@ -387,6 +520,7 @@ class GroupRepository:
             name=group.name,
             category=group.category,
             player_ids_json=json.dumps(group.player_ids),
+            tournament_id=tournament_id,
         )
         self.session.add(group_orm)
         self.session.commit()
@@ -404,20 +538,34 @@ class GroupRepository:
         """
         return self.session.query(GroupORM).filter(GroupORM.id == group_id).first()
 
-    def get_by_category(self, category: str) -> list[GroupORM]:
+    def get_by_category(self, category: str, tournament_id: int = None) -> list[GroupORM]:
         """Get all groups in a category.
 
         Args:
             category: Category name
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             List of GroupORM instances
         """
-        return self.session.query(GroupORM).filter(GroupORM.category == category).all()
+        query = self.session.query(GroupORM).filter(GroupORM.category == category)
+        if tournament_id is not None:
+            query = query.filter(GroupORM.tournament_id == tournament_id)
+        return query.all()
 
-    def get_all(self) -> list[GroupORM]:
-        """Get all groups."""
-        return self.session.query(GroupORM).all()
+    def get_all(self, tournament_id: int = None) -> list[GroupORM]:
+        """Get all groups, optionally filtered by tournament.
+
+        Args:
+            tournament_id: Optional tournament ID to filter by
+
+        Returns:
+            List of GroupORM instances
+        """
+        query = self.session.query(GroupORM)
+        if tournament_id is not None:
+            query = query.filter(GroupORM.tournament_id == tournament_id)
+        return query.all()
 
     def update(self, group_orm: GroupORM) -> GroupORM:
         """Update an existing group.
@@ -447,6 +595,23 @@ class GroupRepository:
             self.session.commit()
             return True
         return False
+
+    def delete_by_category(self, category: str, tournament_id: int = None) -> int:
+        """Delete all groups for a category.
+
+        Args:
+            category: Category name
+            tournament_id: Optional tournament ID to filter by
+
+        Returns:
+            Number of groups deleted
+        """
+        query = self.session.query(GroupORM).filter(GroupORM.category == category)
+        if tournament_id is not None:
+            query = query.filter(GroupORM.tournament_id == tournament_id)
+        count = query.delete()
+        self.session.commit()
+        return count
 
 
 class MatchRepository:
@@ -726,12 +891,13 @@ class BracketRepository:
     def __init__(self, session):
         self.session = session
 
-    def create_slot(self, slot: "BracketSlot", category: str) -> BracketSlotORM:
+    def create_slot(self, slot: "BracketSlot", category: str, tournament_id: int = None) -> BracketSlotORM:
         """Create a new bracket slot in the database.
 
         Args:
             slot: BracketSlot domain model
             category: Category name
+            tournament_id: ID of the tournament this bracket belongs to
 
         Returns:
             Created BracketSlotORM instance
@@ -745,54 +911,82 @@ class BracketRepository:
             player_id=slot.player_id,
             is_bye=slot.is_bye,
             same_country_warning=slot.same_country_warning,
+            tournament_id=tournament_id,
         )
         self.session.add(slot_orm)
         self.session.commit()
         self.session.refresh(slot_orm)
         return slot_orm
 
-    def get_by_category_and_round(self, category: str, round_type: str) -> list[BracketSlotORM]:
+    def get_by_category_and_round(self, category: str, round_type: str, tournament_id: int = None) -> list[BracketSlotORM]:
         """Get all bracket slots for a category and round.
 
         Args:
             category: Category name
             round_type: Round type (QF, SF, F, etc.)
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             List of BracketSlotORM instances ordered by slot_number
         """
-        return (
+        query = (
             self.session.query(BracketSlotORM)
             .filter(BracketSlotORM.category == category, BracketSlotORM.round_type == round_type)
-            .order_by(BracketSlotORM.slot_number)
-            .all()
         )
+        if tournament_id is not None:
+            query = query.filter(BracketSlotORM.tournament_id == tournament_id)
+        return query.order_by(BracketSlotORM.slot_number).all()
 
-    def get_by_category(self, category: str) -> list[BracketSlotORM]:
+    def get_by_category(self, category: str, tournament_id: int = None) -> list[BracketSlotORM]:
         """Get all bracket slots for a category.
 
         Args:
             category: Category name
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             List of BracketSlotORM instances
         """
-        return (
-            self.session.query(BracketSlotORM)
-            .filter(BracketSlotORM.category == category)
-            .order_by(BracketSlotORM.round_type, BracketSlotORM.slot_number)
-            .all()
-        )
+        query = self.session.query(BracketSlotORM).filter(BracketSlotORM.category == category)
+        if tournament_id is not None:
+            query = query.filter(BracketSlotORM.tournament_id == tournament_id)
+        return query.order_by(BracketSlotORM.round_type, BracketSlotORM.slot_number).all()
 
-    def delete_by_category(self, category: str) -> int:
+    def delete_by_category(self, category: str, tournament_id: int = None) -> int:
         """Delete all bracket slots for a category.
 
         Args:
             category: Category name
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             Number of slots deleted
         """
-        count = self.session.query(BracketSlotORM).filter(BracketSlotORM.category == category).delete()
+        query = self.session.query(BracketSlotORM).filter(BracketSlotORM.category == category)
+        if tournament_id is not None:
+            query = query.filter(BracketSlotORM.tournament_id == tournament_id)
+        count = query.delete()
         self.session.commit()
         return count
+
+    def update_slot_warning(self, category: str, round_type: str, slot_number: int, warning: bool):
+        """Update same_country_warning flag for a specific slot.
+
+        Args:
+            category: Category name
+            round_type: Round type
+            slot_number: Slot number
+            warning: Warning flag value
+        """
+        slot = (
+            self.session.query(BracketSlotORM)
+            .filter(
+                BracketSlotORM.category == category,
+                BracketSlotORM.round_type == round_type,
+                BracketSlotORM.slot_number == slot_number
+            )
+            .first()
+        )
+        if slot:
+            slot.same_country_warning = warning
+            self.session.commit()

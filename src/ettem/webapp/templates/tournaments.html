@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Torneos - ETTEM{% endblock %}
+
+{% block topbar_title %}Gestión de Torneos{% endblock %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" onclick="showCreateModal()">
+    <span>+</span>
+    <span>Nuevo Torneo</span>
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Current Tournament Banner -->
+{% if current_tournament %}
+<div class="card mb-3" style="border: 2px solid var(--primary-color); background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent);">
+    <div class="card-body" style="padding: 1rem 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Torneo Activo</div>
+                <div style="font-size: 1.3rem; font-weight: bold; color: var(--primary-color);">
+                    {{ current_tournament.name }}
+                </div>
+                {% if current_tournament.date %}
+                <div style="font-size: 0.9rem; color: var(--text-muted);">
+                    {{ current_tournament.date.strftime('%d/%m/%Y') if current_tournament.date else '' }}
+                    {% if current_tournament.location %} - {{ current_tournament.location }}{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <a href="/" class="btn btn-primary">
+                <span>Ir al Torneo</span>
+                <span>→</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning mb-3">
+    <span class="icon">!</span>
+    <div class="alert-content">
+        <div class="alert-title">No hay torneo activo</div>
+        <div>Crea un nuevo torneo o selecciona uno existente para comenzar.</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Active Tournaments -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Torneos Activos</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if active_tournaments %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th style="width: 120px;">Fecha</th>
+                        <th style="width: 150px;">Ubicación</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 200px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in active_tournaments %}
+                    <tr {% if t.is_current %}style="background: rgba(99, 102, 241, 0.1);"{% endif %}>
+                        <td>
+                            <strong>{{ t.name }}</strong>
+                            {% if t.is_current %}
+                            <span class="badge badge-primary" style="margin-left: 0.5rem;">Activo</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ t.date.strftime('%d/%m/%Y') if t.date else '-' }}</td>
+                        <td>{{ t.location or '-' }}</td>
+                        <td>
+                            <span class="badge badge-success">{{ t.status }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if not t.is_current %}
+                            <form action="/tournaments/{{ t.id }}/set-current" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-primary btn-sm" title="Seleccionar">
+                                    Seleccionar
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form action="/tournaments/{{ t.id }}/archive" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-secondary btn-sm" title="Archivar"
+                                        onclick="return confirm('¿Archivar este torneo?')">
+                                    Archivar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+            No hay torneos activos. Crea uno nuevo para comenzar.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Archived Tournaments -->
+{% if archived_tournaments %}
+<div class="card">
+    <div class="card-header" style="cursor: pointer;" onclick="toggleArchived()">
+        <h3 class="card-title">
+            <span id="archived-arrow">▶</span> Torneos Archivados ({{ archived_tournaments|length }})
+        </h3>
+    </div>
+    <div class="card-body" id="archived-section" style="display: none; padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th style="width: 120px;">Fecha</th>
+                        <th style="width: 150px;">Ubicación</th>
+                        <th style="width: 200px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in archived_tournaments %}
+                    <tr>
+                        <td><strong>{{ t.name }}</strong></td>
+                        <td>{{ t.date.strftime('%d/%m/%Y') if t.date else '-' }}</td>
+                        <td>{{ t.location or '-' }}</td>
+                        <td style="text-align: center;">
+                            <form action="/tournaments/{{ t.id }}/restore" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-success btn-sm" title="Restaurar">
+                                    Restaurar
+                                </button>
+                            </form>
+                            <form action="/tournaments/{{ t.id }}/delete" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"
+                                        onclick="return confirm('¿Eliminar permanentemente este torneo? Esta acción no se puede deshacer.')">
+                                    Eliminar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Create Tournament Modal -->
+<div id="create-modal" class="modal" style="display: none;">
+    <div class="modal-backdrop" onclick="hideCreateModal()"></div>
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Nuevo Torneo</h3>
+            <button type="button" class="btn-close" onclick="hideCreateModal()">&times;</button>
+        </div>
+        <form action="/tournaments/create" method="POST">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label for="name" class="form-label">Nombre del Torneo *</label>
+                    <input type="text" id="name" name="name" class="form-control" required
+                           placeholder="Ej: Torneo de Verano 2025">
+                </div>
+                <div class="form-group mb-3">
+                    <label for="date" class="form-label">Fecha</label>
+                    <input type="date" id="date" name="date" class="form-control">
+                </div>
+                <div class="form-group mb-3">
+                    <label for="location" class="form-label">Ubicación</label>
+                    <input type="text" id="location" name="location" class="form-control"
+                           placeholder="Ej: Club Deportivo Central">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideCreateModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Crear Torneo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+}
+.modal-content {
+    position: relative;
+    background: var(--bg-primary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    width: 90%;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.modal-header h3 {
+    margin: 0;
+}
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+</style>
+
+<script>
+function showCreateModal() {
+    document.getElementById('create-modal').style.display = 'flex';
+}
+function hideCreateModal() {
+    document.getElementById('create-modal').style.display = 'none';
+}
+function toggleArchived() {
+    const section = document.getElementById('archived-section');
+    const arrow = document.getElementById('archived-arrow');
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        arrow.textContent = '▼';
+    } else {
+        section.style.display = 'none';
+        arrow.textContent = '▶';
+    }
+}
+</script>
+
+{% endblock %}

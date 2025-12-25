@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Bracket {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Bracket - {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+<a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
+    <span>🗂️</span>
+    <span>Llave Visual</span>
+</a>
+<a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
+    <span>🏆</span>
+    <span>Resultados</span>
+</a>
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" title="Resetear Bracket">
+    <span>🔄</span>
+    <span>Resetear</span>
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Champion Banner (if tournament is complete) -->
+{% if champion %}
+<div class="card mb-3" style="border: 3px solid #FFD700; box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);">
+    <div class="card-body" style="text-align: center; padding: 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <span style="font-size: 2rem;">🎉</span>
+            <div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem;">¡Torneo Finalizado!</div>
+                <div style="font-size: 1.3rem; font-weight: bold;">
+                    👑 Campeón: <span style="color: var(--primary-color);">{{ champion.nombre }} {{ champion.apellido }}</span>
+                    <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ champion.pais_cd }}</span>
+                </div>
+            </div>
+            <a href="/category/{{ category }}/results" class="btn btn-warning" style="margin-left: 1rem;">
+                Ver Podio Completo →
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Round Display Names Mapping -->
+{% set round_names = {
+    'R32': 'Ronda de 32',
+    'R16': 'Ronda de 16',
+    'QF': 'Cuartos de Final',
+    'SF': 'Semifinales',
+    'F': 'Final'
+} %}
+
+{% if round_order %}
+<!-- Tabs Container -->
+<div class="card">
+    <div class="card-header" style="padding: 0;">
+        <div class="tabs-container">
+            {% for round_type in round_order %}
+            <button class="tab-button {% if loop.first %}active{% endif %}"
+                    data-tab="{{ round_type }}"
+                    onclick="switchTab('{{ round_type }}')">
+                {{ round_names.get(round_type, round_type) }}
+                <span class="tab-badge">{{ matches_by_round[round_type]|length }}</span>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    {% for round_type in round_order %}
+    <div class="tab-content {% if loop.first %}active{% endif %}" id="tab-{{ round_type }}">
+        <div class="card-body" style="padding: 0;">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th>Jugador 1</th>
+                            <th style="width: 40px; text-align: center;">vs</th>
+                            <th>Jugador 2</th>
+                            <th style="width: 120px; text-align: center;">Resultado</th>
+                            <th style="width: 120px; text-align: center;">Estado</th>
+                            <th style="width: 200px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in matches_by_round[round_type] %}
+                        <tr>
+                            <td><span class="badge badge-secondary">{{ m.match.match_number }}</span></td>
+                            <td>
+                                <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
+                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>
+                            </td>
+                            <td style="text-align: center; color: var(--text-muted);">vs</td>
+                            <td>
+                                <strong>{{ m.player2.nombre }} {{ m.player2.apellido }}</strong>
+                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player2.pais_cd }}</span>
+                            </td>
+                            <td style="text-align: center;">
+                                {% if m.match.status == 'WALKOVER' %}
+                                    {% if m.match.winner_id == m.player1.id %}
+                                        <span class="badge badge-warning">3-0 (WO)</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">0-3 (WO)</span>
+                                    {% endif %}
+                                {% elif m.match.status != 'pending' %}
+                                    <!-- Calculate sets won for each player -->
+                                    {% set p1_sets = namespace(count=0) %}
+                                    {% set p2_sets = namespace(count=0) %}
+                                    {% for s in m.sets %}
+                                        {% if s.player1_points > s.player2_points %}
+                                            {% set p1_sets.count = p1_sets.count + 1 %}
+                                        {% else %}
+                                            {% set p2_sets.count = p2_sets.count + 1 %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    <span class="badge badge-success" style="font-size: 1rem;">{{ p1_sets.count }}-{{ p2_sets.count }}</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if m.match.status == 'pending' %}
+                                    <span class="badge badge-secondary">Pendiente</span>
+                                {% elif m.match.status == 'WALKOVER' %}
+                                    <span class="badge badge-warning">Walkover</span>
+                                {% else %}
+                                    <span class="badge badge-success">Completado</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <div class="d-flex gap-1" style="justify-content: center;">
+                                    {% if m.match.status == 'pending' %}
+                                        <a href="/match/{{ m.match.id }}/enter-result"
+                                           class="btn btn-success btn-sm"
+                                           title="Ingresar resultado"
+                                           style="padding: 0.25rem 0.5rem;">
+                                            ✓
+                                        </a>
+                                    {% else %}
+                                        <a href="/match/{{ m.match.id }}/enter-result"
+                                           class="btn btn-warning btn-sm"
+                                           title="Editar resultado"
+                                           style="padding: 0.25rem 0.5rem;">
+                                            ✎
+                                        </a>
+                                        <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" data-confirm="¿Está seguro de eliminar este resultado?">
+                                            <button type="submit"
+                                                    class="btn btn-danger btn-sm"
+                                                    title="Eliminar resultado"
+                                                    style="padding: 0.25rem 0.5rem;">
+                                                ✕
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <p class="text-muted" style="text-align: center; margin: 2rem 0;">
+            No hay partidos de bracket creados aún. Genera el bracket primero.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<style>
+/* Tabs Container */
+.tabs-container {
+    display: flex;
+    background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
+    border-bottom: 2px solid var(--border-color);
+    overflow-x: auto;
+}
+
+/* Tab Button */
+.tab-button {
+    flex: 1;
+    min-width: 150px;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    position: relative;
+}
+
+.tab-button:hover {
+    background: rgba(33, 150, 243, 0.08);
+    color: var(--primary-color);
+}
+
+.tab-button.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: white;
+    font-weight: 600;
+}
+
+.tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* Tab Badge */
+.tab-badge {
+    background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark));
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    min-width: 24px;
+    text-align: center;
+}
+
+.tab-button.active .tab-badge {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .tab-button {
+        min-width: 120px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .tabs-container {
+        justify-content: flex-start;
+    }
+}
+</style>
+
+<script>
+function switchTab(roundType) {
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Add active class to selected tab and content
+    const selectedButton = document.querySelector(`.tab-button[data-tab="${roundType}"]`);
+    const selectedContent = document.getElementById(`tab-${roundType}`);
+
+    if (selectedButton) selectedButton.classList.add('active');
+    if (selectedContent) selectedContent.classList.add('active');
+}
+
+// Reset bracket confirmation
+function confirmResetBracket(category) {
+    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
+    message += '⚠️ ESTO ELIMINARÁ:\n';
+    message += '• Todas las posiciones del bracket\n';
+    message += '• Todos los partidos de eliminación\n';
+    message += '• Todos los resultados ingresados\n\n';
+    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
+    message += '¿Desea continuar?';
+
+    if (confirm(message)) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/bracket/' + category + '/reset';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+{% endblock %}

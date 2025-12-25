@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Sin Bracket - {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ category }} - Bracket{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🏆</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay bracket generado</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem; max-width: 400px; margin-left: auto; margin-right: auto;">
+            La categoría <strong>{{ category }}</strong> aún no tiene un bracket de eliminación directa.
+            Primero debes completar la fase de grupos y calcular los standings.
+        </p>
+
+        <div class="d-flex gap-2" style="justify-content: center; flex-wrap: wrap;">
+            <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-primary">
+                <span>🏅</span>
+                <span>Generar Bracket</span>
+            </a>
+            <a href="/admin/calculate-standings" class="btn btn-secondary">
+                <span>📊</span>
+                <span>Calcular Standings</span>
+            </a>
+            <a href="/category/{{ category }}" class="btn btn-secondary">
+                <span>👥</span>
+                <span>Ver Grupos</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h3 class="card-title">Pasos para generar el bracket</h3>
+    </div>
+    <div class="card-body">
+        <ol style="margin: 0; padding-left: 1.5rem; line-height: 2;">
+            <li><strong>Crear grupos</strong> - Distribuir jugadores en grupos de 3-4</li>
+            <li><strong>Ingresar resultados</strong> - Completar todos los partidos de grupo</li>
+            <li><strong>Calcular standings</strong> - Determinar posiciones en cada grupo</li>
+            <li><strong>Generar bracket</strong> - Los 1° y 2° de cada grupo pasan a eliminación</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

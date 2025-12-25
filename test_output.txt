@@ -1,0 +1,185 @@
+============================================================
+STEP 1: Importando jugadores desde CSV...
+============================================================
+[INFO] Reading CSV file: data/samples/players_32.csv
+[TARGET] Filtering category: U13
+SUCCESS: Validated 32 players from CSV
+
+[SAVE] Saving 32 players to database...
+[SUCCESS] Imported 32 players successfully
+
+  Assigning seeds for 1 categories...
+     U13: 32 players seeded
+
+[DONE] Import complete!
+
+
+============================================================
+STEP 2: Creando grupos con snake seeding...
+============================================================
+[INFO] Loading config from: config/sample_config.yaml
+[TARGET] Loading players for category: U13
+[SUCCESS] Found 32 seeded players
+[BUILD]  Creating groups (preference: 4 players)...
+[SUCCESS] Created 8 groups with 48 matches
+[SAVE] Saving to database...
+[SUCCESS] Groups and fixtures saved to database
+
+[STATS] Group Summary:
+  Group 1: 4 players
+  Group 2: 4 players
+  Group 3: 4 players
+  Group 4: 4 players
+  Group 5: 4 players
+  Group 6: 4 players
+  Group 7: 4 players
+  Group 8: 4 players
+
+[DONE] Groups created successfully!
+
+
+============================================================
+STEP 3: Llenando resultados de grupos...
+============================================================
+Found 48 pending matches
+Filling with random realistic results...
+
+  Filled 10/48 matches...
+  Filled 20/48 matches...
+  Filled 30/48 matches...
+  Filled 40/48 matches...
+
+[OK] Successfully filled 48 matches!
+
+You can now:
+  1. Calculate standings: http://127.0.0.1:8000/admin/calculate-standings
+  2. Generate bracket: http://127.0.0.1:8000/admin/generate-bracket
+
+
+============================================================
+STEP 4: Calculando standings...
+============================================================
+[TARGET] Loading groups for category: U13
+[SUCCESS] Found 8 groups
+
+[STATS] Computing standings for Group 1...
+  1. Carlos Rodríguez - 6pts (3W-0L)
+  2. Fernando Castro - 5pts (2W-1L)
+  3. Paula Romero - 4pts (1W-2L)
+  4. Alicia Gil - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 2...
+  1. María González - 6pts (3W-0L)
+  2. Lucía Ortiz - 5pts (2W-1L)
+  3. Roberto Navarro - 4pts (1W-2L)
+  4. Manuel Suárez - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 3...
+  1. Isabel Jiménez - 6pts (3W-0L)
+  2. Andrés Rubio - 5pts (2W-1L)
+  3. Luis Fernández - 4pts (1W-2L)
+  4. Teresa Castro - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 4...
+  1. Antonio Morales - 6pts (3W-0L)
+  2. Ana Martínez - 5pts (2W-1L)
+  3. Beatriz Molina - 4pts (1W-2L)
+  4. Raúl Blanco - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 5...
+  1. Pedro López - 6pts (3W-0L)
+  2. Elena Ruiz - 5pts (2W-1L)
+  3. Jorge Delgado - 4pts (1W-2L)
+  4. Silvia Serrano - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 6...
+  1. Sofia García - 6pts (3W-0L)
+  2. Cristina Moreno - 5pts (2W-1L)
+  3. Javier Flores - 4pts (1W-2L)
+  4. Sergio Vázquez - 3pts (0W-3L)
+
+[STATS] Computing standings for Group 7...
+[TIE-BREAK] Carmen Torres: sets=2-3 (ratio=0.67), points=43-42 (ratio=1.02), seed=10
+[TIE-BREAK] Ricardo Muñoz: sets=3-2 (ratio=1.50), points=42-43 (ratio=0.98), seed=23
+[TIE-BREAK] Rosa Díaz: sets=0-3 (ratio=0.00), points=17-33 (ratio=0.52), seed=26
+[TIE-BREAK] Miguel Sánchez: sets=3-0 (ratio=inf), points=33-17 (ratio=1.94), seed=7
+  1. Ricardo Muñoz - 5pts (2W-1L)
+  2. Carmen Torres - 5pts (2W-1L)
+  3. Miguel Sánchez - 4pts (1W-2L)
+  4. Rosa Díaz - 4pts (1W-2L)
+
+[STATS] Computing standings for Group 8...
+  1. Marta Álvarez - 6pts (3W-0L)
+  2. Laura Pérez - 5pts (2W-1L)
+  3. Diego Ramírez - 4pts (1W-2L)
+  4. Pablo Gómez - 3pts (0W-3L)
+
+[SUCCESS] Computed 32 standings
+[DONE] Standings calculation complete!
+
+
+============================================================
+STEP 5: Generando bracket...
+============================================================
+[INFO] Loading config from: config/sample_config.yaml
+[TARGET] Loading standings for category: U13
+[SUCCESS] Found 16 qualifiers
+[BUILD]  Building knockout bracket...
+[SUCCESS] Bracket created with 16 slots
+[SAVE] Saving bracket to database...
+[SUCCESS] Bracket saved to database
+
+[STATS] Bracket Summary:
+  R16: 16 players, 0 BYEs
+    [WARNING]  4 slots with same-country warnings
+
+[DONE] Bracket built successfully!
+
+
+============================================================
+STEP 5.5: Creando partidos del bracket...
+============================================================
+============================================================
+Creando partidos del bracket desde los slots...
+============================================================
+[INFO] Encontrados 16 slots de bracket
+[INFO] Primera ronda: R16
+
+[BUILD] Creando partidos para R16...
+  Match 1: Player 1 vs Player 18
+  Match 2: Player 12 vs Player 22
+  Match 3: Player 23 vs Player 13
+  Match 4: Player 14 vs Player 8
+  Match 5: Player 17 vs Player 5
+  Match 6: Player 19 vs Player 24
+  Match 7: Player 4 vs Player 2
+  Match 8: Player 10 vs Player 6
+
+[UPDATE] Actualizando punteros next_match_id...
+
+[SUCCESS] Creados 8 partidos de bracket!
+
+Puedes revisar:
+  - Bracket: http://127.0.0.1:8000/bracket/U13
+  - Partidos: http://127.0.0.1:8000/bracket_matches/U13
+
+
+============================================================
+STEP 6: Llenando resultados de bracket...
+============================================================
+Found 8 bracket matches
+
+[OK] All bracket matches completed!
+View results: http://127.0.0.1:8000/category/U13
+View final results: http://127.0.0.1:8000/category/U13/results
+
+
+============================================================
+[OK] TESTING COMPLETO!
+============================================================
+
+Puedes revisar:
+  - Dashboard: http://127.0.0.1:8000/
+  - Categoría U13: http://127.0.0.1:8000/category/U13
+  - Resultados Finales: http://127.0.0.1:8000/category/U13/results
+  - Bracket Visual: http://127.0.0.1:8000/bracket/U13
