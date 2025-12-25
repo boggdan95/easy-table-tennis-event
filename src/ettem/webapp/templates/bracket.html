@@ -24,6 +24,10 @@
         <span>🔍+</span>
     </button>
 </div>
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" style="margin-left: 0.5rem;" title="Resetear Bracket">
+    <span>🔄</span>
+    <span>Resetear</span>
+</button>
 {% endblock %}
 
 {% block content %}
@@ -500,6 +504,26 @@ function applyZoom() {
     const container = document.getElementById('bracket-container');
     container.style.transform = `scale(${currentZoom})`;
     updateZoomButton();
+}
+
+// Reset bracket confirmation
+function confirmResetBracket(category) {
+    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
+    message += '⚠️ ESTO ELIMINARÁ:\n';
+    message += '• Todas las posiciones del bracket\n';
+    message += '• Todos los partidos de eliminación\n';
+    message += '• Todos los resultados ingresados\n\n';
+    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
+    message += '¿Desea continuar?';
+
+    if (confirm(message)) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/bracket/' + category + '/reset';
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 

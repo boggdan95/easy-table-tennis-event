@@ -17,6 +17,10 @@
     <span>🏆</span>
     <span>Resultados</span>
 </a>
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" title="Resetear Bracket">
+    <span>🔄</span>
+    <span>Resetear</span>
+</button>
 {% endblock %}
 
 {% block content %}
@@ -294,6 +298,26 @@ function switchTab(roundType) {
 
     if (selectedButton) selectedButton.classList.add('active');
     if (selectedContent) selectedContent.classList.add('active');
+}
+
+// Reset bracket confirmation
+function confirmResetBracket(category) {
+    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
+    message += '⚠️ ESTO ELIMINARÁ:\n';
+    message += '• Todas las posiciones del bracket\n';
+    message += '• Todos los partidos de eliminación\n';
+    message += '• Todos los resultados ingresados\n\n';
+    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
+    message += '¿Desea continuar?';
+
+    if (confirm(message)) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/bracket/' + category + '/reset';
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 
