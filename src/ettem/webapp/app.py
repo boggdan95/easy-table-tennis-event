@@ -20,6 +20,7 @@ from ettem.storage import (
     MatchORM,
     PlayerRepository,
     StandingRepository,
+    TournamentRepository,
 )
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
 from ettem.i18n import load_strings, get_language_from_env
@@ -81,15 +82,27 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     context["t"] = i18n_strings
     context["lang"] = lang
 
-    # Add global data (categories for sidebar)
+    # Add global data (categories for sidebar) - filtered by current tournament
     session = None
     try:
         session = get_db_session()
         player_repo = PlayerRepository(session)
-        all_players = player_repo.get_all()
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get players for current tournament only
+        all_players = player_repo.get_all(tournament_id=tournament_id)
         categories = sorted(set(p.categoria for p in all_players))
         context["categories"] = categories
-        print(f"[DEBUG] Categories loaded: {categories}")
+
+        # Add current tournament to context for all templates
+        if "current_tournament" not in context:
+            context["current_tournament"] = current_tournament
+
+        print(f"[DEBUG] Categories loaded for tournament {tournament_id}: {categories}")
     except Exception as e:
         print(f"[ERROR] Failed to load categories: {e}")
         import traceback
@@ -122,19 +135,173 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     return templates.TemplateResponse(template_name, context)
 
 
+# ============================================================================
+# Tournament Management Routes
+# ============================================================================
+
+
+@app.get("/tournaments", response_class=HTMLResponse)
+async def tournaments_page(request: Request):
+    """Tournament management page."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    current_tournament = tournament_repo.get_current()
+    active_tournaments = tournament_repo.get_active()
+    archived_tournaments = tournament_repo.get_archived()
+
+    return render_template(
+        "tournaments.html",
+        {
+            "request": request,
+            "current_tournament": current_tournament,
+            "active_tournaments": active_tournaments,
+            "archived_tournaments": archived_tournaments
+        }
+    )
+
+
+@app.post("/tournaments/create")
+async def create_tournament(
+    request: Request,
+    name: str = Form(...),
+    date: str = Form(None),
+    location: str = Form(None)
+):
+    """Create a new tournament."""
+    from datetime import datetime as dt
+
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    # Parse date if provided
+    parsed_date = None
+    if date:
+        try:
+            parsed_date = dt.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            pass
+
+    # Create tournament
+    tournament = tournament_repo.create(
+        name=name,
+        date=parsed_date,
+        location=location if location else None
+    )
+
+    # If this is the first tournament, set it as current
+    if len(tournament_repo.get_all()) == 1:
+        tournament_repo.set_current(tournament.id)
+
+    request.session["flash_message"] = f"Torneo '{name}' creado exitosamente"
+    request.session["flash_type"] = "success"
+
+    return RedirectResponse(url="/tournaments", status_code=303)
+
+
+@app.post("/tournaments/{tournament_id}/set-current")
+async def set_current_tournament(request: Request, tournament_id: int):
+    """Set a tournament as the current active one."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    tournament = tournament_repo.get_by_id(tournament_id)
+    if tournament:
+        tournament_repo.set_current(tournament_id)
+        request.session["flash_message"] = f"Torneo '{tournament.name}' seleccionado"
+        request.session["flash_type"] = "success"
+    else:
+        request.session["flash_message"] = "Torneo no encontrado"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/tournaments", status_code=303)
+
+
+@app.post("/tournaments/{tournament_id}/archive")
+async def archive_tournament(request: Request, tournament_id: int):
+    """Archive a tournament."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    tournament = tournament_repo.get_by_id(tournament_id)
+    if tournament:
+        # If archiving the current tournament, unset it
+        if tournament.is_current:
+            tournament_repo.set_current(0)  # This will unset all
+        tournament_repo.update_status(tournament_id, "archived")
+        request.session["flash_message"] = f"Torneo '{tournament.name}' archivado"
+        request.session["flash_type"] = "success"
+    else:
+        request.session["flash_message"] = "Torneo no encontrado"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/tournaments", status_code=303)
+
+
+@app.post("/tournaments/{tournament_id}/restore")
+async def restore_tournament(request: Request, tournament_id: int):
+    """Restore an archived tournament."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    tournament = tournament_repo.get_by_id(tournament_id)
+    if tournament:
+        tournament_repo.update_status(tournament_id, "active")
+        request.session["flash_message"] = f"Torneo '{tournament.name}' restaurado"
+        request.session["flash_type"] = "success"
+    else:
+        request.session["flash_message"] = "Torneo no encontrado"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/tournaments", status_code=303)
+
+
+@app.post("/tournaments/{tournament_id}/delete")
+async def delete_tournament(request: Request, tournament_id: int):
+    """Delete a tournament permanently."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+
+    tournament = tournament_repo.get_by_id(tournament_id)
+    if tournament:
+        name = tournament.name
+        tournament_repo.delete(tournament_id)
+        request.session["flash_message"] = f"Torneo '{name}' eliminado permanentemente"
+        request.session["flash_type"] = "success"
+    else:
+        request.session["flash_message"] = "Torneo no encontrado"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/tournaments", status_code=303)
+
+
+# ============================================================================
+# Main Application Routes
+# ============================================================================
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    """Home page - list all categories."""
+    """Home page - list all categories for current tournament."""
     session = get_db_session()
     player_repo = PlayerRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get all unique categories
-    all_players = player_repo.get_all()
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all unique categories for current tournament
+    all_players = player_repo.get_all(tournament_id=tournament_id)
     categories = sorted(set(p.categoria for p in all_players))
 
     return render_template(
         "index.html",
-        {"request": request, "categories": categories}
+        {
+            "request": request,
+            "categories": categories,
+            "current_tournament": current_tournament
+        }
     )
 
 
@@ -144,9 +311,14 @@ async def view_category(request: Request, category: str):
     session = get_db_session()
     group_repo = GroupRepository(session)
     player_repo = PlayerRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get groups for this category
-    groups = group_repo.get_by_category(category)
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get groups for this category in current tournament
+    groups = group_repo.get_by_category(category, tournament_id=tournament_id)
 
     # Get players for each group
     groups_data = []
@@ -920,9 +1092,14 @@ async def view_bracket_matches(request: Request, category: str):
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     bracket_repo = BracketRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get bracket slots for this category to verify bracket exists
-    bracket_slots = bracket_repo.get_by_category(category)
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get bracket slots for this category in current tournament
+    bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
     if not bracket_slots:
         return HTMLResponse(content="No bracket found for this category. Generate bracket first.", status_code=404)
 
@@ -1224,15 +1401,21 @@ async def admin_import_players_form(request: Request):
     """Show import players form."""
     session = get_db_session()
     player_repo = PlayerRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get all players to show in the list
-    players = player_repo.get_all()
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all players for current tournament
+    players = player_repo.get_all(tournament_id=tournament_id)
 
     return render_template(
         "admin_import_players.html",
         {
             "request": request,
-            "players": players
+            "players": players,
+            "current_tournament": current_tournament
         }
     )
 
@@ -1271,11 +1454,16 @@ async def admin_import_players_csv(
             # Save players to database
             session = get_db_session()
             player_repo = PlayerRepository(session)
+            tournament_repo = TournamentRepository(session)
+
+            # Get current tournament
+            current_tournament = tournament_repo.get_current()
+            tournament_id = current_tournament.id if current_tournament else None
 
             imported_count = 0
             for player in players:
                 try:
-                    player_repo.create(player)
+                    player_repo.create(player, tournament_id=tournament_id)
                     imported_count += 1
                 except Exception as e:
                     print(f"[ERROR] Error saving player {player.full_name}: {e}")
@@ -1356,7 +1544,13 @@ async def admin_import_players_manual(
         # Save to database
         session = get_db_session()
         player_repo = PlayerRepository(session)
-        player_repo.create(player)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        player_repo.create(player, tournament_id=tournament_id)
 
         # If seed wasn't provided, auto-assign
         if not seed:
@@ -1379,9 +1573,14 @@ async def admin_create_groups_form(request: Request):
     player_repo = PlayerRepository(session)
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get all players grouped by category
-    all_players = player_repo.get_all()
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all players grouped by category for current tournament
+    all_players = player_repo.get_all(tournament_id=tournament_id)
     categories_dict = {}
     countries_by_category = {}  # Track country distribution per category
 
@@ -1407,8 +1606,8 @@ async def admin_create_groups_form(request: Request):
         for cat, count in sorted(categories_dict.items())
     ]
 
-    # Get existing groups
-    all_groups = group_repo.get_all()
+    # Get existing groups for current tournament
+    all_groups = group_repo.get_all(tournament_id=tournament_id)
     existing_groups = []
     for group in all_groups:
         match_count = len(match_repo.get_by_group(group.id))
@@ -1442,9 +1641,14 @@ async def admin_create_groups_preview(
     try:
         session = get_db_session()
         player_repo = PlayerRepository(session)
+        tournament_repo = TournamentRepository(session)
 
-        # Get players for this category
-        player_orms = player_repo.get_by_category_sorted_by_seed(category)
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get players for this category in current tournament
+        player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
 
         if not player_orms:
             request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}."
@@ -1532,9 +1736,14 @@ async def admin_create_groups_execute(
         player_repo = PlayerRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
 
-        # Get players for this category
-        player_orms = player_repo.get_by_category_sorted_by_seed(category)
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get players for this category in current tournament
+        player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
 
         if not player_orms:
             request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}. Importa jugadores primero."
@@ -1562,8 +1771,8 @@ async def admin_create_groups_execute(
             )
             players.append(player)
 
-        # Delete existing groups and matches for this category
-        existing_groups = group_repo.get_by_category(category)
+        # Delete existing groups and matches for this category in current tournament
+        existing_groups = group_repo.get_by_category(category, tournament_id=tournament_id)
         for group in existing_groups:
             # Delete matches first
             matches = match_repo.get_by_group(group.id)
@@ -1592,8 +1801,8 @@ async def admin_create_groups_execute(
 
         # Save to database
         for group in groups:
-            # Save group
-            group_orm = group_repo.create(group)
+            # Save group with tournament_id
+            group_orm = group_repo.create(group, tournament_id=tournament_id)
 
             # Update players' group assignment
             for player_id in group.player_ids:
@@ -1632,9 +1841,14 @@ async def admin_calculate_standings_form(request: Request):
     match_repo = MatchRepository(session)
     standing_repo = StandingRepository(session)
     player_repo = PlayerRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get all groups grouped by category
-    all_groups = group_repo.get_all()
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all groups grouped by category for current tournament
+    all_groups = group_repo.get_all(tournament_id=tournament_id)
     categories_dict = {}
     for group in all_groups:
         if group.category not in categories_dict:
@@ -1692,9 +1906,14 @@ async def admin_calculate_standings_all(request: Request):
         match_repo = MatchRepository(session)
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
+        tournament_repo = TournamentRepository(session)
 
-        # Get all groups
-        all_groups = group_repo.get_all()
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get all groups for current tournament
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
 
         if not all_groups:
             request.session["flash_message"] = "No hay grupos creados. Crea grupos primero."
@@ -1840,9 +2059,14 @@ async def admin_generate_bracket_form(request: Request):
     standing_repo = StandingRepository(session)
     player_repo = PlayerRepository(session)
     bracket_repo = BracketRepository(session)
+    tournament_repo = TournamentRepository(session)
 
-    # Get all groups grouped by category with standings count
-    all_groups = group_repo.get_all()
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all groups grouped by category with standings count for current tournament
+    all_groups = group_repo.get_all(tournament_id=tournament_id)
     all_standings = standing_repo.get_all()
 
     # Count standings per category
@@ -1871,13 +2095,13 @@ async def admin_generate_bracket_form(request: Request):
         for cat, count in sorted(standings_by_category.items())
     ]
 
-    # Get existing brackets
-    all_players = player_repo.get_all()
+    # Get existing brackets for current tournament
+    all_players = player_repo.get_all(tournament_id=tournament_id)
     categories = list(set(p.categoria for p in all_players))
     existing_brackets = []
 
     for category in categories:
-        bracket_slots = bracket_repo.get_by_category(category)
+        bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
         if bracket_slots:
             # Count non-BYE players
             players_count = sum(1 for slot in bracket_slots if not slot.is_bye and slot.player_id)
@@ -1918,6 +2142,11 @@ async def admin_generate_bracket_execute(
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
         bracket_repo = BracketRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
 
         # Get all standings for this category
         all_standings = standing_repo.get_all()
@@ -1981,12 +2210,12 @@ async def admin_generate_bracket_execute(
         )
 
         # Save bracket to database
-        bracket_repo.delete_by_category(category)  # Clear old bracket
+        bracket_repo.delete_by_category(category, tournament_id=tournament_id)  # Clear old bracket
 
         total_slots = 0
         for round_type, slots in bracket.slots.items():
             for slot in slots:
-                bracket_repo.create_slot(slot, category)
+                bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
                 total_slots += 1
 
         # Create matches from bracket slots

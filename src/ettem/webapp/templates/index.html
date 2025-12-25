@@ -5,14 +5,44 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">🏓 Bienvenido a Easy Table Tennis Event Manager</h2>
-    </div>
-    <div class="card-body">
-        <p>Sistema profesional para gestionar torneos de tenis de mesa con grupos round robin y llaves eliminatorias.</p>
+<!-- Current Tournament Banner -->
+{% if current_tournament %}
+<div class="card mb-3" style="border: 2px solid var(--primary-color); background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent);">
+    <div class="card-body" style="padding: 1rem 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Torneo Activo</div>
+                <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
+                    {{ current_tournament.name }}
+                </div>
+                {% if current_tournament.date or current_tournament.location %}
+                <div style="font-size: 0.9rem; color: var(--text-muted);">
+                    {{ current_tournament.date.strftime('%d/%m/%Y') if current_tournament.date else '' }}
+                    {% if current_tournament.location %} - {{ current_tournament.location }}{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <a href="/tournaments" class="btn btn-secondary btn-sm">
+                <span>Gestionar Torneos</span>
+            </a>
+        </div>
     </div>
 </div>
+{% else %}
+<div class="alert alert-info mb-3">
+    <span class="icon">ℹ️</span>
+    <div class="alert-content" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; width: 100%;">
+        <div>
+            <div class="alert-title">Bienvenido a ETTEM</div>
+            <div>Gestiona torneos de tenis de mesa con grupos round robin y llaves eliminatorias.</div>
+        </div>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>+</span>
+            <span>Crear Torneo</span>
+        </a>
+    </div>
+</div>
+{% endif %}
 
 {% if categories %}
     <!-- Stats Overview -->
