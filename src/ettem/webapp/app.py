@@ -457,6 +457,17 @@ async def save_result(
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/", status_code=303)
 
+    # For bracket matches, validate that previous rounds are complete
+    if match_orm.group_id is None:  # Bracket match
+        player_repo = PlayerRepository(session)
+        player = player_repo.get_by_id(match_orm.player1_id)
+        if player:
+            is_valid, error_msg = validate_bracket_round_order(match_orm, player.categoria, session)
+            if not is_valid:
+                request.session["flash_message"] = error_msg
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+
     # Helper function to parse integer or None
     def parse_int(value: Optional[str]) -> Optional[int]:
         if value is None or value == "" or value.strip() == "":
@@ -936,7 +947,10 @@ async def view_bracket(request: Request, category: str):
         bracket_slots = bracket_repo.get_by_category(category)
 
         if not bracket_slots:
-            return HTMLResponse(content="No bracket found for this category. Run 'build-bracket' first.", status_code=404)
+            return render_template(
+                "no_bracket.html",
+                {"request": request, "category": category}
+            )
 
         # Group slots by round
         from collections import defaultdict, namedtuple
@@ -1101,7 +1115,10 @@ async def view_bracket_matches(request: Request, category: str):
     # Get bracket slots for this category in current tournament
     bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
     if not bracket_slots:
-        return HTMLResponse(content="No bracket found for this category. Generate bracket first.", status_code=404)
+        return render_template(
+            "no_bracket.html",
+            {"request": request, "category": category}
+        )
 
     # Get all bracket matches (group_id is None) filtered by category
     # We need to get all matches with group_id=None and filter by players in this category
@@ -1188,9 +1205,9 @@ async def view_final_results(request: Request, category: str):
     # Verify bracket exists
     bracket_slots = bracket_repo.get_by_category(category)
     if not bracket_slots:
-        return HTMLResponse(
-            content="No bracket found for this category. Generate bracket first.",
-            status_code=404
+        return render_template(
+            "no_bracket.html",
+            {"request": request, "category": category}
         )
 
     # Get the final match
@@ -1505,8 +1522,7 @@ async def admin_import_players_manual(
     genero: str = Form(...),
     pais_cd: str = Form(...),
     ranking_pts: float = Form(...),
-    categoria: str = Form(...),
-    seed: Optional[int] = Form(None)
+    categoria: str = Form(...)
 ):
     """Add a player manually."""
     from ettem.models import Gender
@@ -1528,7 +1544,25 @@ async def admin_import_players_manual(
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/admin/import-players", status_code=303)
 
-        # Create player
+        categoria_upper = categoria.strip().upper()
+
+        # Check for duplicate original_id in the same category/tournament
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Check for duplicate original_id in ALL players of current tournament (not just category)
+        all_players = player_repo.get_all(tournament_id=tournament_id)
+        for p in all_players:
+            if p.original_id is not None and p.original_id == original_id:
+                request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} ({p.nombre} {p.apellido} en {p.categoria})"
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        # Create player (seed will be auto-assigned)
         player = Player(
             id=0,  # Auto-generated
             nombre=nombre.strip(),
@@ -1536,31 +1570,203 @@ async def admin_import_players_manual(
             genero=Gender.MALE if genero == "M" else Gender.FEMALE,
             pais_cd=pais_cd.strip().upper(),
             ranking_pts=ranking_pts,
-            categoria=categoria.strip().upper(),
+            categoria=categoria_upper,
             original_id=original_id,
-            seed=seed if seed and seed > 0 else None
+            seed=None  # Will be calculated after save
         )
 
         # Save to database
+        player_repo.create(player, tournament_id=tournament_id)
+
+        # Always recalculate seeds based on ranking
+        player_repo.assign_seeds(categoria_upper)
+
+        request.session["flash_message"] = f"Jugador {player.full_name} agregado (seed asignado automáticamente)"
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al agregar jugador: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+@app.post("/admin/player/edit")
+async def admin_edit_player(
+    request: Request,
+    player_id: int = Form(...),
+    nombre: str = Form(...),
+    apellido: str = Form(...),
+    genero: str = Form(...),
+    pais_cd: str = Form(...),
+    ranking_pts: float = Form(...),
+    categoria: str = Form(...),
+    original_id: Optional[int] = Form(None)
+):
+    """Edit an existing player."""
+    try:
         session = get_db_session()
         player_repo = PlayerRepository(session)
+
+        player = player_repo.get_by_id(player_id)
+        if not player:
+            request.session["flash_message"] = "Jugador no encontrado"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        # Validate inputs
+        if genero not in ("M", "F"):
+            request.session["flash_message"] = "El género debe ser M o F"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        if len(pais_cd.strip()) != 3:
+            request.session["flash_message"] = "El código de país debe tener 3 caracteres (ISO-3)"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        # Track if category changed
+        old_category = player.categoria
+        new_category = categoria.strip().upper()
+
+        # Update player
+        player.nombre = nombre.strip()
+        player.apellido = apellido.strip()
+        player.genero = genero
+        player.pais_cd = pais_cd.strip().upper()
+        player.ranking_pts = ranking_pts
+        player.categoria = new_category
+        player.original_id = original_id if original_id else None
+
+        player_repo.update(player)
+
+        # Recalculate seeds for affected categories
+        player_repo.assign_seeds(new_category)
+        if old_category != new_category:
+            player_repo.assign_seeds(old_category)
+
+        request.session["flash_message"] = f"Jugador {nombre} {apellido} actualizado (seeds recalculados)"
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al actualizar jugador: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+@app.post("/admin/player/{player_id}/delete")
+async def admin_delete_player(request: Request, player_id: int):
+    """Delete a player with validation."""
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        player = player_repo.get_by_id(player_id)
+        if not player:
+            request.session["flash_message"] = "Jugador no encontrado"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        player_name = f"{player.nombre} {player.apellido}"
+        player_category = player.categoria
+
+        # Check if player has played any matches
+        player_matches = match_repo.get_by_player(player_id)
+        completed_matches = [m for m in player_matches if m.status == "completed"]
+
+        if completed_matches:
+            request.session["flash_message"] = f"No se puede eliminar a {player_name}: tiene {len(completed_matches)} partidos jugados. Elimina primero los resultados."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-players", status_code=303)
+
+        # Delete pending matches where this player participates
+        for match in player_matches:
+            match_repo.delete(match.id)
+
+        # Delete the player
+        player_repo.delete(player_id)
+
+        # Recalculate seeds for the category
+        player_repo.assign_seeds(player_category)
+
+        request.session["flash_message"] = f"Jugador {player_name} eliminado (seeds recalculados)"
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al eliminar jugador: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+@app.post("/admin/category/{category}/delete")
+async def admin_delete_category(request: Request, category: str):
+    """Delete an entire category with all its data."""
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+        standing_repo = StandingRepository(session)
+        bracket_repo = BracketRepository(session)
         tournament_repo = TournamentRepository(session)
 
         # Get current tournament
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
 
-        player_repo.create(player, tournament_id=tournament_id)
+        # Get all groups for this category
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
 
-        # If seed wasn't provided, auto-assign
-        if not seed:
-            player_repo.assign_seeds(player.categoria)
+        # Count what we're deleting
+        deleted_matches = 0
+        deleted_standings = 0
+        deleted_groups = 0
+        deleted_players = 0
 
-        request.session["flash_message"] = f"Jugador {player.full_name} agregado exitosamente"
+        # Delete matches and standings for each group
+        for group in groups:
+            # Delete matches
+            matches = match_repo.get_by_group(group.id)
+            for match in matches:
+                match_repo.delete(match.id)
+                deleted_matches += 1
+
+            # Delete standings
+            standings = standing_repo.get_by_group(group.id)
+            for standing in standings:
+                standing_repo.delete(standing.id)
+                deleted_standings += 1
+
+            # Delete group
+            group_repo.delete(group.id)
+            deleted_groups += 1
+
+        # Delete bracket
+        bracket_repo.delete_by_category(category, tournament_id=tournament_id)
+
+        # Delete bracket matches (matches with no group_id)
+        all_matches = match_repo.get_all()
+        for match in all_matches:
+            if match.group_id is None:
+                player = player_repo.get_by_id(match.player1_id)
+                if player and player.categoria == category:
+                    match_repo.delete(match.id)
+                    deleted_matches += 1
+
+        # Delete players
+        players = player_repo.get_by_category(category, tournament_id=tournament_id)
+        for player in players:
+            player_repo.delete(player.id)
+            deleted_players += 1
+
+        request.session["flash_message"] = f"Categoría {category} eliminada: {deleted_players} jugadores, {deleted_groups} grupos, {deleted_matches} partidos"
         request.session["flash_type"] = "success"
 
     except Exception as e:
-        request.session["flash_message"] = f"Error al agregar jugador: {str(e)}"
+        request.session["flash_message"] = f"Error al eliminar categoría: {str(e)}"
         request.session["flash_type"] = "error"
 
     return RedirectResponse(url="/admin/import-players", status_code=303)
@@ -2280,6 +2486,57 @@ async def regenerate_bracket_matches(request: Request, category: str):
         return RedirectResponse(url="/", status_code=303)
 
 
+@app.post("/admin/bracket/{category}/reset")
+async def admin_reset_bracket(request: Request, category: str):
+    """Reset bracket for a category: delete bracket slots and bracket matches, keep group phase."""
+    session = get_db_session()
+    try:
+        # Get current tournament
+        tournament_repo = TournamentRepository(session)
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        bracket_repo = BracketRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Verify bracket exists
+        bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+        if not bracket_slots:
+            request.session["flash_message"] = f"No hay bracket para resetear en la categoría {category}"
+            request.session["flash_type"] = "warning"
+            return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+        # Count what will be deleted
+        deleted_matches = 0
+        deleted_slots = 0
+
+        # Delete bracket matches (non-RR matches for this category)
+        all_matches = match_repo.get_all()
+        for match_orm in all_matches:
+            if match_orm.group_id is None:  # Bracket match (no group = knockout phase)
+                # Check if belongs to this category by checking player
+                if match_orm.player1_id:
+                    player = player_repo.get_by_id(match_orm.player1_id)
+                    if player and player.categoria == category:
+                        session.delete(match_orm)
+                        deleted_matches += 1
+        session.commit()
+
+        # Delete bracket slots
+        deleted_slots = bracket_repo.delete_by_category(category, tournament_id=tournament_id)
+
+        request.session["flash_message"] = f"Bracket reseteado: {deleted_slots} posiciones y {deleted_matches} partidos eliminados. Los grupos y partidos de grupo se mantienen."
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/admin/generate-bracket?category={category}", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al resetear bracket: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+
 def get_bye_positions(num_groups: int) -> list[int]:
     """
     Get the exact BYE positions based on the number of groups.
@@ -2320,6 +2577,78 @@ def get_bye_positions(num_groups: int) -> list[int]:
     }
 
     return bye_map.get(num_groups, [])
+
+
+def validate_bracket_round_order(match_orm, category, session) -> tuple[bool, str]:
+    """
+    Validate that all matches in previous rounds are completed before allowing
+    a result in the current round.
+
+    Args:
+        match_orm: The match to validate
+        category: Category name
+        session: Database session
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    from ettem.models import RoundType
+
+    # Define round order (from first to last)
+    round_order = [
+        RoundType.ROUND_OF_32.value,
+        RoundType.ROUND_OF_16.value,
+        RoundType.QUARTERFINAL.value,
+        RoundType.SEMIFINAL.value,
+        RoundType.FINAL.value,
+    ]
+
+    round_names = {
+        RoundType.ROUND_OF_32.value: "Ronda de 32",
+        RoundType.ROUND_OF_16.value: "Ronda de 16",
+        RoundType.QUARTERFINAL.value: "Cuartos de Final",
+        RoundType.SEMIFINAL.value: "Semifinales",
+        RoundType.FINAL.value: "Final",
+    }
+
+    current_round = match_orm.round_type
+
+    # Find position of current round
+    try:
+        current_index = round_order.index(current_round)
+    except ValueError:
+        # RR or unknown round, allow
+        return (True, "")
+
+    # Get all bracket matches for this category
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+
+    all_matches = match_repo.get_all()
+    bracket_matches = []
+    for m in all_matches:
+        if m.group_id is None:  # Bracket match
+            if m.player1_id:
+                player = player_repo.get_by_id(m.player1_id)
+                if player and player.categoria == category:
+                    bracket_matches.append(m)
+
+    # Check all previous rounds
+    for i in range(current_index):
+        prev_round = round_order[i]
+        prev_round_matches = [m for m in bracket_matches if m.round_type == prev_round]
+
+        # Only check if matches exist for that round
+        if prev_round_matches:
+            # Check if any match is pending
+            pending_matches = [m for m in prev_round_matches if m.status == "pending"]
+            if pending_matches:
+                # Check if any pending match has both players assigned (not BYE scenarios)
+                real_pending = [m for m in pending_matches if m.player1_id and m.player2_id]
+                if real_pending:
+                    return (False, f"Debe completar todos los partidos de {round_names.get(prev_round, prev_round)} antes de ingresar resultados de {round_names.get(current_round, current_round)}.")
+
+    return (True, "")
 
 
 def advance_bracket_winner(match_orm, winner_id, category, session):

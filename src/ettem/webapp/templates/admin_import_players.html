@@ -134,15 +134,10 @@
                 </div>
             </div>
 
-            <div class="grid grid-2 mb-3">
-                <div class="form-section">
-                    <label class="form-label">Puntos de Ranking *</label>
-                    <input type="number" name="ranking_pts" required class="form-control" placeholder="1200" step="0.01" min="0">
-                </div>
-                <div class="form-section">
-                    <label class="form-label">Seed (opcional)</label>
-                    <input type="number" name="seed" class="form-control" placeholder="Se calcula automáticamente" min="1">
-                </div>
+            <div class="form-section mb-3">
+                <label class="form-label">Puntos de Ranking *</label>
+                <input type="number" name="ranking_pts" required class="form-control" placeholder="1200" step="0.01" min="0" style="max-width: 300px;">
+                <p class="form-help">El seed se asigna automáticamente según el ranking</p>
             </div>
 
             <div class="d-flex gap-2">
@@ -158,6 +153,36 @@
         </form>
     </div>
 </div>
+
+<!-- Categories Summary -->
+{% if players %}
+{% set categories_list = players | map(attribute='categoria') | unique | sort | list %}
+{% if categories_list %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Categorías ({{ categories_list|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-3" style="gap: 1rem;">
+            {% for cat in categories_list %}
+            {% set cat_players = players | selectattr('categoria', 'equalto', cat) | list %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ cat_players|length }} jugadores</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ cat_players|length }})" title="Eliminar categoría">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
 
 <!-- Players List Section (if any) -->
 {% if players %}
@@ -177,6 +202,8 @@
                         <th>Ranking</th>
                         <th>Categoría</th>
                         <th>Seed</th>
+                        <th>Grupo</th>
+                        <th style="width: 120px; text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -184,11 +211,20 @@
                     <tr>
                         <td><span class="badge badge-secondary">{{ player.original_id or player.id }}</span></td>
                         <td><strong>{{ player.nombre }} {{ player.apellido }}</strong></td>
-                        <td>{{ player.genero.value if player.genero else '-' }}</td>
+                        <td>{{ player.genero if player.genero is string else (player.genero.value if player.genero else '-') }}</td>
                         <td><span class="badge badge-secondary">{{ player.pais_cd }}</span></td>
                         <td>{{ player.ranking_pts }}</td>
                         <td><span class="badge badge-primary">{{ player.categoria }}</span></td>
                         <td>{{ player.seed or '-' }}</td>
+                        <td>{% if player.group_id %}<span class="badge badge-success">G{{ player.group_number or '?' }}</span>{% else %}-{% endif %}</td>
+                        <td style="text-align: center;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="editPlayer({{ player.id }}, '{{ player.nombre }}', '{{ player.apellido }}', '{{ player.genero if player.genero is string else (player.genero.value if player.genero else '') }}', '{{ player.pais_cd }}', {{ player.ranking_pts }}, '{{ player.categoria }}', {{ player.seed or 'null' }}, {{ player.original_id or 'null' }})" title="Editar">
+                                ✏️
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePlayer({{ player.id }}, '{{ player.nombre }} {{ player.apellido }}', {{ 'true' if player.group_id else 'false' }})" title="Eliminar">
+                                🗑️
+                            </button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -198,16 +234,163 @@
 </div>
 {% endif %}
 
+<!-- Edit Player Modal -->
+<div id="edit-modal" class="modal" style="display: none;">
+    <div class="modal-backdrop" onclick="hideEditModal()"></div>
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>Editar Jugador</h3>
+            <button type="button" class="btn-close" onclick="hideEditModal()">&times;</button>
+        </div>
+        <form method="post" action="/admin/player/edit" id="edit-player-form">
+            <input type="hidden" name="player_id" id="edit-player-id">
+            <div class="modal-body">
+                <div class="grid grid-2 mb-3">
+                    <div class="form-section">
+                        <label class="form-label">ID Original</label>
+                        <input type="number" name="original_id" id="edit-original-id" class="form-control">
+                    </div>
+                    <div class="form-section">
+                        <label class="form-label">Categoría *</label>
+                        <input type="text" name="categoria" id="edit-categoria" required class="form-control" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <div class="grid grid-2 mb-3">
+                    <div class="form-section">
+                        <label class="form-label">Nombre *</label>
+                        <input type="text" name="nombre" id="edit-nombre" required class="form-control">
+                    </div>
+                    <div class="form-section">
+                        <label class="form-label">Apellido *</label>
+                        <input type="text" name="apellido" id="edit-apellido" required class="form-control">
+                    </div>
+                </div>
+                <div class="grid grid-2 mb-3">
+                    <div class="form-section">
+                        <label class="form-label">Género *</label>
+                        <select name="genero" id="edit-genero" required class="form-control">
+                            <option value="M">Masculino</option>
+                            <option value="F">Femenino</option>
+                        </select>
+                    </div>
+                    <div class="form-section">
+                        <label class="form-label">País (ISO-3) *</label>
+                        <input type="text" name="pais_cd" id="edit-pais" required class="form-control" maxlength="3" style="text-transform: uppercase;">
+                    </div>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Puntos de Ranking *</label>
+                    <input type="number" name="ranking_pts" id="edit-ranking" required class="form-control" step="0.01" min="0">
+                    <p class="form-help" style="color: #666; font-size: 0.85rem; margin-top: 0.25rem;">El seed se recalcula automáticamente según el ranking</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideEditModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+}
+.modal-content {
+    position: relative;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 2px solid #e0e0e0;
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+.modal-header h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.btn-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #ffffff;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+.btn-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+.modal-body {
+    padding: 1.5rem;
+    background: #ffffff;
+}
+.modal-body .form-label {
+    color: #333333;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+.modal-body .form-control {
+    background: #ffffff;
+    border: 2px solid #d0d0d0;
+    color: #333333;
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+}
+.modal-body .form-control:focus {
+    border-color: #2196F3;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 2px solid #e0e0e0;
+    background: #f8f9fa;
+}
+</style>
+
 <script>
 function showImportMethod(method) {
-    // Hide all sections
     hideImportSections();
-
-    // Reset button styles
     document.getElementById('btn-csv').className = 'btn btn-secondary';
     document.getElementById('btn-manual').className = 'btn btn-secondary';
 
-    // Show selected section
     if (method === 'csv') {
         document.getElementById('import-csv-section').style.display = 'block';
         document.getElementById('btn-csv').className = 'btn btn-primary';
@@ -222,6 +405,54 @@ function hideImportSections() {
     document.getElementById('import-manual-section').style.display = 'none';
     document.getElementById('btn-csv').className = 'btn btn-secondary';
     document.getElementById('btn-manual').className = 'btn btn-secondary';
+}
+
+function editPlayer(id, nombre, apellido, genero, pais, ranking, categoria, seed, originalId) {
+    document.getElementById('edit-player-id').value = id;
+    document.getElementById('edit-nombre').value = nombre;
+    document.getElementById('edit-apellido').value = apellido;
+    document.getElementById('edit-genero').value = genero;
+    document.getElementById('edit-pais').value = pais;
+    document.getElementById('edit-ranking').value = ranking;
+    document.getElementById('edit-categoria').value = categoria;
+    document.getElementById('edit-original-id').value = originalId || '';
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function hideEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+}
+
+function confirmDeletePlayer(id, name, hasGroup) {
+    let message = '¿Eliminar al jugador "' + name + '"?';
+    if (hasGroup) {
+        message += '\n\n⚠️ ADVERTENCIA: Este jugador ya está asignado a un grupo. Eliminarlo puede afectar los partidos y resultados.';
+    }
+    if (confirm(message)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/player/' + id + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function confirmDeleteCategory(category, playerCount) {
+    let message = '¿Eliminar la categoría "' + category + '" completamente?\n\n';
+    message += '⚠️ ESTO ELIMINARÁ:\n';
+    message += '• ' + playerCount + ' jugadores\n';
+    message += '• Todos los grupos\n';
+    message += '• Todos los partidos y resultados\n';
+    message += '• El bracket completo\n\n';
+    message += 'Esta acción NO se puede deshacer.';
+
+    if (confirm(message)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/category/' + category + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 {% endblock %}
