@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Partidos</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #000;
+        }
+
+        .match-list {
+            border: 2px solid #000;
+            padding: 15px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .header h1 {
+            font-size: 16pt;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 12pt;
+            color: #333;
+        }
+
+        .header .category {
+            font-size: 10pt;
+            color: #666;
+        }
+
+        /* Table */
+        .matches-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .matches-table th,
+        .matches-table td {
+            border: 1px solid #000;
+            padding: 8px 10px;
+        }
+
+        .matches-table th {
+            background: #333;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .matches-table td {
+            vertical-align: middle;
+        }
+
+        .matches-table td.num {
+            text-align: center;
+            width: 40px;
+            font-weight: bold;
+            background: #f0f0f0;
+        }
+
+        .matches-table td.table-col {
+            text-align: center;
+            width: 50px;
+        }
+
+        .matches-table td.time-col {
+            text-align: center;
+            width: 60px;
+        }
+
+        .matches-table td.player {
+            width: 25%;
+        }
+
+        .matches-table td.vs {
+            text-align: center;
+            width: 40px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .matches-table td.result {
+            text-align: center;
+            width: 80px;
+        }
+
+        .matches-table td.status {
+            text-align: center;
+            width: 60px;
+            font-size: 9pt;
+        }
+
+        .matches-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .matches-table tr.completed {
+            background: #e8f5e9;
+        }
+
+        .matches-table tr.pending {
+            background: #fff;
+        }
+
+        /* Group separator */
+        .group-row td {
+            background: #e0e0e0 !important;
+            font-weight: bold;
+            text-align: center;
+            font-size: 11pt;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 8pt;
+            color: #999;
+        }
+
+        /* Summary */
+        .summary {
+            margin-top: 15px;
+            display: table;
+            width: 100%;
+            border: 1px solid #000;
+        }
+
+        .summary-cell {
+            display: table-cell;
+            padding: 8px;
+            text-align: center;
+            border-right: 1px solid #000;
+        }
+
+        .summary-cell:last-child {
+            border-right: none;
+        }
+
+        .summary-label {
+            font-size: 9pt;
+            color: #666;
+        }
+
+        .summary-value {
+            font-size: 14pt;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="match-list">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ tournament_name }}</h1>
+            <div class="subtitle">{{ title }}</div>
+            {% if category %}<div class="category">Categoría: {{ category }}</div>{% endif %}
+            {% if group_name %}<div class="category">{{ group_name }}</div>{% endif %}
+        </div>
+
+        <!-- Matches Table -->
+        <table class="matches-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Mesa</th>
+                    <th>Hora</th>
+                    <th>Jugador A</th>
+                    <th>vs</th>
+                    <th>Jugador B</th>
+                    <th>Resultado</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in matches %}
+                <tr class="{{ 'completed' if m.status == 'completed' else 'pending' }}">
+                    <td class="num">{{ m.match_order if m.match_order else loop.index }}</td>
+                    <td class="table-col">{{ m.table_number if m.table_number else '___' }}</td>
+                    <td class="time-col">{{ m.scheduled_time if m.scheduled_time else '___:___' }}</td>
+                    <td class="player">
+                        {{ m.player1.nombre }} {{ m.player1.apellido }}
+                        <br><small style="color: #666;">({{ m.player1.pais_cd }})</small>
+                    </td>
+                    <td class="vs">vs</td>
+                    <td class="player">
+                        {{ m.player2.nombre }} {{ m.player2.apellido }}
+                        <br><small style="color: #666;">({{ m.player2.pais_cd }})</small>
+                    </td>
+                    <td class="result">
+                        {% if m.result %}
+                            {{ m.result }}
+                        {% else %}
+                            ___ - ___
+                        {% endif %}
+                    </td>
+                    <td class="status">
+                        {% if m.status == 'completed' %}
+                            ✓
+                        {% elif m.status == 'WALKOVER' %}
+                            WO
+                        {% else %}
+                            ☐
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div class="summary">
+            <div class="summary-cell">
+                <div class="summary-label">Total Partidos</div>
+                <div class="summary-value">{{ matches|length }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="summary-label">Jugados</div>
+                <div class="summary-value">{{ matches|selectattr('status', 'equalto', 'completed')|list|length }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="summary-label">Pendientes</div>
+                <div class="summary-value">{{ matches|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+            </div>
+            <div class="summary-cell">
+                <div class="summary-label">Walkovers</div>
+                <div class="summary-value">{{ matches|selectattr('status', 'equalto', 'WALKOVER')|list|length }}</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            ETTEM - Easy Table Tennis Event Manager
+        </div>
+    </div>
+</body>
+</html>

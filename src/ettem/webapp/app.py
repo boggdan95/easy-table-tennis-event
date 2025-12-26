@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, Request, Form, File, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -24,6 +24,7 @@ from ettem.storage import (
 )
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
 from ettem.i18n import load_strings, get_language_from_env
+from ettem import pdf_generator
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -3351,6 +3352,368 @@ async def admin_manual_bracket_save(request: Request, category: str):
         request.session["flash_message"] = f"Error al guardar bracket: {str(e)}"
         request.session["flash_type"] = "error"
         return RedirectResponse(url=f"/admin/manual-bracket/{category}", status_code=303)
+
+
+# ==============================================================================
+# PDF GENERATION ROUTES
+# ==============================================================================
+
+
+def get_tournament_name() -> str:
+    """Get current tournament name for PDF headers."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+        if tournament:
+            return tournament.name
+        return "Torneo de Tenis de Mesa"
+
+
+@app.get("/print/match/{match_id}")
+async def print_match_sheet(match_id: int):
+    """Generate PDF for a single match sheet."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+
+        match_orm = match_repo.get_by_id(match_id)
+        if not match_orm:
+            return Response(content="Partido no encontrado", status_code=404)
+
+        player1 = player_repo.get_by_id(match_orm.player1_id)
+        player2 = player_repo.get_by_id(match_orm.player2_id)
+
+        if not player1 or not player2:
+            return Response(content="Jugadores no encontrados", status_code=404)
+
+        # Get group name if this is a group match
+        group_name = None
+        if match_orm.group_id:
+            group = group_repo.get_by_id(match_orm.group_id)
+            if group:
+                group_name = group.name
+
+        # Build match dict
+        match_dict = {
+            "id": match_orm.id,
+            "match_order": match_orm.match_number,
+            "round_type": match_orm.round_type,
+        }
+
+        # Build player dicts
+        p1_dict = {
+            "nombre": player1.nombre,
+            "apellido": player1.apellido,
+            "pais_cd": player1.pais_cd,
+        }
+        p2_dict = {
+            "nombre": player2.nombre,
+            "apellido": player2.apellido,
+            "pais_cd": player2.pais_cd,
+        }
+
+        try:
+            pdf_bytes = pdf_generator.generate_match_sheet_pdf(
+                match=match_dict,
+                player1=p1_dict,
+                player2=p2_dict,
+                group_name=group_name,
+                tournament_name=get_tournament_name(),
+                category=player1.categoria,
+            )
+
+            filename = f"partido_{match_id}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.get("/print/group/{group_id}/sheet")
+async def print_group_sheet(group_id: int):
+    """Generate PDF for a group sheet (matrix + matches)."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get players in group (filter by group_id)
+        all_players = player_repo.get_all()
+        players_orm = [p for p in all_players if p.group_id == group_id]
+        players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Build player dicts with standings (empty for print)
+        players = []
+        for p in players_orm:
+            players.append({
+                "player": {
+                    "id": p.id,
+                    "nombre": p.nombre,
+                    "apellido": p.apellido,
+                    "pais_cd": p.pais_cd,
+                    "group_number": p.group_number,
+                }
+            })
+
+        # Build matches with player info
+        matches = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+            matches.append({
+                "match_order": m.match_number,
+                "player1": {"apellido": p1.apellido if p1 else "?"},
+                "player2": {"apellido": p2.apellido if p2 else "?"},
+            })
+
+        # Build empty results matrix
+        results_matrix = {}
+
+        try:
+            pdf_bytes = pdf_generator.generate_group_sheet_pdf(
+                group={"name": group.name},
+                players=players,
+                matches=matches,
+                results_matrix=results_matrix,
+                tournament_name=get_tournament_name(),
+                category=group.category,
+            )
+
+            filename = f"grupo_{group.name.replace(' ', '_')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.get("/print/group/{group_id}/matches")
+async def print_group_matches(group_id: int):
+    """Generate PDF for group match list."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Build matches with player info
+        matches = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+            matches.append({
+                "match_order": m.match_number,
+                "status": m.status,
+                "player1": {
+                    "nombre": p1.nombre if p1 else "?",
+                    "apellido": p1.apellido if p1 else "?",
+                    "pais_cd": p1.pais_cd if p1 else "?",
+                },
+                "player2": {
+                    "nombre": p2.nombre if p2 else "?",
+                    "apellido": p2.apellido if p2 else "?",
+                    "pais_cd": p2.pais_cd if p2 else "?",
+                },
+            })
+
+        try:
+            pdf_bytes = pdf_generator.generate_match_list_pdf(
+                matches=matches,
+                title=f"Partidos - {group.name}",
+                tournament_name=get_tournament_name(),
+                category=group.category,
+                group_name=group.name,
+            )
+
+            filename = f"partidos_{group.name.replace(' ', '_')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.get("/print/group/{group_id}/all-match-sheets")
+async def print_all_group_match_sheets(group_id: int):
+    """Generate PDF with all match sheets for a group (one per page)."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Build matches data
+        matches_data = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+
+            matches_data.append({
+                "match": {
+                    "id": m.id,
+                    "match_order": m.match_number,
+                    "round_type": m.round_type,
+                },
+                "player1": {
+                    "nombre": p1.nombre if p1 else "?",
+                    "apellido": p1.apellido if p1 else "?",
+                    "pais_cd": p1.pais_cd if p1 else "?",
+                },
+                "player2": {
+                    "nombre": p2.nombre if p2 else "?",
+                    "apellido": p2.apellido if p2 else "?",
+                    "pais_cd": p2.pais_cd if p2 else "?",
+                },
+                "group_name": group.name,
+            })
+
+        try:
+            pdf_bytes = pdf_generator.generate_all_match_sheets_pdf(
+                matches_data=matches_data,
+                tournament_name=get_tournament_name(),
+                category=group.category,
+            )
+
+            filename = f"hojas_partido_{group.name.replace(' ', '_')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.get("/print/category/{category}/all-match-sheets")
+async def print_all_category_match_sheets(category: str):
+    """Generate PDF with all match sheets for a category (groups only)."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        tournament = tournament_repo.get_current()
+        tournament_id = tournament.id if tournament else None
+
+        # Get all groups in category
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
+        if not groups:
+            return Response(content="No hay grupos en esta categoría", status_code=404)
+
+        # Build all matches data
+        matches_data = []
+        for group in sorted(groups, key=lambda g: g.name):
+            matches_orm = match_repo.get_by_group(group.id)
+            matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+            for m in matches_orm:
+                p1 = player_repo.get_by_id(m.player1_id)
+                p2 = player_repo.get_by_id(m.player2_id)
+
+                matches_data.append({
+                    "match": {
+                        "id": m.id,
+                        "match_order": m.match_number,
+                        "round_type": m.round_type,
+                    },
+                    "player1": {
+                        "nombre": p1.nombre if p1 else "?",
+                        "apellido": p1.apellido if p1 else "?",
+                        "pais_cd": p1.pais_cd if p1 else "?",
+                    },
+                    "player2": {
+                        "nombre": p2.nombre if p2 else "?",
+                        "apellido": p2.apellido if p2 else "?",
+                        "pais_cd": p2.pais_cd if p2 else "?",
+                    },
+                    "group_name": group.name,
+                })
+
+        if not matches_data:
+            return Response(content="No hay partidos en esta categoría", status_code=404)
+
+        try:
+            pdf_bytes = pdf_generator.generate_all_match_sheets_pdf(
+                matches_data=matches_data,
+                tournament_name=get_tournament_name(),
+                category=category,
+            )
+
+            filename = f"hojas_partido_{category}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.get("/admin/print-center", response_class=HTMLResponse)
+async def admin_print_center(request: Request):
+    """Print center page with all print options."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        tournament = tournament_repo.get_current()
+        tournament_id = tournament.id if tournament else None
+
+        # Get all groups organized by category
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
+
+        # Organize by category
+        categories_groups = {}
+        for group in all_groups:
+            if group.category not in categories_groups:
+                categories_groups[group.category] = []
+            categories_groups[group.category].append({
+                "id": group.id,
+                "name": group.name,
+            })
+
+        # Sort groups within each category
+        for cat in categories_groups:
+            categories_groups[cat] = sorted(categories_groups[cat], key=lambda g: g["name"])
+
+        context = {
+            "request": request,
+            "categories_groups": categories_groups,
+            "tournament_name": tournament.name if tournament else "Sin torneo",
+        }
+
+        return render_template("admin_print_center.html", context)
 
 
 if __name__ == "__main__":
