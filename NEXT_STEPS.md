@@ -44,31 +44,26 @@
 
 ---
 
-### 3. Validación de orden de matches (OPCIONAL)
+### 3. ✅ Validación de orden de matches (COMPLETADO - 2025-12-28)
 **Problema:** Técnicamente se puede ingresar resultado de semifinal antes de que terminen los cuartos.
 
-**Solución propuesta:**
-- Al intentar ingresar resultado, validar que los jugadores NO tengan `is_bye=True` o `player_id=None`
-- Si algún jugador es BYE o TBD, mostrar error: "No se puede ingresar resultado hasta que ambos jugadores estén definidos"
-
-**Archivos a modificar:**
-- `src/ettem/webapp/app.py` - Ruta `POST /match/{match_id}/save-result`
-- Agregar validación antes de guardar
+**Solución implementada:**
+- Validación en `enter_result_form` (GET) y `save_result` (POST)
+- Si un jugador es TBD, redirige con mensaje de error
+- Ubicación: `app.py:428-445` y `app.py:486-493`
 
 ---
 
 ## 🟡 Prioridad MEDIA (Importante pero no bloqueante)
 
-### 4. Exportación de bracket a CSV
+### 4. ✅ Exportación de bracket/standings a CSV (COMPLETADO - 2025-12-28)
 **Problema:** Ya existe exportación de grupos/standings pero no de bracket.
 
-**Solución propuesta:**
-- Agregar comando CLI: `ettem export --what bracket --format csv --out out/`
-- CSV con columnas: `round, match_number, player1, player2, winner, sets, status`
-
-**Archivos a modificar:**
-- `src/ettem/cli.py` - Agregar opción de exportación de bracket
-- `src/ettem/io_csv.py` - Función `export_bracket_to_csv()`
+**Solución implementada:**
+- Ruta `/export/bracket/{category}` - Descarga CSV del bracket
+- Ruta `/export/standings/{category}` - Descarga CSV de standings
+- Ambas con BOM para compatibilidad con Excel (acentos)
+- Botones agregados en Centro de Impresión
 
 ---
 
@@ -86,20 +81,15 @@
 
 ---
 
-### 6. Vista consolidada del torneo
+### 6. ✅ Vista consolidada del torneo (COMPLETADO - 2025-12-28)
 **Problema:** No hay una vista que muestre el estado general del torneo.
 
-**Solución propuesta:**
-- Página `/tournament-status` que muestre:
-  - Grupos completados ✓ / pendientes ⏳
-  - Bracket: rondas completadas vs pendientes
-  - Campeón (si final está completa)
-  - Estadísticas: total partidos, completados, pendientes
-
-**Archivos a modificar:**
-- `src/ettem/webapp/app.py` - Nueva ruta `/tournament-status`
-- `src/ettem/webapp/templates/tournament_status.html` - Nueva template
-- `src/ettem/webapp/templates/base.html` - Link en navbar
+**Solución implementada:**
+- Ruta `/tournament-status` con estado de cada categoría
+- Muestra: grupos, standings, bracket por rondas, campeón
+- Botones contextuales: "Calcular Standings" y "Generar Bracket"
+- Link en sidebar: "Estado General"
+- Sidebar reorganizado con sección "Gestión del Torneo"
 
 ---
 
@@ -153,3 +143,55 @@ ALTER TABLE bracket_slots ADD COLUMN advanced_by_bye BOOLEAN DEFAULT 0;
 5. **Vista consolidada** (1-2 horas) - Gran UX improvement
 
 Total estimado: 4-6 horas de desarrollo
+
+---
+
+## 📅 Notas para V2.0 (Scheduler)
+
+### Filtros en Lista de Partidos
+Cuando se implemente el sistema de horarios, agregar filtros a la lista de partidos:
+- Filtro por día/fecha
+- Filtro por mesa
+- Filtro por hora/rango horario
+
+Esto permitirá imprimir solo los partidos de un día específico o de ciertas mesas.
+
+---
+
+## 🐛 Bugs Conocidos
+
+### ✅ CLI import-players no asocia tournament_id (CORREGIDO - 2025-12-28)
+**Problema:** Al importar jugadores con `ettem import-players`, no se asociaba el `tournament_id` del torneo actual.
+
+**Solución implementada:**
+- CLI ahora obtiene el torneo actual automáticamente
+- Asigna `tournament_id` a jugadores y grupos
+- Muestra mensaje: `[TOURNAMENT] Using current tournament: X`
+- Advertencia si no hay torneo configurado
+
+---
+
+## 📅 Notas para V2.0
+
+### Sistema de Registro de Jugadores
+**Visión:** Base de datos maestra de jugadores con ID único global.
+
+**Características propuestas:**
+- Registro universal de jugadores (nombre, apellido, fecha nacimiento, género, nacionalidad)
+- ID único por jugador (no duplicados entre categorías/torneos)
+- Inscripciones como entidad separada (jugador → torneo → categoría)
+- Historial de participaciones por jugador
+- Campo "País/Región" configurable por torneo (puede ser país, departamento, club, etc.)
+
+**Modelo de datos propuesto:**
+```
+Jugadores (registro maestro)
+    └── Inscripciones (jugador + torneo + categoría)
+            └── Grupos, Partidos, Resultados
+```
+
+### Scheduler / Programación de Horarios
+- Asignación de mesas y horarios
+- Filtros en lista de partidos por día/mesa/hora
+- Vista de programación por mesa
+- Control de tiempos entre partidos del mismo jugador
