@@ -95,7 +95,7 @@
                     <div style="font-size: 1.5rem; font-weight: bold; color: #000; margin-bottom: 0.5rem;">
                         {{ champion.nombre }} {{ champion.apellido }}
                     </div>
-                    <span class="badge badge-primary" style="background: #000;">{{ champion.pais_cd }}</span>
+                    <span class="badge badge-primary" style="background: #000; color: #fff;">{{ champion.pais_cd }}</span>
                 </div>
                 <div style="background: #FFD700; padding: 1.5rem; text-align: center; font-weight: bold; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
                     1° LUGAR
@@ -114,7 +114,7 @@
                         {% for player in third_fourth %}
                         <div style="margin-bottom: 0.25rem;">
                             {{ player.nombre }} {{ player.apellido }}
-                            <span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ player.pais_cd }}</span>
+                            <span class="badge" style="background: rgba(0,0,0,0.3); color: #fff; margin-left: 0.25rem;">{{ player.pais_cd }}</span>
                         </div>
                         {% endfor %}
                     </div>
