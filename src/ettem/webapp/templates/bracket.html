@@ -5,13 +5,13 @@
 {% block page_title %}{{ category }} - Llave Eliminatoria{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+<a href="/bracket/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
+    <span>Partidos</span>
 </a>
-<a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
-    <span>📋</span>
-    <span>Partidos de Llave</span>
+<a href="/category/{{ category }}" class="btn btn-outline btn-sm">
+    <span>👥</span>
+    <span>Grupos</span>
 </a>
 <div class="btn-group" style="margin-left: 0.5rem;">
     <button onclick="zoomOut()" class="btn btn-secondary btn-sm" title="Zoom Out">
@@ -543,4 +543,9 @@ function confirmResetBracket(category) {
         </ul>
     </div>
 </div>
+
+<script>
+// Clear any saved bracket draft for this category (we're viewing the saved bracket)
+localStorage.removeItem('ettem_bracket_draft_{{ category }}');
+</script>
 {% endblock %}

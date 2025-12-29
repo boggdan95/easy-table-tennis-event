@@ -95,18 +95,37 @@
 
 ## 🟢 Prioridad BAJA (Nice-to-have)
 
-### 7. Estadísticas del torneo
+### 7. Posiciones recomendadas en Bracket Manual
+**Problema:** Al armar el bracket manual, actualmente se iluminan TODOS los slots vacíos cuando seleccionas un jugador. Sería mejor mostrar solo las posiciones válidas/recomendadas según reglamento ITTF.
+
+**Mejora propuesta:**
+- Iluminar en verde las posiciones recomendadas para cada jugador
+- Iluminar en amarillo otras posiciones (permitidas pero no ideales)
+- Reglas estándar ITTF:
+  - 1º de G1 → Posición 1 (tope del cuadro)
+  - 1º de G2 → Posición 16 (fondo del cuadro)
+  - Otros 1º → Posiciones fijas distribuidas
+  - 2º → Mitad opuesta a su 1º de grupo
+- **Requiere:** Documentar reglas específicas de posicionamiento según cantidad de grupos
+
+**Archivos a modificar:**
+- `src/ettem/webapp/templates/admin_manual_bracket.html` - Lógica JS de posiciones
+- Posiblemente nuevo archivo de configuración de reglas de seeding
+
+---
+
+### 8. Estadísticas del torneo
 - Total de partidos jugados
 - Promedio de puntos por set
 - Jugador con más victorias
 - Walkover count
 
-### 8. Vista para impresión
+### 9. Vista para impresión
 - CSS optimizado para imprimir bracket
 - Ocultar botones de navegación
 - Formato landscape
 
-### 9. Partido por 3er puesto
+### 10. Partido por 3er puesto
 - Match de consolación entre perdedores de semifinales
 - Requiere agregar nueva ronda "Third Place" al modelo
 
@@ -159,6 +178,52 @@ Esto permitirá imprimir solo los partidos de un día específico o de ciertas m
 ---
 
 ## 🐛 Bugs Conocidos
+
+### ✅ Partidos de rondas posteriores no se crean automáticamente al reparar bracket (CORREGIDO - 2025-12-29)
+**Problema:** La función `/admin/repair-bracket/{category}` no lograba crear los partidos de QF/SF/F cuando hay múltiples categorías con brackets.
+
+**Causa raíz:**
+- Los partidos de bracket no tenían columna `category` en la tabla `matches`
+- No se podía diferenciar un partido vacío de OPEN vs uno de SUB21
+- Partidos de diferentes categorías interferían entre sí
+
+**Solución implementada:**
+1. Agregada columna `category` a `MatchORM` en `storage.py`
+2. Nuevos métodos en `MatchRepository`:
+   - `get_bracket_matches_by_category(category)`
+   - `get_bracket_match_by_round_and_number(category, round_type, match_number)`
+   - `delete_bracket_matches_by_category(category)`
+3. Modificada creación de matches de bracket para incluir `category`
+4. Modificadas todas las consultas de bracket matches para filtrar por `category`
+5. Migración automática al iniciar la app:
+   - Agrega columna `category` si no existe
+   - Migra matches existentes infiriendo categoría desde jugadores
+
+**Archivos modificados:**
+- `src/ettem/storage.py`: Agregada columna y métodos nuevos
+- `src/ettem/webapp/app.py`: Migración + filtrado por categoría en consultas
+
+---
+
+### ✅ Llave visual no muestra jugadores de QF/SF/F (CORREGIDO - 2025-12-29)
+**Problema:** Al guardar resultados de R16, los ganadores avanzaban correctamente en los partidos pero no aparecían en la llave visual.
+
+**Causa raíz:**
+- La función `advance_bracket_winner()` no filtraba por `tournament_id` al:
+  - Buscar slots en la siguiente ronda
+  - Crear nuevos slots
+- Esto causaba que con múltiples categorías (OPEN, SUB21), los slots de una categoría interfirieran con los de otra
+
+**Solución implementada:**
+- Agregado parámetro `tournament_id` a `advance_bracket_winner()` y `rollback_bracket_advancement()`
+- Todas las llamadas a `get_by_category_and_round()` ahora incluyen `tournament_id`
+- Los nuevos `BracketSlotORM` ahora incluyen `tournament_id`
+- Los llamados desde `save_result` y `delete_result` obtienen el `tournament_id` del torneo actual
+
+**Archivos modificados:**
+- `src/ettem/webapp/app.py`: líneas 642-652, 728-764, 2919-3081, 3087-3135
+
+---
 
 ### ✅ CLI import-players no asocia tournament_id (CORREGIDO - 2025-12-28)
 **Problema:** Al importar jugadores con `ettem import-players`, no se asociaba el `tournament_id` del torneo actual.

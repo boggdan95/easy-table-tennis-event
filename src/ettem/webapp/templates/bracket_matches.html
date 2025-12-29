@@ -5,13 +5,13 @@
 {% block page_title %}Bracket - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+<a href="/category/{{ category }}/bracket" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
-</a>
-<a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
-    <span>🗂️</span>
     <span>Llave Visual</span>
+</a>
+<a href="/category/{{ category }}" class="btn btn-outline btn-sm">
+    <span>👥</span>
+    <span>Grupos</span>
 </a>
 <a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
     <span>🏆</span>
@@ -319,6 +319,9 @@ function confirmResetBracket(category) {
         form.submit();
     }
 }
+
+// Clear any saved bracket draft for this category (we're viewing the saved bracket)
+localStorage.removeItem('ettem_bracket_draft_{{ category }}');
 </script>
 
 {% endblock %}

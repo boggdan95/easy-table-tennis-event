@@ -142,6 +142,7 @@ class MatchORM(Base):
     player1_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
     player2_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Allow None for BYE or empty slot
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    category = Column(String(20), nullable=True)  # Category for bracket matches (SUB21, OPEN, etc.)
     round_type = Column(String(10), nullable=False, default="RR")  # RR, R16, QF, SF, F
     round_name = Column(String(50), nullable=True)
     match_number = Column(Integer, nullable=True)
@@ -620,11 +621,12 @@ class MatchRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, match: "Match") -> MatchORM:
+    def create(self, match: "Match", category: str = None) -> MatchORM:
         """Create a new match in the database.
 
         Args:
             match: Match domain model
+            category: Category name for bracket matches (optional)
 
         Returns:
             Created MatchORM instance
@@ -645,6 +647,7 @@ class MatchRepository:
             player1_id=match.player1_id,
             player2_id=match.player2_id,
             group_id=match.group_id,
+            category=category,
             round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
             round_name=match.round_name,
             match_number=match.match_number,
@@ -710,6 +713,61 @@ class MatchRepository:
     def get_all(self) -> list[MatchORM]:
         """Get all matches."""
         return self.session.query(MatchORM).all()
+
+    def get_bracket_matches_by_category(self, category: str) -> list[MatchORM]:
+        """Get all bracket matches for a category.
+
+        Args:
+            category: Category name
+
+        Returns:
+            List of MatchORM instances for bracket matches (group_id is None)
+        """
+        return (
+            self.session.query(MatchORM)
+            .filter(MatchORM.category == category, MatchORM.group_id == None)
+            .order_by(MatchORM.round_type, MatchORM.match_number)
+            .all()
+        )
+
+    def get_bracket_match_by_round_and_number(self, category: str, round_type: str, match_number: int) -> Optional[MatchORM]:
+        """Get a specific bracket match by category, round type, and match number.
+
+        Args:
+            category: Category name
+            round_type: Round type (R16, QF, SF, F)
+            match_number: Match number within the round
+
+        Returns:
+            MatchORM if found, None otherwise
+        """
+        return (
+            self.session.query(MatchORM)
+            .filter(
+                MatchORM.category == category,
+                MatchORM.group_id == None,
+                MatchORM.round_type == round_type,
+                MatchORM.match_number == match_number
+            )
+            .first()
+        )
+
+    def delete_bracket_matches_by_category(self, category: str) -> int:
+        """Delete all bracket matches for a category.
+
+        Args:
+            category: Category name
+
+        Returns:
+            Number of matches deleted
+        """
+        count = (
+            self.session.query(MatchORM)
+            .filter(MatchORM.category == category, MatchORM.group_id == None)
+            .delete()
+        )
+        self.session.commit()
+        return count
 
     def update(self, match_orm: MatchORM) -> MatchORM:
         """Update an existing match.
@@ -951,6 +1009,20 @@ class BracketRepository:
         if tournament_id is not None:
             query = query.filter(BracketSlotORM.tournament_id == tournament_id)
         return query.order_by(BracketSlotORM.round_type, BracketSlotORM.slot_number).all()
+
+    def get_all(self, tournament_id: int = None) -> list[BracketSlotORM]:
+        """Get all bracket slots, optionally filtered by tournament.
+
+        Args:
+            tournament_id: Optional tournament ID to filter by
+
+        Returns:
+            List of all BracketSlotORM instances
+        """
+        query = self.session.query(BracketSlotORM)
+        if tournament_id is not None:
+            query = query.filter(BracketSlotORM.tournament_id == tournament_id)
+        return query.all()
 
     def delete_by_category(self, category: str, tournament_id: int = None) -> int:
         """Delete all bracket slots for a category.
