@@ -26,18 +26,27 @@
         <h2 class="card-title">🏆 Categoría: {{ category }}</h2>
     </div>
     <div class="card-body">
-        <p style="margin-bottom: 1rem;">Grupos de fase round-robin. Selecciona un grupo para ver partidos, resultados y clasificación.</p>
+        <p style="margin-bottom: 1rem;">
+            <strong>Fase de Grupos (Round-Robin)</strong><br>
+            <span style="color: var(--text-muted);">Usa el botón <span style="color: var(--warning-color);">✏️ Ingresar Resultados</span> en cada grupo para cargar los scores de los partidos.</span>
+        </p>
 
         <!-- Quick Actions -->
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: var(--text-muted);">⚡ Acciones Rápidas:</h4>
             <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                <a href="/category/{{ category }}/standings" class="btn btn-secondary btn-sm">
+                    <span>📊</span>
+                    <span>Ver Clasificación General</span>
+                </a>
+                {% if not groups %}
                 <a href="/admin/create-groups" class="btn btn-primary btn-sm">
                     <span>👥</span>
-                    <span>Crear/Editar Grupos</span>
+                    <span>Crear Grupos</span>
                 </a>
+                {% endif %}
                 <a href="/admin/calculate-standings" class="btn btn-success btn-sm">
-                    <span>📊</span>
+                    <span>🧮</span>
                     <span>Calcular Standings</span>
                 </a>
                 <a href="/admin/generate-bracket" class="btn btn-warning btn-sm">
@@ -53,8 +62,13 @@
 <div class="grid grid-2">
     {% for group_data in groups %}
     <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Grupo {{ group_data.group.name }}</h3>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title" style="margin: 0;">Grupo {{ group_data.group.name }}</h3>
+            {% if group_data.completed_matches == group_data.total_matches and group_data.total_matches > 0 %}
+            <span class="badge badge-success">✓ Completo</span>
+            {% else %}
+            <span class="badge badge-secondary">{{ group_data.completed_matches }}/{{ group_data.total_matches }}</span>
+            {% endif %}
         </div>
         <div class="card-body">
             <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text-muted);">Jugadores:</h4>
@@ -70,9 +84,9 @@
         </div>
         <div class="card-footer">
             <div class="d-flex gap-2" style="flex-wrap: wrap;">
-                <a href="/group/{{ group_data.group.id }}/matches" class="btn btn-primary btn-sm">
-                    <span>📋</span>
-                    <span>Partidos</span>
+                <a href="/group/{{ group_data.group.id }}/matches" class="btn btn-warning btn-sm">
+                    <span>✏️</span>
+                    <span>Ingresar Resultados</span>
                 </a>
                 <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success btn-sm">
                     <span>📊</span>

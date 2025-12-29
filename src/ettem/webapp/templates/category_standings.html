@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Clasificación {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Clasificación General - {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver a Categoría</span>
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not groups_standings %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay grupos en esta categoría</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Primero debes crear grupos para esta categoría.
+        </p>
+        <a href="/admin/create-groups" class="btn btn-primary">
+            <span>👥</span>
+            <span>Crear Grupos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- Summary Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <span style="font-size: 2rem;">📊</span>
+            <div>
+                <h3 style="margin: 0;">{{ total_groups }} Grupo(s)</h3>
+                <p style="margin: 0; color: var(--text-muted);">
+                    {% set total_completed = groups_standings | sum(attribute='completed_matches') %}
+                    {% set total_matches = groups_standings | sum(attribute='total_matches') %}
+                    {{ total_completed }}/{{ total_matches }} partidos completados
+                </p>
+            </div>
+            <div style="flex: 1;"></div>
+            {% set all_complete = groups_standings | selectattr('is_complete') | list | length == groups_standings | length %}
+            {% if all_complete and total_matches > 0 %}
+            <span class="badge badge-success" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                ✓ Fase de Grupos Completa
+            </span>
+            {% elif total_completed > 0 %}
+            <span class="badge badge-warning" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                En Progreso
+            </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Groups Standings -->
+{% for group_data in groups_standings %}
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 class="card-title" style="margin: 0;">
+            👥 {{ group_data.group.name }}
+            {% if group_data.is_complete %}
+            <span class="badge badge-success" style="margin-left: 0.5rem;">✓</span>
+            {% endif %}
+        </h3>
+        <div class="d-flex gap-2">
+            <span class="badge badge-secondary">
+                {{ group_data.completed_matches }}/{{ group_data.total_matches }} partidos
+            </span>
+            <a href="/group/{{ group_data.group.id }}/matches" class="btn btn-secondary btn-sm" title="Ver partidos">
+                <span>📋</span>
+            </a>
+            <a href="/group/{{ group_data.group.id }}/sheet" class="btn btn-secondary btn-sm" title="Ver hoja de grupo">
+                <span>📄</span>
+            </a>
+        </div>
+    </div>
+
+    {% set has_matches_played = group_data.standings and group_data.standings[0].standing.points_total > 0 %}
+    {% if not has_matches_played %}
+    <div class="card-body" style="text-align: center; padding: 1.5rem; background: #fafafa;">
+        <span style="color: #999;">⏳ Sin partidos jugados aún</span>
+    </div>
+    {% else %}
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table" style="margin: 0;">
+                <thead>
+                    <tr>
+                        <th style="width: 70px; text-align: center;">Pos</th>
+                        <th>Jugador</th>
+                        <th style="width: 80px; text-align: center;">Pts</th>
+                        <th style="width: 80px; text-align: center;">V-D</th>
+                        <th style="width: 100px; text-align: center;">Sets</th>
+                        <th style="width: 100px; text-align: center;">Puntos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in group_data.standings %}
+                    <tr {% if s.standing.position <= 2 %}style="background-color: #e8f5e9;"{% endif %}>
+                        <td style="text-align: center;">
+                            {% if s.standing.position == 1 %}
+                                <span class="badge badge-success">🥇 1º</span>
+                            {% elif s.standing.position == 2 %}
+                                <span class="badge badge-success">🥈 2º</span>
+                            {% elif s.standing.position == 3 %}
+                                <span class="badge badge-warning">🥉 3º</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{{ s.standing.position }}º</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
+                                <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ s.player.pais_cd }}</span>
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            <strong style="color: #2196F3;">{{ s.standing.points_total }}</strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge {% if s.standing.wins > s.standing.losses %}badge-success{% elif s.standing.wins == s.standing.losses %}badge-warning{% else %}badge-danger{% endif %}">
+                                {{ s.standing.wins }}-{{ s.standing.losses }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary">{{ s.standing.sets_w }}-{{ s.standing.sets_l }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary">{{ s.standing.points_w }}-{{ s.standing.points_l }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Classification Rules -->
+<div class="card">
+    <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
+        <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+            <span class="details-arrow">▶</span>
+            <span>ℹ️</span>
+            <span>Reglas de Clasificación</span>
+        </summary>
+        <style>
+        details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
+        details[open] .details-arrow { transform: rotate(90deg); }
+        </style>
+        <div style="padding: 0.5rem 1rem 1rem 1rem; color: #555; line-height: 1.8;">
+            <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
+            <br>
+            <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.
+            <br>
+            Los primeros 2 clasificados de cada grupo avanzan a la llave de eliminación directa.
+        </div>
+    </details>
+</div>
+
+{% endif %}
+{% endblock %}
