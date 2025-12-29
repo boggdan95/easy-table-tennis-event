@@ -50,9 +50,15 @@ class TournamentORM(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Scheduler configuration
+    num_tables = Column(Integer, nullable=True, default=4)  # Number of tables available
+    default_match_duration = Column(Integer, nullable=True, default=20)  # Minutes per match
+    min_rest_time = Column(Integer, nullable=True, default=10)  # Minimum rest between matches (minutes)
+
     # Relationships
     players = relationship("PlayerORM", back_populates="tournament")
     groups = relationship("GroupORM", back_populates="tournament")
+    sessions = relationship("SessionORM", back_populates="tournament")
 
 
 class PlayerORM(Base):
@@ -216,6 +222,49 @@ class BracketSlotORM(Base):
 
     # Relationships
     player = relationship("PlayerORM")
+
+
+class SessionORM(Base):
+    """Tournament session/day table.
+
+    Represents a time block for scheduling matches (e.g., "Saturday Morning", "Sunday Afternoon").
+    """
+
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
+    name = Column(String(100), nullable=False)  # e.g., "Sábado Mañana", "Domingo Tarde"
+    date = Column(DateTime, nullable=False)  # Date of the session
+    start_time = Column(String(5), nullable=False)  # HH:MM format
+    end_time = Column(String(5), nullable=False)  # HH:MM format
+    order = Column(Integer, nullable=False, default=0)  # For sorting sessions
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    tournament = relationship("TournamentORM", back_populates="sessions")
+    schedule_slots = relationship("ScheduleSlotORM", back_populates="session")
+
+
+class ScheduleSlotORM(Base):
+    """Schedule slot table.
+
+    Represents a match assigned to a specific table and time slot.
+    """
+
+    __tablename__ = "schedule_slots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)
+    table_number = Column(Integer, nullable=False)  # 1, 2, 3, ...
+    start_time = Column(String(5), nullable=False)  # HH:MM format
+    duration = Column(Integer, nullable=True)  # Override duration in minutes (null = use default)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    session = relationship("SessionORM", back_populates="schedule_slots")
+    match = relationship("MatchORM")
 
 
 # ============================================================================
@@ -1062,3 +1111,185 @@ class BracketRepository:
         if slot:
             slot.same_country_warning = warning
             self.session.commit()
+
+
+class SessionRepository:
+    """Repository for Session (tournament day/time block) operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, tournament_id: int, name: str, date: datetime, start_time: str, end_time: str, order: int = 0) -> SessionORM:
+        """Create a new session.
+
+        Args:
+            tournament_id: Tournament ID
+            name: Session name (e.g., "Sábado Mañana")
+            date: Date of the session
+            start_time: Start time in HH:MM format
+            end_time: End time in HH:MM format
+            order: Order for sorting sessions
+
+        Returns:
+            Created SessionORM instance
+        """
+        session_orm = SessionORM(
+            tournament_id=tournament_id,
+            name=name,
+            date=date,
+            start_time=start_time,
+            end_time=end_time,
+            order=order,
+        )
+        self.session.add(session_orm)
+        self.session.commit()
+        self.session.refresh(session_orm)
+        return session_orm
+
+    def get_by_id(self, session_id: int) -> Optional[SessionORM]:
+        """Get session by ID."""
+        return self.session.query(SessionORM).filter(SessionORM.id == session_id).first()
+
+    def get_by_tournament(self, tournament_id: int) -> list[SessionORM]:
+        """Get all sessions for a tournament, ordered by date and order."""
+        return (
+            self.session.query(SessionORM)
+            .filter(SessionORM.tournament_id == tournament_id)
+            .order_by(SessionORM.date, SessionORM.order)
+            .all()
+        )
+
+    def update(self, session_orm: SessionORM) -> SessionORM:
+        """Update an existing session."""
+        self.session.commit()
+        self.session.refresh(session_orm)
+        return session_orm
+
+    def delete(self, session_id: int) -> bool:
+        """Delete a session by ID."""
+        session_obj = self.get_by_id(session_id)
+        if session_obj:
+            self.session.delete(session_obj)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_by_tournament(self, tournament_id: int) -> int:
+        """Delete all sessions for a tournament."""
+        count = self.session.query(SessionORM).filter(SessionORM.tournament_id == tournament_id).delete()
+        self.session.commit()
+        return count
+
+
+class ScheduleSlotRepository:
+    """Repository for ScheduleSlot (match time/table assignment) operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, session_id: int, match_id: int, table_number: int, start_time: str, duration: int = None) -> ScheduleSlotORM:
+        """Create a new schedule slot.
+
+        Args:
+            session_id: Session ID
+            match_id: Match ID
+            table_number: Table number (1, 2, 3, ...)
+            start_time: Start time in HH:MM format
+            duration: Override duration in minutes (null = use tournament default)
+
+        Returns:
+            Created ScheduleSlotORM instance
+        """
+        slot_orm = ScheduleSlotORM(
+            session_id=session_id,
+            match_id=match_id,
+            table_number=table_number,
+            start_time=start_time,
+            duration=duration,
+        )
+        self.session.add(slot_orm)
+        self.session.commit()
+        self.session.refresh(slot_orm)
+        return slot_orm
+
+    def get_by_id(self, slot_id: int) -> Optional[ScheduleSlotORM]:
+        """Get schedule slot by ID."""
+        return self.session.query(ScheduleSlotORM).filter(ScheduleSlotORM.id == slot_id).first()
+
+    def get_by_session(self, session_id: int) -> list[ScheduleSlotORM]:
+        """Get all schedule slots for a session, ordered by time and table."""
+        return (
+            self.session.query(ScheduleSlotORM)
+            .filter(ScheduleSlotORM.session_id == session_id)
+            .order_by(ScheduleSlotORM.start_time, ScheduleSlotORM.table_number)
+            .all()
+        )
+
+    def get_by_match(self, match_id: int) -> Optional[ScheduleSlotORM]:
+        """Get schedule slot for a specific match."""
+        return self.session.query(ScheduleSlotORM).filter(ScheduleSlotORM.match_id == match_id).first()
+
+    def get_by_session_and_table(self, session_id: int, table_number: int) -> list[ScheduleSlotORM]:
+        """Get all schedule slots for a specific table in a session."""
+        return (
+            self.session.query(ScheduleSlotORM)
+            .filter(ScheduleSlotORM.session_id == session_id, ScheduleSlotORM.table_number == table_number)
+            .order_by(ScheduleSlotORM.start_time)
+            .all()
+        )
+
+    def get_unscheduled_matches(self, tournament_id: int) -> list[MatchORM]:
+        """Get all matches that don't have a schedule slot assigned.
+
+        Args:
+            tournament_id: Tournament ID to filter matches
+
+        Returns:
+            List of MatchORM instances without schedule assignments
+        """
+        # Get all scheduled match IDs
+        scheduled_match_ids = [
+            slot.match_id for slot in self.session.query(ScheduleSlotORM).all()
+        ]
+
+        # Get matches for this tournament that are not scheduled
+        # Group matches: get from groups that belong to this tournament
+        # Bracket matches: get by category from players in this tournament
+        from sqlalchemy import or_
+
+        query = self.session.query(MatchORM)
+
+        if scheduled_match_ids:
+            query = query.filter(~MatchORM.id.in_(scheduled_match_ids))
+
+        return query.all()
+
+    def update(self, slot_orm: ScheduleSlotORM) -> ScheduleSlotORM:
+        """Update an existing schedule slot."""
+        self.session.commit()
+        self.session.refresh(slot_orm)
+        return slot_orm
+
+    def delete(self, slot_id: int) -> bool:
+        """Delete a schedule slot by ID."""
+        slot = self.get_by_id(slot_id)
+        if slot:
+            self.session.delete(slot)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_by_session(self, session_id: int) -> int:
+        """Delete all schedule slots for a session."""
+        count = self.session.query(ScheduleSlotORM).filter(ScheduleSlotORM.session_id == session_id).delete()
+        self.session.commit()
+        return count
+
+    def delete_by_match(self, match_id: int) -> bool:
+        """Delete schedule slot for a specific match."""
+        slot = self.get_by_match(match_id)
+        if slot:
+            self.session.delete(slot)
+            self.session.commit()
+            return True
+        return False

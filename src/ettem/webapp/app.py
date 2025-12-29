@@ -158,9 +158,74 @@ def migrate_bracket_slots_add_tournament_id():
     session.close()
 
 
+def migrate_scheduler_tables():
+    """
+    Migration: Add scheduler columns to tournaments table and create scheduler tables.
+    """
+    from sqlalchemy import text
+    session = db_manager.get_session()
+
+    # Add scheduler columns to tournaments table
+    columns_to_add = [
+        ("num_tables", "INTEGER DEFAULT 4"),
+        ("default_match_duration", "INTEGER DEFAULT 20"),
+        ("min_rest_time", "INTEGER DEFAULT 10"),
+    ]
+
+    for col_name, col_type in columns_to_add:
+        try:
+            session.execute(text(f"SELECT {col_name} FROM tournaments LIMIT 1"))
+        except Exception:
+            print(f"[MIGRATION] Adding '{col_name}' column to tournaments table...")
+            session.execute(text(f"ALTER TABLE tournaments ADD COLUMN {col_name} {col_type}"))
+            session.commit()
+
+    # Create sessions table if not exists
+    try:
+        session.execute(text("SELECT id FROM sessions LIMIT 1"))
+    except Exception:
+        print("[MIGRATION] Creating 'sessions' table...")
+        session.execute(text("""
+            CREATE TABLE sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tournament_id INTEGER NOT NULL REFERENCES tournaments(id),
+                name VARCHAR(100) NOT NULL,
+                date DATETIME NOT NULL,
+                start_time VARCHAR(5) NOT NULL,
+                end_time VARCHAR(5) NOT NULL,
+                "order" INTEGER NOT NULL DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        session.commit()
+        print("[MIGRATION] Table 'sessions' created")
+
+    # Create schedule_slots table if not exists
+    try:
+        session.execute(text("SELECT id FROM schedule_slots LIMIT 1"))
+    except Exception:
+        print("[MIGRATION] Creating 'schedule_slots' table...")
+        session.execute(text("""
+            CREATE TABLE schedule_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL REFERENCES sessions(id),
+                match_id INTEGER NOT NULL REFERENCES matches(id),
+                table_number INTEGER NOT NULL,
+                start_time VARCHAR(5) NOT NULL,
+                duration INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        session.commit()
+        print("[MIGRATION] Table 'schedule_slots' created")
+
+    session.close()
+
+
 # Run migrations on startup
 migrate_matches_add_category()
 migrate_bracket_slots_add_tournament_id()
+migrate_scheduler_tables()
 
 
 def get_db_session():
@@ -5804,6 +5869,332 @@ async def print_bracket_all_match_sheets(category: str):
             )
         except Exception as e:
             return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+# ==============================================================================
+# SCHEDULER ROUTES
+# ==============================================================================
+
+
+@app.get("/admin/scheduler", response_class=HTMLResponse)
+async def admin_scheduler(request: Request):
+    """Main scheduler page - configure sessions and view schedule overview."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        from ettem.storage import SessionRepository
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        session_repo = SessionRepository(session)
+        sessions = session_repo.get_by_tournament(tournament.id)
+
+        # Get match counts
+        match_repo = MatchRepository(session)
+        all_matches = match_repo.get_all()
+
+        # Count scheduled vs unscheduled
+        from ettem.storage import ScheduleSlotRepository
+        schedule_repo = ScheduleSlotRepository(session)
+        scheduled_match_ids = set()
+        for sess in sessions:
+            for slot in schedule_repo.get_by_session(sess.id):
+                scheduled_match_ids.add(slot.match_id)
+
+        total_matches = len(all_matches)
+        scheduled_count = len(scheduled_match_ids)
+        unscheduled_count = total_matches - scheduled_count
+
+        context = {
+            "request": request,
+            "tournament": tournament,
+            "sessions": sessions,
+            "total_matches": total_matches,
+            "scheduled_count": scheduled_count,
+            "unscheduled_count": unscheduled_count,
+            "categories": get_categories(),
+        }
+
+        flash_message = request.session.pop("flash_message", None)
+        flash_type = request.session.pop("flash_type", "info")
+        if flash_message:
+            context["flash_message"] = flash_message
+            context["flash_type"] = flash_type
+
+        return render_template("admin_scheduler.html", context)
+
+
+@app.post("/admin/scheduler/config")
+async def save_scheduler_config(
+    request: Request,
+    num_tables: int = Form(...),
+    default_match_duration: int = Form(...),
+    min_rest_time: int = Form(...)
+):
+    """Save scheduler configuration for the tournament."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        tournament.num_tables = num_tables
+        tournament.default_match_duration = default_match_duration
+        tournament.min_rest_time = min_rest_time
+        session.commit()
+
+        request.session["flash_message"] = "Configuración guardada"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+
+@app.post("/admin/scheduler/session/create")
+async def create_session(
+    request: Request,
+    name: str = Form(...),
+    date: str = Form(...),
+    start_time: str = Form(...),
+    end_time: str = Form(...)
+):
+    """Create a new tournament session."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        from ettem.storage import SessionRepository
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        session_repo = SessionRepository(session)
+
+        # Parse date
+        from datetime import datetime as dt
+        try:
+            session_date = dt.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            request.session["flash_message"] = "Formato de fecha inválido"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        # Get next order number
+        existing_sessions = session_repo.get_by_tournament(tournament.id)
+        next_order = len(existing_sessions)
+
+        session_repo.create(
+            tournament_id=tournament.id,
+            name=name,
+            date=session_date,
+            start_time=start_time,
+            end_time=end_time,
+            order=next_order
+        )
+
+        request.session["flash_message"] = f"Jornada '{name}' creada"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+
+@app.post("/admin/scheduler/session/{session_id}/delete")
+async def delete_session(request: Request, session_id: int):
+    """Delete a tournament session."""
+    with get_db_session() as session:
+        from ettem.storage import SessionRepository, ScheduleSlotRepository
+
+        session_repo = SessionRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+
+        # First delete all schedule slots in this session
+        schedule_repo.delete_by_session(session_id)
+
+        # Then delete the session
+        session_repo.delete(session_id)
+
+        request.session["flash_message"] = "Jornada eliminada"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+
+@app.get("/admin/scheduler/grid/{session_id}", response_class=HTMLResponse)
+async def scheduler_grid(request: Request, session_id: int):
+    """Scheduling grid for a specific session - drag and drop matches to table/time slots."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        from ettem.storage import SessionRepository, ScheduleSlotRepository
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        session_repo = SessionRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+
+        # Get session info
+        session_obj = session_repo.get_by_id(session_id)
+        if not session_obj:
+            request.session["flash_message"] = "Jornada no encontrada"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        # Generate time slots based on session start/end and match duration
+        num_tables = tournament.num_tables or 4
+        match_duration = tournament.default_match_duration or 20
+
+        # Parse start and end times
+        start_h, start_m = map(int, session_obj.start_time.split(":"))
+        end_h, end_m = map(int, session_obj.end_time.split(":"))
+        start_minutes = start_h * 60 + start_m
+        end_minutes = end_h * 60 + end_m
+
+        # Generate time slots
+        time_slots = []
+        current = start_minutes
+        while current < end_minutes:
+            h = current // 60
+            m = current % 60
+            time_slots.append(f"{h:02d}:{m:02d}")
+            current += match_duration
+
+        # Get scheduled slots for this session
+        scheduled_slots = schedule_repo.get_by_session(session_id)
+        scheduled_match_ids = {slot.match_id for slot in scheduled_slots}
+
+        # Build grid data: {time_slot: {table: match_data or None}}
+        grid_data = {}
+        for time_slot in time_slots:
+            grid_data[time_slot] = {}
+            for table in range(1, num_tables + 1):
+                grid_data[time_slot][table] = None
+
+        # Fill in scheduled matches
+        for slot in scheduled_slots:
+            match_orm = match_repo.get_by_id(slot.match_id)
+            if match_orm and slot.start_time in grid_data:
+                p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+                p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+                # Get group/round info
+                if match_orm.group_id:
+                    group = group_repo.get_by_id(match_orm.group_id)
+                    match_label = f"G{group.name}" if group else "Grupo"
+                    category = group.category if group else "?"
+                else:
+                    match_label = match_orm.round_type or "Bracket"
+                    category = match_orm.category or "?"
+
+                grid_data[slot.start_time][slot.table_number] = {
+                    "slot_id": slot.id,
+                    "match_id": match_orm.id,
+                    "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "label": match_label,
+                    "category": category,
+                }
+
+        # Get unscheduled matches
+        all_matches = match_repo.get_all()
+        unscheduled_matches = []
+        for m in all_matches:
+            if m.id in scheduled_match_ids:
+                continue
+
+            p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+            p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+
+            if m.group_id:
+                group = group_repo.get_by_id(m.group_id)
+                match_label = f"G{group.name}" if group else "Grupo"
+                category = group.category if group else "?"
+            else:
+                match_label = m.round_type or "Bracket"
+                category = m.category or "?"
+
+            unscheduled_matches.append({
+                "id": m.id,
+                "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                "label": match_label,
+                "category": category,
+                "round_type": m.round_type,
+            })
+
+        context = {
+            "request": request,
+            "tournament": tournament,
+            "session": session_obj,
+            "time_slots": time_slots,
+            "num_tables": num_tables,
+            "match_duration": match_duration,
+            "grid_data": grid_data,
+            "unscheduled_matches": unscheduled_matches,
+            "categories": get_categories(),
+        }
+
+        flash_message = request.session.pop("flash_message", None)
+        flash_type = request.session.pop("flash_type", "info")
+        if flash_message:
+            context["flash_message"] = flash_message
+            context["flash_type"] = flash_type
+
+        return render_template("admin_scheduler_grid.html", context)
+
+
+@app.post("/admin/scheduler/slot/assign")
+async def assign_match_to_slot(
+    request: Request,
+    session_id: int = Form(...),
+    match_id: int = Form(...),
+    table_number: int = Form(...),
+    start_time: str = Form(...)
+):
+    """Assign a match to a specific table and time slot."""
+    with get_db_session() as session:
+        from ettem.storage import ScheduleSlotRepository
+
+        schedule_repo = ScheduleSlotRepository(session)
+
+        # Check if match is already scheduled
+        existing = schedule_repo.get_by_match(match_id)
+        if existing:
+            # Update existing slot
+            existing.session_id = session_id
+            existing.table_number = table_number
+            existing.start_time = start_time
+            schedule_repo.update(existing)
+        else:
+            # Create new slot
+            schedule_repo.create(
+                session_id=session_id,
+                match_id=match_id,
+                table_number=table_number,
+                start_time=start_time
+            )
+
+        return {"status": "ok"}
+
+
+@app.post("/admin/scheduler/slot/{slot_id}/remove")
+async def remove_slot_assignment(request: Request, slot_id: int):
+    """Remove a match from its scheduled slot (back to unscheduled)."""
+    with get_db_session() as session:
+        from ettem.storage import ScheduleSlotRepository
+
+        schedule_repo = ScheduleSlotRepository(session)
+        schedule_repo.delete(slot_id)
+
+        return {"status": "ok"}
 
 
 if __name__ == "__main__":

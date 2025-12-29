@@ -1,0 +1,476 @@
+{% extends "base.html" %}
+
+{% block title %}Programar {{ session.name }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ session.name }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/scheduler" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+<span class="badge badge-primary" style="font-size: 0.9rem;">
+    {{ session.date.strftime('%d/%m/%Y') }} | {{ session.start_time }} - {{ session.end_time }}
+</span>
+{% endblock %}
+
+{% block content %}
+
+<style>
+/* Grid Container */
+.scheduler-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 1rem;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+}
+
+/* Matches Panel */
+.matches-panel {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.matches-panel-header {
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: bold;
+}
+
+.matches-panel-filters {
+    padding: 0.5rem 1rem;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.matches-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+/* Match Item */
+.match-item {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: grab;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+}
+
+.match-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.match-item.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.match-item .match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.match-item .match-label {
+    font-weight: bold;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--primary-bg);
+    color: var(--primary-color);
+}
+
+.match-item .match-category {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.match-item .match-players {
+    font-size: 0.8rem;
+}
+
+.match-item .match-players .vs {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+/* Grid Area */
+.grid-area {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    overflow: auto;
+}
+
+.schedule-grid {
+    display: grid;
+    min-width: max-content;
+}
+
+/* Grid Header */
+.grid-header {
+    display: contents;
+}
+
+.grid-header-cell {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    padding: 0.75rem;
+    text-align: center;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.grid-header-cell.time-header {
+    background: var(--secondary-color);
+}
+
+/* Grid Row */
+.grid-row {
+    display: contents;
+}
+
+/* Time Cell */
+.time-cell {
+    background: var(--bg-primary);
+    padding: 0.5rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    position: sticky;
+    left: 0;
+    z-index: 5;
+}
+
+/* Grid Cell (drop zone) */
+.grid-cell {
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    min-height: 70px;
+    min-width: 150px;
+    padding: 0.25rem;
+    transition: background 0.15s;
+}
+
+.grid-cell.drag-over {
+    background: var(--primary-bg);
+    border: 2px dashed var(--primary-color);
+}
+
+.grid-cell.has-conflict {
+    background: rgba(255, 0, 0, 0.1);
+}
+
+/* Scheduled Match in Grid */
+.scheduled-match {
+    background: linear-gradient(135deg, var(--success-bg), #d4edda);
+    border: 1px solid var(--success-color);
+    border-radius: 4px;
+    padding: 0.4rem;
+    font-size: 0.8rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: grab;
+    position: relative;
+}
+
+.scheduled-match:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.scheduled-match .remove-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.scheduled-match:hover .remove-btn {
+    opacity: 1;
+}
+
+.scheduled-match .sm-label {
+    font-weight: bold;
+    font-size: 0.7rem;
+    color: var(--success-dark);
+}
+
+.scheduled-match .sm-players {
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+/* Filter select */
+.filter-select {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .scheduler-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 300px 1fr;
+    }
+}
+</style>
+
+<div class="scheduler-container">
+    <!-- Matches Panel (Left) -->
+    <div class="matches-panel">
+        <div class="matches-panel-header">
+            Partidos Sin Programar
+            <span class="badge badge-warning" style="margin-left: 0.5rem;">{{ unscheduled_matches|length }}</span>
+        </div>
+        <div class="matches-panel-filters">
+            <select id="filter-category" class="filter-select" onchange="filterMatches()">
+                <option value="">Todas las categorías</option>
+                {% for cat in categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="matches-panel-body" id="matches-list">
+            {% for match in unscheduled_matches %}
+            <div class="match-item"
+                 draggable="true"
+                 data-match-id="{{ match.id }}"
+                 data-category="{{ match.category }}"
+                 ondragstart="handleDragStart(event)"
+                 ondragend="handleDragEnd(event)">
+                <div class="match-header">
+                    <span class="match-label">{{ match.label }}</span>
+                    <span class="match-category">{{ match.category }}</span>
+                </div>
+                <div class="match-players">
+                    {{ match.player1 }}
+                    <span class="vs">vs</span>
+                    {{ match.player2 }}
+                </div>
+            </div>
+            {% endfor %}
+            {% if not unscheduled_matches %}
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                Todos los partidos están programados
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Grid Area (Right) -->
+    <div class="grid-area">
+        <div class="schedule-grid" style="grid-template-columns: 80px repeat({{ num_tables }}, 1fr);">
+            <!-- Header Row -->
+            <div class="grid-header">
+                <div class="grid-header-cell time-header">Hora</div>
+                {% for table in range(1, num_tables + 1) %}
+                <div class="grid-header-cell">Mesa {{ table }}</div>
+                {% endfor %}
+            </div>
+
+            <!-- Time Rows -->
+            {% for time_slot in time_slots %}
+            <div class="grid-row">
+                <div class="time-cell">{{ time_slot }}</div>
+                {% for table in range(1, num_tables + 1) %}
+                <div class="grid-cell"
+                     data-time="{{ time_slot }}"
+                     data-table="{{ table }}"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event)">
+                    {% set cell_data = grid_data[time_slot][table] %}
+                    {% if cell_data %}
+                    <div class="scheduled-match"
+                         draggable="true"
+                         data-match-id="{{ cell_data.match_id }}"
+                         data-slot-id="{{ cell_data.slot_id }}"
+                         ondragstart="handleScheduledDragStart(event)"
+                         ondragend="handleDragEnd(event)">
+                        <button class="remove-btn" onclick="removeFromSlot({{ cell_data.slot_id }}, event)" title="Quitar">✕</button>
+                        <div class="sm-label">{{ cell_data.label }} - {{ cell_data.category }}</div>
+                        <div class="sm-players">
+                            {{ cell_data.player1 }}<br>
+                            <span style="color: var(--text-muted);">vs</span>
+                            {{ cell_data.player2 }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+const SESSION_ID = {{ session.id }};
+let draggedMatchId = null;
+let draggedFromSlot = null;
+
+// Filter matches by category
+function filterMatches() {
+    const filter = document.getElementById('filter-category').value;
+    const items = document.querySelectorAll('.match-item');
+
+    items.forEach(item => {
+        const category = item.dataset.category;
+        if (!filter || category === filter) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Drag from unscheduled list
+function handleDragStart(e) {
+    draggedMatchId = e.target.dataset.matchId;
+    draggedFromSlot = null;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedMatchId);
+}
+
+// Drag from scheduled slot
+function handleScheduledDragStart(e) {
+    draggedMatchId = e.target.dataset.matchId;
+    draggedFromSlot = e.target.dataset.slotId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggedMatchId);
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedMatchId = null;
+    draggedFromSlot = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+
+    const cell = e.currentTarget;
+    const timeSlot = cell.dataset.time;
+    const tableNumber = cell.dataset.table;
+
+    if (!draggedMatchId) return;
+
+    // If dropping on a cell that already has a match, don't allow
+    if (cell.querySelector('.scheduled-match') && !draggedFromSlot) {
+        showToast('Esta celda ya tiene un partido asignado', 'error');
+        return;
+    }
+
+    // If moving from another slot, remove from old slot first
+    if (draggedFromSlot) {
+        await removeFromSlotSilent(draggedFromSlot);
+    }
+
+    // Assign to new slot
+    const formData = new FormData();
+    formData.append('session_id', SESSION_ID);
+    formData.append('match_id', draggedMatchId);
+    formData.append('table_number', tableNumber);
+    formData.append('start_time', timeSlot);
+
+    try {
+        const response = await fetch('/admin/scheduler/slot/assign', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            // Reload to show updated grid
+            location.reload();
+        } else {
+            showToast('Error al asignar partido', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Error de conexión', 'error');
+    }
+}
+
+async function removeFromSlot(slotId, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    try {
+        const response = await fetch(`/admin/scheduler/slot/${slotId}/remove`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            showToast('Error al quitar partido', 'error');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Error de conexión', 'error');
+    }
+}
+
+async function removeFromSlotSilent(slotId) {
+    try {
+        await fetch(`/admin/scheduler/slot/${slotId}/remove`, {
+            method: 'POST'
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+</script>
+
+{% endblock %}

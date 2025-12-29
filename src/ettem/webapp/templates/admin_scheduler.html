@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Programación de Horarios - ETTEM{% endblock %}
+
+{% block page_title %}Programación de Horarios{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats Overview -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Resumen de Programación</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">{{ total_matches }}</div>
+                <div style="color: var(--text-muted);">Partidos Totales</div>
+            </div>
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);">{{ scheduled_count }}</div>
+                <div style="color: var(--text-muted);">Programados</div>
+            </div>
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);">{{ unscheduled_count }}</div>
+                <div style="color: var(--text-muted);">Sin Programar</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Configuración del Torneo</h3>
+    </div>
+    <div class="card-body">
+        <form action="/admin/scheduler/config" method="post">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="num_tables">Número de Mesas</label>
+                    <input type="number" id="num_tables" name="num_tables" class="form-control"
+                           value="{{ tournament.num_tables or 4 }}" min="1" max="20" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="default_match_duration">Duración por Partido (min)</label>
+                    <input type="number" id="default_match_duration" name="default_match_duration" class="form-control"
+                           value="{{ tournament.default_match_duration or 20 }}" min="10" max="60" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="min_rest_time">Descanso Mínimo (min)</label>
+                    <input type="number" id="min_rest_time" name="min_rest_time" class="form-control"
+                           value="{{ tournament.min_rest_time or 10 }}" min="0" max="60" required>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        Guardar Configuración
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sessions List -->
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">Jornadas</h3>
+        <button class="btn btn-success btn-sm" onclick="document.getElementById('new-session-form').style.display = document.getElementById('new-session-form').style.display === 'none' ? 'block' : 'none'">
+            + Nueva Jornada
+        </button>
+    </div>
+
+    <!-- New Session Form (hidden by default) -->
+    <div id="new-session-form" style="display: none; padding: 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+        <form action="/admin/scheduler/session/create" method="post">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="session_name">Nombre</label>
+                    <input type="text" id="session_name" name="name" class="form-control"
+                           placeholder="Ej: Sábado Mañana" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="session_date">Fecha</label>
+                    <input type="date" id="session_date" name="date" class="form-control" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="session_start">Hora Inicio</label>
+                    <input type="time" id="session_start" name="start_time" class="form-control"
+                           value="09:00" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="session_end">Hora Fin</label>
+                    <input type="time" id="session_end" name="end_time" class="form-control"
+                           value="13:00" required>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success">Crear Jornada</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-session-form').style.display = 'none'">Cancelar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-body" style="padding: 0;">
+        {% if sessions %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Fecha</th>
+                        <th>Horario</th>
+                        <th style="text-align: center;">Partidos</th>
+                        <th style="text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sess in sessions %}
+                    <tr>
+                        <td><strong>{{ sess.name }}</strong></td>
+                        <td>{{ sess.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ sess.start_time }} - {{ sess.end_time }}</td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-primary">{{ sess.schedule_slots|length }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <div class="d-flex gap-1" style="justify-content: center;">
+                                <a href="/admin/scheduler/grid/{{ sess.id }}" class="btn btn-primary btn-sm" title="Abrir Cuadrícula">
+                                    Programar
+                                </a>
+                                <form action="/admin/scheduler/session/{{ sess.id }}/delete" method="post" style="display: inline;" data-confirm="¿Eliminar esta jornada y todos sus partidos programados?">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar Jornada">
+                                        ✕
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+            <p>No hay jornadas creadas.</p>
+            <p>Crea una jornada para comenzar a programar los partidos.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Help Card -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Cómo usar el Scheduler</h3>
+    </div>
+    <div class="card-body">
+        <ol style="margin: 0; padding-left: 1.5rem;">
+            <li style="margin-bottom: 0.5rem;"><strong>Configura</strong> el número de mesas y duración de partidos arriba.</li>
+            <li style="margin-bottom: 0.5rem;"><strong>Crea jornadas</strong> (días/bloques de tiempo) para tu torneo.</li>
+            <li style="margin-bottom: 0.5rem;"><strong>Abre la cuadrícula</strong> de cada jornada para asignar partidos a mesas y horarios.</li>
+            <li style="margin-bottom: 0.5rem;"><strong>Arrastra</strong> partidos desde el panel lateral hacia las celdas de la cuadrícula.</li>
+        </ol>
+    </div>
+</div>
+
+{% endblock %}
