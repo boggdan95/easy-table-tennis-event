@@ -46,20 +46,26 @@
 .player-item {
     background: white;
     border: 2px solid var(--border-color);
-    border-radius: 6px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    cursor: move;
-    transition: all 0.2s;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.3rem;
+    cursor: pointer;
+    transition: all 0.15s;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 0.85rem;
 }
 
 .player-item:hover {
     background: var(--hover-bg, #f8f9fa);
     border-color: var(--primary-color);
-    transform: translateX(5px);
+}
+
+.player-item.selected {
+    background: var(--primary-bg, #e7f3ff);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
 }
 
 .player-item.dragging {
@@ -69,20 +75,21 @@
 
 .player-info {
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .player-name {
-    font-weight: bold;
-    font-size: 1rem;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 
 .player-meta {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: var(--text-muted);
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 .bracket-slots {
@@ -116,14 +123,22 @@
 .slot-item {
     background: white;
     border: 2px dashed var(--border-color);
-    border-radius: 6px;
-    padding: 0.75rem;
-    margin-bottom: 0.5rem;
-    min-height: 60px;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.3rem;
+    min-height: 36px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: all 0.2s;
+    transition: all 0.15s;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.slot-item.slot-target {
+    background: #fffde7;
+    border-color: var(--warning-color);
+    border-style: solid;
 }
 
 .slot-item.drag-over {
@@ -150,8 +165,8 @@
 .slot-number {
     font-weight: bold;
     color: var(--text-muted);
-    font-size: 1.25rem;
-    min-width: 40px;
+    font-size: 0.9rem;
+    min-width: 28px;
 }
 
 .slot-content {
@@ -233,19 +248,38 @@
 }
 </style>
 
-<div class="alert alert-info mb-3">
-    <span class="icon">ℹ️</span>
-    <div class="alert-content">
-        <div class="alert-title">Instrucciones</div>
-        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-            <li>Arrastra jugadores desde las listas izquierda hacia las posiciones del bracket</li>
-            <li><strong>Restricción importante:</strong> Dos jugadores del mismo grupo NO pueden ir en la misma mitad del bracket</li>
-            <li>Se mostrarán alertas si dos jugadores del mismo país se enfrentan en primera ronda</li>
-            <li>Los BYEs están pre-colocados según reglas ITTF. Puedes quitarlos con "✕" y reubicarlos arrastrándolos</li>
-            <li>Haz clic en el botón "✕" para remover un jugador o BYE de una posición</li>
-        </ul>
+<div id="draft-notice" class="mb-3" style="background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; padding: 0.6rem 1rem; display: none;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 0.9rem;">
+            <strong>💾 Borrador recuperado</strong> - Se restauró el estado anterior del sorteo
+        </span>
+        <button type="button" onclick="discardDraft()" class="btn btn-warning btn-sm" style="padding: 0.2rem 0.6rem; font-size: 0.8rem;">
+            Descartar borrador
+        </button>
     </div>
 </div>
+
+<details class="mb-3" style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
+    <summary style="padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+        <span class="details-arrow">▶</span>
+        <span>ℹ️</span>
+        <span>Instrucciones (click para ver)</span>
+    </summary>
+    <div style="padding: 0.5rem 1rem 0.75rem 1rem; font-size: 0.85rem;">
+        <ul style="margin: 0; padding-left: 1.2rem;">
+            <li><strong>Click para asignar:</strong> Click en jugador → click en posición destino</li>
+            <li><strong>Arrastrar:</strong> También puedes arrastrar jugadores (auto-scroll activado)</li>
+            <li>Restricción: Jugadores del mismo grupo NO pueden ir en la misma mitad</li>
+            <li>Los 2º de grupo solo pueden ir a la mitad opuesta del 1º de su grupo</li>
+            <li>Los BYEs están pre-colocados según reglas ITTF</li>
+            <li><strong>Auto-guardado:</strong> El progreso se guarda automáticamente (sobrevive F5)</li>
+        </ul>
+    </div>
+</details>
+<style>
+details .details-arrow { transition: transform 0.2s; font-size: 0.7rem; }
+details[open] .details-arrow { transform: rotate(90deg); }
+</style>
 
 <div class="drag-container">
     <!-- Players Pool (Left Side) -->
@@ -258,18 +292,12 @@
             </div>
             <div id="firsts-pool">
                 {% for player in firsts %}
-                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-country="{{ player.pais_cd }}">
+                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-group-name="{{ player.group_name }}" data-country="{{ player.pais_cd }}">
                     <div class="player-info">
-                        <div class="player-name">
-                            <span class="group-badge">G{{ player.group_id }}</span>
-                            {{ player.nombre }} {{ player.apellido }}
-                        </div>
-                        <div class="player-meta">
-                            <span class="badge badge-secondary">{{ player.pais_cd }}</span>
-                            <span>{{ player.points_total }} pts</span>
-                        </div>
+                        <span class="group-badge">G{{ player.group_name }}</span>
+                        <span class="player-name">{{ player.nombre }} {{ player.apellido }}</span>
                     </div>
-                    <span style="font-size: 1.5rem; color: var(--text-muted);">⋮⋮</span>
+                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ player.pais_cd }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -283,18 +311,12 @@
             </div>
             <div id="seconds-pool">
                 {% for player in seconds %}
-                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-country="{{ player.pais_cd }}">
+                <div class="player-item" draggable="true" data-player-id="{{ player.player_id }}" data-group-id="{{ player.group_id }}" data-group-name="{{ player.group_name }}" data-country="{{ player.pais_cd }}">
                     <div class="player-info">
-                        <div class="player-name">
-                            <span class="group-badge">G{{ player.group_id }}</span>
-                            {{ player.nombre }} {{ player.apellido }}
-                        </div>
-                        <div class="player-meta">
-                            <span class="badge badge-secondary">{{ player.pais_cd }}</span>
-                            <span>{{ player.points_total }} pts</span>
-                        </div>
+                        <span class="group-badge">G{{ player.group_name }}</span>
+                        <span class="player-name">{{ player.nombre }} {{ player.apellido }}</span>
                     </div>
-                    <span style="font-size: 1.5rem; color: var(--text-muted);">⋮⋮</span>
+                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ player.pais_cd }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -408,9 +430,73 @@
 const slotAssignments = {};
 const bracketSize = {{ bracket_size }};
 const halfPoint = Math.floor(bracketSize / 2);
+const category = '{{ category }}';
+const STORAGE_KEY = `ettem_bracket_draft_${category}`;
 
 // Drag and Drop Event Handlers
 let draggedElement = null;
+
+// Click-to-assign: track selected player
+let selectedPlayer = null;
+
+// Auto-scroll variables
+let autoScrollInterval = null;
+const SCROLL_SPEED = 15;
+const SCROLL_ZONE = 80;
+
+// Save state to localStorage
+function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(slotAssignments));
+}
+
+// Restore state from localStorage
+function restoreState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+        const savedAssignments = JSON.parse(saved);
+        const allPlayers = [...{{ firsts | tojson }}, ...{{ seconds | tojson }}];
+
+        Object.entries(savedAssignments).forEach(([slotNumber, data]) => {
+            // Find player data to get full info
+            const player = allPlayers.find(p => p.player_id == data.playerId);
+            if (player) {
+                assignPlayerToSlot(
+                    parseInt(slotNumber),
+                    data.playerId,
+                    data.playerName,
+                    data.groupId,
+                    data.groupName,
+                    data.country
+                );
+            }
+        });
+
+        if (Object.keys(savedAssignments).length > 0) {
+            console.log(`Restored ${Object.keys(savedAssignments).length} assignments from draft`);
+            // Show draft notice
+            document.getElementById('draft-notice').style.display = 'block';
+        }
+    } catch (e) {
+        console.error('Error restoring state:', e);
+        localStorage.removeItem(STORAGE_KEY);
+    }
+}
+
+// Clear saved draft
+function clearDraft() {
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('draft-notice').style.display = 'none';
+}
+
+// Discard draft and reload page
+function discardDraft() {
+    if (confirm('¿Descartar el borrador guardado? Se perderán las asignaciones actuales.')) {
+        clearDraft();
+        location.reload();
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     // Add event listeners to player items
@@ -418,6 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
     playerItems.forEach(item => {
         item.addEventListener('dragstart', handleDragStart);
         item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('click', handlePlayerClick);
     });
 
     // Add event listeners to slot items
@@ -426,18 +513,183 @@ document.addEventListener('DOMContentLoaded', function() {
         slot.addEventListener('dragover', handleDragOver);
         slot.addEventListener('dragleave', handleDragLeave);
         slot.addEventListener('drop', handleDrop);
+        slot.addEventListener('click', handleSlotClick);
     });
+
+    // Auto-scroll during drag
+    document.addEventListener('dragover', handleAutoScroll);
+    document.addEventListener('dragend', stopAutoScroll);
+
+    // Restore saved state (if not restoring from form validation error)
+    {% if not saved_assignments %}
+    restoreState();
+    {% endif %}
 });
+
+// Click-to-assign handlers
+function handlePlayerClick(e) {
+    // Don't trigger if clicking remove button
+    if (e.target.classList.contains('btn-remove')) return;
+
+    const playerItem = e.currentTarget;
+
+    // If this player is already selected, deselect
+    if (selectedPlayer === playerItem) {
+        deselectPlayer();
+        return;
+    }
+
+    // Deselect previous and select this one
+    deselectPlayer();
+    selectedPlayer = playerItem;
+    playerItem.classList.add('selected');
+
+    // Highlight available slots
+    highlightAvailableSlots();
+}
+
+function handleSlotClick(e) {
+    // Don't trigger if clicking remove button or if slot is BYE
+    if (e.target.classList.contains('btn-remove')) return;
+
+    const slot = e.currentTarget;
+
+    // If no player selected, ignore
+    if (!selectedPlayer) return;
+
+    // If slot is a BYE slot, can't place player
+    if (slot.dataset.isBye === 'true') {
+        alert('No puedes colocar un jugador en un slot de BYE');
+        return;
+    }
+
+    // Get player data
+    const playerId = selectedPlayer.dataset.playerId;
+    const groupId = selectedPlayer.dataset.groupId;
+    const groupName = selectedPlayer.dataset.groupName || groupId;
+    const country = selectedPlayer.dataset.country;
+    const slotNumber = parseInt(slot.dataset.slotNumber);
+    const playerName = selectedPlayer.querySelector('.player-name').textContent.trim();
+
+    // Check if player is already placed
+    const existingSlots = Object.values(slotAssignments);
+    if (existingSlots.some(s => s.playerId === playerId)) {
+        alert('Este jugador ya está colocado en el bracket');
+        deselectPlayer();
+        return;
+    }
+
+    // For second place players, validate they go to opposite half
+    const isSecondPlace = selectedPlayer.closest('#seconds-pool') !== null;
+    if (isSecondPlace) {
+        const slotHalf = slotNumber <= halfPoint ? 'top' : 'bottom';
+        // Find if first place from same group is already placed
+        for (const [slotNum, data] of Object.entries(slotAssignments)) {
+            if (data.groupId === groupId) {
+                const firstPlaceHalf = parseInt(slotNum) <= halfPoint ? 'top' : 'bottom';
+                if (slotHalf === firstPlaceHalf) {
+                    alert(`El 2º de G${groupName} debe ir en la mitad opuesta al 1º (que está en mitad ${firstPlaceHalf === 'top' ? 'superior' : 'inferior'})`);
+                    deselectPlayer();
+                    return;
+                }
+                break;
+            }
+        }
+    }
+
+    // Assign player to slot
+    assignPlayerToSlot(slotNumber, playerId, playerName, groupId, groupName, country);
+
+    // Deselect player
+    deselectPlayer();
+}
+
+function deselectPlayer() {
+    if (selectedPlayer) {
+        selectedPlayer.classList.remove('selected');
+        selectedPlayer = null;
+    }
+    // Remove slot highlights
+    document.querySelectorAll('.slot-item').forEach(s => s.classList.remove('slot-target'));
+}
+
+function highlightAvailableSlots() {
+    if (!selectedPlayer) return;
+
+    const isSecondPlace = selectedPlayer.closest('#seconds-pool') !== null;
+    const playerGroupId = selectedPlayer.dataset.groupId;
+    let allowedHalf = null; // null = both halves allowed
+
+    // For second place players, check where their group's first place is
+    if (isSecondPlace) {
+        // Find if first place from same group is already placed
+        for (const [slotNum, data] of Object.entries(slotAssignments)) {
+            if (data.groupId === playerGroupId) {
+                // First place is in this slot, second must go to opposite half
+                const firstPlaceHalf = parseInt(slotNum) <= halfPoint ? 'top' : 'bottom';
+                allowedHalf = firstPlaceHalf === 'top' ? 'bottom' : 'top';
+                break;
+            }
+        }
+    }
+
+    document.querySelectorAll('.slot-item').forEach(slot => {
+        if (slot.dataset.isBye !== 'true' && !slot.classList.contains('occupied')) {
+            const slotNumber = parseInt(slot.dataset.slotNumber);
+            const slotHalf = slotNumber <= halfPoint ? 'top' : 'bottom';
+
+            // If we have a restriction, only highlight allowed half
+            if (allowedHalf === null || slotHalf === allowedHalf) {
+                slot.classList.add('slot-target');
+            }
+        }
+    });
+}
+
+// Auto-scroll during drag
+function handleAutoScroll(e) {
+    const y = e.clientY;
+    const windowHeight = window.innerHeight;
+
+    // Near top - scroll up
+    if (y < SCROLL_ZONE) {
+        startAutoScroll(-SCROLL_SPEED);
+    }
+    // Near bottom - scroll down
+    else if (y > windowHeight - SCROLL_ZONE) {
+        startAutoScroll(SCROLL_SPEED);
+    }
+    else {
+        stopAutoScroll();
+    }
+}
+
+function startAutoScroll(speed) {
+    if (autoScrollInterval) return;
+    autoScrollInterval = setInterval(() => {
+        window.scrollBy(0, speed);
+    }, 16);
+}
+
+function stopAutoScroll() {
+    if (autoScrollInterval) {
+        clearInterval(autoScrollInterval);
+        autoScrollInterval = null;
+    }
+}
 
 function handleDragStart(e) {
     draggedElement = e.target;
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
+    // Deselect any selected player when starting drag
+    deselectPlayer();
 }
 
 function handleDragEnd(e) {
     e.target.classList.remove('dragging');
     draggedElement = null;
+    stopAutoScroll();
 }
 
 function handleDragOver(e) {
@@ -484,6 +736,7 @@ function handleDrop(e) {
     if (draggedElement.classList.contains('player-item') && !draggedElement.classList.contains('bye-item')) {
         const playerId = draggedElement.dataset.playerId;
         const groupId = draggedElement.dataset.groupId;
+        const groupName = draggedElement.dataset.groupName || groupId;
         const country = draggedElement.dataset.country;
         const slotNumber = parseInt(targetSlot.dataset.slotNumber);
         const playerName = draggedElement.querySelector('.player-name').textContent.trim();
@@ -497,8 +750,24 @@ function handleDrop(e) {
             return false;
         }
 
+        // For second place players, validate they go to opposite half
+        const isSecondPlace = draggedElement.closest('#seconds-pool') !== null;
+        if (isSecondPlace) {
+            const slotHalf = slotNumber <= halfPoint ? 'top' : 'bottom';
+            for (const [slotNum, data] of Object.entries(slotAssignments)) {
+                if (data.groupId === groupId) {
+                    const firstPlaceHalf = parseInt(slotNum) <= halfPoint ? 'top' : 'bottom';
+                    if (slotHalf === firstPlaceHalf) {
+                        alert(`El 2º de G${groupName} debe ir en la mitad opuesta al 1º (que está en mitad ${firstPlaceHalf === 'top' ? 'superior' : 'inferior'})`);
+                        return false;
+                    }
+                    break;
+                }
+            }
+        }
+
         // Assign player to slot
-        assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country);
+        assignPlayerToSlot(slotNumber, playerId, playerName, groupId, groupName, country);
     }
     // Case 2: Dragging from another slot (moving within bracket)
     else if (draggedElement.classList.contains('slot-item')) {
@@ -532,6 +801,7 @@ function handleDrop(e) {
                 targetData.playerId,
                 targetData.playerName,
                 targetData.groupId,
+                targetData.groupName,
                 targetData.country
             );
         } else {
@@ -545,6 +815,7 @@ function handleDrop(e) {
             sourceData.playerId,
             sourceData.playerName,
             sourceData.groupId,
+            sourceData.groupName,
             sourceData.country
         );
     }
@@ -562,7 +833,7 @@ function handleDrop(e) {
     return false;
 }
 
-function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country) {
+function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, groupName, country) {
     const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
     const input = slot.querySelector('input[type="hidden"]');
     const contentDiv = slot.querySelector('.slot-player');
@@ -572,18 +843,12 @@ function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country) 
     input.value = playerId;
 
     contentDiv.innerHTML = `
-        <div>
-            <div style="font-weight: bold;">
-                <span class="group-badge">G${groupId}</span>
-                ${playerName}
-            </div>
-            <div style="font-size: 0.875rem; color: var(--text-muted);">
-                País: ${country}
-            </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span class="group-badge">G${groupName}</span>
+            <span style="font-weight: 600; font-size: 0.85rem;">${playerName}</span>
+            <span class="badge badge-secondary" style="font-size: 0.7rem;">${country}</span>
         </div>
-        <div class="slot-actions">
-            <button type="button" class="btn-remove" onclick="removePlayerFromSlot(${slotNumber})">✕</button>
-        </div>
+        <button type="button" class="btn-remove" onclick="removePlayerFromSlot(${slotNumber})" style="padding: 0.15rem 0.4rem; font-size: 0.75rem;">✕</button>
     `;
 
     // Make the slot draggable
@@ -597,8 +862,17 @@ function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, country) 
         slot.setAttribute('data-drag-enabled', 'true');
     }
 
-    // Track assignment (include playerName for swapping)
-    slotAssignments[slotNumber] = { playerId, playerName, groupId, country };
+    // Hide player from the pool list
+    const playerItem = document.querySelector(`.player-item[data-player-id="${playerId}"]`);
+    if (playerItem) {
+        playerItem.style.display = 'none';
+    }
+
+    // Track assignment (include playerName and groupName for swapping)
+    slotAssignments[slotNumber] = { playerId, playerName, groupId, groupName, country };
+
+    // Save state to localStorage
+    saveState();
 
     // Validate constraints
     validateConstraints();
@@ -608,6 +882,10 @@ function removePlayerFromSlot(slotNumber) {
     const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
     const input = slot.querySelector('input[type="hidden"]');
     const contentDiv = slot.querySelector('.slot-player');
+
+    // Get player ID before removing from tracking
+    const playerData = slotAssignments[slotNumber];
+    const playerId = playerData ? playerData.playerId : null;
 
     // Clear slot
     slot.classList.remove('occupied');
@@ -621,6 +899,17 @@ function removePlayerFromSlot(slotNumber) {
 
     // Remove from tracking
     delete slotAssignments[slotNumber];
+
+    // Show player back in the pool list
+    if (playerId) {
+        const playerItem = document.querySelector(`.player-item[data-player-id="${playerId}"]`);
+        if (playerItem) {
+            playerItem.style.display = '';
+        }
+    }
+
+    // Save state to localStorage
+    saveState();
 
     // Revalidate
     validateConstraints();
@@ -696,10 +985,11 @@ function addByeToPool() {
 }
 
 function clearAllSlots() {
-    if (confirm('¿Seguro que quieres limpiar todas las posiciones?')) {
+    if (confirm('¿Seguro que quieres limpiar todas las posiciones? (También se borrará el borrador guardado)')) {
         Object.keys(slotAssignments).forEach(slotNumber => {
             removePlayerFromSlot(parseInt(slotNumber));
         });
+        clearDraft();
     }
 }
 
@@ -781,6 +1071,8 @@ document.getElementById('bracket-form').addEventListener('submit', function(e) {
         return false;
     }
 
+    // Don't clear draft here - let the server confirm success first
+    // The draft will be cleared when redirected to success page
     return true;
 });
 
@@ -811,6 +1103,7 @@ document.getElementById('bracket-form').addEventListener('submit', function(e) {
                     player.player_id,
                     playerName,
                     player.group_id,
+                    player.group_name || player.group_id,
                     player.pais_cd
                 );
             }

@@ -99,10 +99,11 @@
 
 <!-- By Category -->
 {% for category, groups in categories_groups.items() %}
-<div class="card mb-3">
-    <div class="card-header">
-        <h3 class="card-title">📁 Categoría: {{ category }}</h3>
-    </div>
+<details class="card mb-3" open>
+    <summary class="card-header" style="cursor: pointer; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+        <span class="details-arrow">▶</span>
+        <h3 class="card-title" style="margin: 0;">📁 Categoría: {{ category }} ({{ groups|length }} grupos)</h3>
+    </summary>
     <div class="card-body" style="padding: 0;">
         <table class="table">
             <thead>
@@ -148,21 +149,24 @@
             </tbody>
         </table>
     </div>
-</div>
+</details>
 {% endfor %}
+
+<style>
+details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
+details[open] .details-arrow { transform: rotate(90deg); }
+details summary::-webkit-details-marker { display: none; }
+details summary { user-select: none; }
+</style>
 
 <!-- Bracket Section -->
 {% if categories_brackets %}
 <div class="card mb-3">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title">🏆 Llave Eliminatoria (Bracket)</h3>
-        <div class="d-flex gap-2">
-            {% for category in categories_brackets.keys() %}
-            <a href="/admin/sync-bracket/{{ category }}" class="btn btn-secondary btn-sm" title="Actualizar datos de partidos desde la llave">
-                🔄 Sincronizar {{ category }}
-            </a>
-            {% endfor %}
-        </div>
+        <a href="/admin/sync-bracket-all" class="btn btn-secondary btn-sm" title="Sincronizar datos de partidos con la llave">
+            🔄 Sincronizar
+        </a>
     </div>
     <div class="card-body">
         <p style="color: var(--text-muted); margin-bottom: 1rem;">
@@ -173,10 +177,13 @@
         <form action="/print/bracket/selected" method="post" id="bracket-form-{{ category }}">
             <input type="hidden" name="category" value="{{ category }}">
 
-            <div style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="margin: 0;">📁 {{ category }} ({{ cat_data.total_matches }} partidos)</h4>
-                    <div class="d-flex gap-2">
+            <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px;" open>
+                <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; cursor: pointer; list-style: none; background: #f8f9fa; border-radius: 8px 8px 0 0;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="details-arrow">▶</span>
+                        <h4 style="margin: 0;">📁 {{ category }} ({{ cat_data.total_matches }} partidos)</h4>
+                    </div>
+                    <div class="d-flex gap-2" onclick="event.stopPropagation();">
                         <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ category }}', true)">
                             ☑️ Todos
                         </button>
@@ -190,8 +197,8 @@
                             👁️ Ver seleccionados
                         </button>
                     </div>
-                </div>
-
+                </summary>
+                <div style="padding: 1rem;">
                 {% for round_type, round_data in cat_data.rounds.items() %}
                 <div style="margin-bottom: 1rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: #f0f0f0; border-radius: 4px;">
@@ -251,7 +258,8 @@
                     </table>
                 </div>
                 {% endfor %}
-            </div>
+                </div>
+            </details>
         </form>
         {% endfor %}
     </div>
