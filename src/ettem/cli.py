@@ -36,7 +36,7 @@ def import_players(csv: str, category: str, assign_seeds: bool):
         ettem import-players --csv data/samples/players.csv --category U13
     """
     from ettem.io_csv import import_players_csv, CSVImportError
-    from ettem.storage import DatabaseManager, PlayerRepository
+    from ettem.storage import DatabaseManager, PlayerRepository, TournamentRepository
 
     try:
         click.echo(f"[INFO] Reading CSV file: {csv}")
@@ -55,13 +55,24 @@ def import_players(csv: str, category: str, assign_seeds: bool):
         db.create_tables()
         session = db.get_session()
         player_repo = PlayerRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        if current_tournament:
+            click.echo(f"[TOURNAMENT] Using current tournament: {current_tournament.name} (id={tournament_id})")
+        else:
+            click.echo("[WARNING] No current tournament set. Players will not be assigned to any tournament.")
+            click.echo("          Create a tournament first using the web UI at /tournaments")
 
         # Save players to database
         click.echo(f"\n[SAVE] Saving {len(players)} players to database...")
         imported_count = 0
         for player in players:
             try:
-                player_repo.create(player)
+                player_repo.create(player, tournament_id=tournament_id)
                 imported_count += 1
             except Exception as e:
                 click.echo(f"[ERROR] Error saving {player.full_name}: {e}")
@@ -73,8 +84,8 @@ def import_players(csv: str, category: str, assign_seeds: bool):
             categories = set(p.categoria for p in players)
             click.echo(f"\n  Assigning seeds for {len(categories)} categories...")
             for cat in categories:
-                player_repo.assign_seeds(cat)
-                count = len(player_repo.get_by_category_sorted_by_seed(cat))
+                player_repo.assign_seeds(cat, tournament_id=tournament_id)
+                count = len(player_repo.get_by_category_sorted_by_seed(cat, tournament_id=tournament_id))
                 click.echo(f"     {cat}: {count} players seeded")
 
         click.echo("\n[DONE] Import complete!")
@@ -100,7 +111,7 @@ def build_groups(config: str, category: str, out: str):
     from pathlib import Path
     from ettem.config_loader import load_and_validate_config, ConfigError
     from ettem.group_builder import create_groups
-    from ettem.storage import DatabaseManager, PlayerRepository, GroupRepository, MatchRepository
+    from ettem.storage import DatabaseManager, PlayerRepository, GroupRepository, MatchRepository, TournamentRepository
     from ettem.models import Player
 
     try:
@@ -114,10 +125,20 @@ def build_groups(config: str, category: str, out: str):
         player_repo = PlayerRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        if current_tournament:
+            click.echo(f"[TOURNAMENT] Using current tournament: {current_tournament.name} (id={tournament_id})")
+        else:
+            click.echo("[WARNING] No current tournament set. Groups will not be assigned to any tournament.")
 
         # Get players for this category
         click.echo(f"[TARGET] Loading players for category: {category}")
-        player_orms = player_repo.get_by_category_sorted_by_seed(category)
+        player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
 
         if not player_orms:
             click.echo(f"[ERROR] No players found for category {category}", err=True)
@@ -161,8 +182,8 @@ def build_groups(config: str, category: str, out: str):
         # Save to database
         click.echo("[SAVE] Saving to database...")
         for group, group_matches in zip(groups, [matches[i::len(groups)] for i in range(len(groups))]):
-            # Save group
-            group_orm = group_repo.create(group)
+            # Save group with tournament_id
+            group_orm = group_repo.create(group, tournament_id=tournament_id)
 
             # Update players' group assignment
             for player_id in group.player_ids:
