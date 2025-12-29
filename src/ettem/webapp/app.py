@@ -222,10 +222,10 @@ def migrate_scheduler_tables():
     session.close()
 
 
-# Run migrations on startup
+# Run migrations on startup (order matters!)
 migrate_matches_add_category()
+migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
 migrate_bracket_slots_add_tournament_id()
-migrate_scheduler_tables()
 
 
 def get_db_session():
@@ -5915,7 +5915,6 @@ async def admin_scheduler(request: Request):
             "total_matches": total_matches,
             "scheduled_count": scheduled_count,
             "unscheduled_count": unscheduled_count,
-            "categories": get_categories(),
         }
 
         flash_message = request.session.pop("flash_message", None)
@@ -6139,7 +6138,6 @@ async def scheduler_grid(request: Request, session_id: int):
             "match_duration": match_duration,
             "grid_data": grid_data,
             "unscheduled_matches": unscheduled_matches,
-            "categories": get_categories(),
         }
 
         flash_message = request.session.pop("flash_message", None)
