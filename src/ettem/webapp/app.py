@@ -6116,12 +6116,13 @@ async def scheduler_grid(request: Request, session_id: int):
                 group = group_repo.get_by_id(m.group_id)
                 match_label = f"G{group.name}" if group else "Grupo"
                 category = group.category if group else "?"
-                # Calculate group round number from match_number
-                # For N players: (N-1) rounds, N/2 matches per round
-                group_matches = match_repo.get_by_group(m.group_id)
-                players_in_group = len(set([gm.player1_id for gm in group_matches] + [gm.player2_id for gm in group_matches]))
+                # Calculate group round number from match position within group
+                # Sort group matches by match_number to get correct order
+                group_matches_list = sorted(match_repo.get_by_group(m.group_id), key=lambda x: x.match_number or 0)
+                players_in_group = len(set([gm.player1_id for gm in group_matches_list] + [gm.player2_id for gm in group_matches_list]))
                 matches_per_round = max(1, players_in_group // 2)
-                match_index = m.match_number - 1 if m.match_number else 0
+                # Find index of current match within its group
+                match_index = next((i for i, gm in enumerate(group_matches_list) if gm.id == m.id), 0)
                 group_round = (match_index // matches_per_round) + 1
                 round_type = f"GR{group_round}"  # GR1, GR2, GR3...
             else:
