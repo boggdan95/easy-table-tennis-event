@@ -61,7 +61,7 @@
     <div class="card-header" style="padding: 0;">
         <div class="tabs-container">
             {% for round_type in round_order %}
-            <button class="tab-button {% if loop.first %}active{% endif %}"
+            <button class="tab-button {% if round_type == active_round %}active{% endif %}"
                     data-tab="{{ round_type }}"
                     onclick="switchTab('{{ round_type }}')">
                 {{ round_names.get(round_type, round_type) }}
@@ -73,7 +73,7 @@
 
     <!-- Tab Content -->
     {% for round_type in round_order %}
-    <div class="tab-content {% if loop.first %}active{% endif %}" id="tab-{{ round_type }}">
+    <div class="tab-content {% if round_type == active_round %}active{% endif %}" id="tab-{{ round_type }}">
         <div class="card-body" style="padding: 0;">
             <div class="table-responsive">
                 <table class="table">

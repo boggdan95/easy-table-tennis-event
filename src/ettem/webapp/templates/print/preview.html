@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+
+{% block title %}{{ preview_title }} - Vista Previa{% endblock %}
+
+{% block page_title %}{{ preview_title }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ back_url }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+<button onclick="printDocument()" class="btn btn-primary btn-sm">
+    <span>🖨️</span>
+    <span>Imprimir</span>
+</button>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .preview-container {
+        background: #f5f5f5;
+        padding: 1rem;
+        min-height: calc(100vh - 200px);
+    }
+
+    .preview-page {
+        background: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        margin: 0 auto 1rem auto;
+        padding: 1.5cm;
+        max-width: 21.6cm; /* Letter width: 8.5in */
+    }
+
+    .preview-page.landscape {
+        max-width: 27.9cm; /* Letter height as width: 11in */
+    }
+
+    .preview-actions {
+        text-align: center;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .preview-info {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Print preview styles - override base template */
+    .preview-page * {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    /* Match Sheet Half-Page Styles */
+    .match-sheet-half {
+        border: 2px solid #000;
+        padding: 12px;
+        margin-bottom: 12px;
+        page-break-inside: avoid;
+    }
+
+    .match-sheet-half:nth-child(2n) {
+        margin-bottom: 0;
+    }
+
+    .match-sheet-half .header {
+        text-align: center;
+        border-bottom: 1px solid #000;
+        padding-bottom: 6px;
+        margin-bottom: 8px;
+    }
+
+    .match-sheet-half .header h2 {
+        font-size: 12pt;
+        margin: 0 0 2px 0;
+    }
+
+    .match-sheet-half .header .subtitle {
+        font-size: 9pt;
+        color: #333;
+    }
+
+    .match-sheet-half .match-info-row {
+        display: flex;
+        justify-content: space-between;
+        border: 1px solid #000;
+        margin-bottom: 8px;
+    }
+
+    .match-sheet-half .match-info-cell {
+        flex: 1;
+        text-align: center;
+        padding: 4px 8px;
+        border-right: 1px solid #000;
+    }
+
+    .match-sheet-half .match-info-cell:last-child {
+        border-right: none;
+    }
+
+    .match-sheet-half .info-label {
+        font-size: 7pt;
+        color: #666;
+        display: block;
+    }
+
+    .match-sheet-half .info-value {
+        font-size: 10pt;
+        font-weight: bold;
+    }
+
+    .match-sheet-half .players-compact {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .match-sheet-half .player-box {
+        flex: 1;
+        border: 1px solid #000;
+        padding: 6px 10px;
+    }
+
+    .match-sheet-half .player-label {
+        font-size: 8pt;
+        color: #666;
+        font-weight: bold;
+    }
+
+    .match-sheet-half .player-name {
+        font-size: 11pt;
+        font-weight: bold;
+    }
+
+    .match-sheet-half .player-country {
+        font-size: 8pt;
+        color: #666;
+    }
+
+    /* Score table compact */
+    .match-sheet-half .score-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+    }
+
+    .match-sheet-half .score-table th,
+    .match-sheet-half .score-table td {
+        border: 1px solid #000;
+        padding: 4px;
+        text-align: center;
+        font-size: 9pt;
+    }
+
+    .match-sheet-half .score-table th {
+        background: #e0e0e0;
+        font-size: 8pt;
+    }
+
+    .match-sheet-half .score-table th.player-col {
+        text-align: left;
+        padding-left: 8px;
+        width: 30%;
+    }
+
+    .match-sheet-half .score-table td.player-cell {
+        text-align: left;
+        padding-left: 8px;
+        font-weight: bold;
+    }
+
+    .match-sheet-half .score-table td.score-cell {
+        height: 22px;
+        width: 12%;
+    }
+
+    .match-sheet-half .score-table td.total-cell {
+        background: #f0f0f0;
+        font-weight: bold;
+    }
+
+    /* Result row compact */
+    .match-sheet-half .result-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .match-sheet-half .result-box {
+        flex: 1;
+        border: 1px solid #000;
+        padding: 4px 8px;
+        text-align: center;
+    }
+
+    /* Signatures compact */
+    .match-sheet-half .signatures-row {
+        display: flex;
+        gap: 8px;
+    }
+
+    .match-sheet-half .signature-box {
+        flex: 1;
+        text-align: center;
+    }
+
+    .match-sheet-half .signature-line {
+        border-bottom: 1px solid #000;
+        height: 20px;
+        margin-bottom: 2px;
+    }
+
+    .match-sheet-half .signature-label {
+        font-size: 7pt;
+        color: #666;
+    }
+
+    /* Group Sheet Styles */
+    .group-sheet-preview {
+        font-size: 10pt;
+    }
+
+    .group-sheet-preview .header {
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+    }
+
+    .group-sheet-preview .header h1 {
+        font-size: 14pt;
+        margin: 0 0 4px 0;
+    }
+
+    .group-sheet-preview .section-title {
+        background: #333;
+        color: white;
+        padding: 4px 10px;
+        font-weight: bold;
+        font-size: 10pt;
+        margin: 12px 0 8px 0;
+    }
+
+    .group-sheet-preview table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .group-sheet-preview th,
+    .group-sheet-preview td {
+        border: 1px solid #000;
+        padding: 6px 8px;
+    }
+
+    .group-sheet-preview th {
+        background: #e8e8e8;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .group-sheet-preview .matrix-table td {
+        text-align: center;
+        min-width: 35px;
+        height: 28px;
+    }
+
+    .group-sheet-preview .matrix-table td.player-cell {
+        text-align: left;
+        font-weight: bold;
+        background: #f5f5f5;
+    }
+
+    .group-sheet-preview .matrix-table td.diagonal {
+        background: #333;
+        color: white;
+    }
+
+    .group-sheet-preview .matrix-table td.stats-cell {
+        background: #f9f9f9;
+        min-width: 40px;
+    }
+
+    /* Match List Styles */
+    .match-list-preview table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .match-list-preview th,
+    .match-list-preview td {
+        border: 1px solid #000;
+        padding: 8px 10px;
+    }
+
+    .match-list-preview th {
+        background: #333;
+        color: white;
+        font-weight: bold;
+    }
+
+    .match-list-preview tr:nth-child(even) {
+        background: #f9f9f9;
+    }
+
+    .match-list-preview td.num {
+        text-align: center;
+        font-weight: bold;
+        width: 40px;
+    }
+
+    .match-list-preview td.vs {
+        text-align: center;
+        width: 40px;
+        color: #666;
+    }
+
+    .match-list-preview td.result {
+        text-align: center;
+        width: 80px;
+    }
+
+    /* Print settings */
+    @page {
+        size: letter;
+        margin: 1cm;
+    }
+
+    @media print {
+        /* Hide all UI elements */
+        .preview-actions,
+        .topbar,
+        .sidebar,
+        .app-container > .sidebar,
+        header.topbar,
+        .main-content > header {
+            display: none !important;
+        }
+
+        /* Reset body and containers */
+        body, html {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+
+        .app-container {
+            display: block !important;
+        }
+
+        .main-content {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .content {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .preview-container {
+            background: white !important;
+            padding: 0 !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        .preview-page {
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 1cm !important;
+            max-width: none !important;
+            width: 100% !important;
+            page-break-after: always !important;
+            page-break-inside: avoid !important;
+        }
+
+        .preview-page:last-child {
+            page-break-after: avoid !important;
+        }
+
+        .preview-page.landscape {
+            max-width: none !important;
+        }
+
+        /* Match sheets - 2 per page */
+        .match-sheet-half {
+            page-break-inside: avoid !important;
+            height: auto !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="preview-container">
+    <div class="preview-actions">
+        <div class="preview-info">
+            Vista previa del documento. Usa "Guardar como PDF" en el diálogo de impresión para descargar.
+        </div>
+        <button onclick="printDocument()" class="btn btn-primary">
+            <span>🖨️</span>
+            <span>Imprimir</span>
+        </button>
+    </div>
+
+    <script>
+    function printDocument() {
+        // Create a new window with just the content
+        var printContent = document.querySelector('.preview-container').innerHTML;
+        var printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Imprimir</title>
+                <style>
+                    @page { size: letter; margin: 0.5cm; }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; font-size: 9pt; }
+                    .preview-actions, .preview-info, button, script { display: none !important; }
+                    .preview-container { padding: 0; background: white; }
+                    .preview-page {
+                        page-break-after: always;
+                        padding: 15px;
+                        max-width: none;
+                        box-shadow: none;
+                        margin: 0;
+                    }
+                    .preview-page:last-child { page-break-after: avoid; }
+                    /* Only match sheets need fixed height for 2-per-page */
+                    .preview-page:has(.match-sheet-half) {
+                        height: 100vh;
+                        padding: 0;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    /* Match sheet styles - exactly half page each */
+                    .match-sheet-half {
+                        border: 2px solid #000;
+                        padding: 12px;
+                        margin: 0;
+                        height: 50vh;
+                        box-sizing: border-box;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                    }
+                    .header { text-align: center; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
+                    .header h2 { font-size: 12pt; margin: 0 0 3px 0; }
+                    .header .subtitle { font-size: 9pt; color: #333; }
+                    .match-info-row { display: flex; border: 1px solid #000; margin-bottom: 8px; }
+                    .match-info-cell { flex: 1; text-align: center; padding: 4px; border-right: 1px solid #000; }
+                    .match-info-cell:last-child { border-right: none; }
+                    .info-label { font-size: 7pt; color: #666; display: block; }
+                    .info-value { font-size: 9pt; font-weight: bold; }
+                    .players-compact { display: flex; gap: 8px; margin-bottom: 8px; }
+                    .player-box { flex: 1; border: 1px solid #000; padding: 5px 8px; }
+                    .player-label { font-size: 7pt; color: #666; font-weight: bold; }
+                    .player-name { font-size: 10pt; font-weight: bold; }
+                    .player-country { font-size: 8pt; color: #666; }
+                    .score-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+                    .score-table th, .score-table td { border: 1px solid #000; padding: 3px; text-align: center; font-size: 8pt; }
+                    .score-table th { background: #e0e0e0; font-size: 7pt; }
+                    .score-table th.player-col { text-align: left; padding-left: 6px; width: 28%; }
+                    .score-table td.player-cell { text-align: left; padding-left: 6px; font-weight: bold; }
+                    .score-table td.score-cell { height: 20px; }
+                    .score-table td.total-cell { background: #f0f0f0; font-weight: bold; }
+                    .result-row { display: flex; border: 1px solid #000; margin-bottom: 8px; }
+                    .result-box { flex: 1; text-align: center; padding: 3px 6px; border-right: 1px solid #000; }
+                    .result-box:last-child { border-right: none; }
+                    .signatures-row { display: flex; }
+                    .signature-box { flex: 1; text-align: center; padding: 0 5px; }
+                    .signature-line { border-bottom: 1px solid #000; height: 18px; margin-bottom: 2px; }
+                    .signature-label { font-size: 7pt; color: #666; }
+
+                    /* Match list styles */
+                    .match-list-preview { padding: 15px; }
+                    .match-list-preview table { width: 100%; border-collapse: collapse; }
+                    .match-list-preview th, .match-list-preview td { border: 1px solid #000; padding: 6px 8px; font-size: 9pt; }
+                    .match-list-preview th { background: #333; color: white; font-weight: bold; text-align: center; }
+                    .match-list-preview td.num { text-align: center; font-weight: bold; background: #f0f0f0; }
+                    .match-list-preview td.vs { text-align: center; color: #666; font-weight: bold; }
+                    .match-list-preview td.result { text-align: center; }
+                    .match-list-preview tr:nth-child(even) { background: #f9f9f9; }
+
+                    /* Group sheet styles */
+                    .group-sheet-preview { padding: 15px; }
+                    .group-sheet-preview table { width: 100%; border-collapse: collapse; }
+                    .group-sheet-preview th, .group-sheet-preview td { border: 1px solid #000; padding: 6px 8px; font-size: 9pt; }
+                    .group-sheet-preview th { background: #e8e8e8; font-weight: bold; text-align: center; }
+                    .group-sheet-preview .section-title { background: #333; color: white; padding: 6px 10px; font-weight: bold; margin: 12px 0 8px 0; }
+                    .group-sheet-preview .matrix-table td { text-align: center; min-width: 35px; height: 28px; }
+                    .group-sheet-preview .matrix-table td.player-cell { text-align: left; font-weight: bold; background: #f5f5f5; }
+                    .group-sheet-preview .matrix-table td.diagonal { background: #333; }
+                    .group-sheet-preview .matrix-table td.stats-cell { background: #f9f9f9; }
+                </style>
+            </head>
+            <body>${printContent}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.onload = function() {
+            printWindow.print();
+            printWindow.close();
+        };
+    }
+    </script>
+
+    {% block preview_content %}{% endblock %}
+</div>
+{% endblock %}

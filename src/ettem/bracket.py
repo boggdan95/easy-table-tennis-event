@@ -48,6 +48,69 @@ def get_round_type_for_size(bracket_size: int) -> RoundType:
         return RoundType.ROUND_OF_32
 
 
+def get_bye_positions_for_bracket(num_qualifiers: int, bracket_size: int) -> set[int]:
+    """Get the correct BYE positions for a bracket.
+
+    BYE positions must be placed such that:
+    1. BYEs never face each other (no BYE vs BYE matches)
+    2. Each BYE faces a player who gets automatic advancement
+
+    In a bracket, matches are formed by pairing slots: (1,2), (3,4), (5,6), etc.
+    So BYEs should be in positions that pair with players, not other BYEs.
+
+    Standard ITTF BYE placement: BYEs go in even positions first, spread across bracket.
+    """
+    num_byes = bracket_size - num_qualifiers
+    if num_byes <= 0:
+        return set()
+
+    # BYE positions for different bracket sizes
+    # Key insight: BYEs should be in positions 2, 4, 6, 8... (even) to pair with 1, 3, 5, 7... (odd)
+    # But distributed across the bracket, not clustered
+
+    bye_positions = set()
+
+    if bracket_size == 8:
+        # 8-slot bracket: matches (1,2), (3,4), (5,6), (7,8)
+        # BYEs in positions: 2, 4, 6, 8 (even positions)
+        bye_order = [2, 7, 4, 5]  # Spread across bracket
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    elif bracket_size == 16:
+        # 16-slot bracket: matches (1,2), (3,4), ..., (15,16)
+        # BYEs should pair players with BYEs, not BYE with BYE
+        # Even positions that spread across: 2, 15, 7, 10, 4, 13, 6, 11
+        bye_order = [2, 15, 7, 10, 4, 13, 6, 11]
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    elif bracket_size == 32:
+        # 32-slot bracket
+        bye_order = [2, 31, 7, 26, 10, 23, 15, 18, 4, 29, 6, 27, 11, 22, 14, 19]
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    else:
+        # Fallback: use even positions spread across bracket
+        all_even = [i for i in range(2, bracket_size + 1, 2)]
+        # Interleave from ends
+        bye_order = []
+        left, right = 0, len(all_even) - 1
+        while left <= right:
+            if left == right:
+                bye_order.append(all_even[left])
+            else:
+                bye_order.append(all_even[left])
+                bye_order.append(all_even[right])
+            left += 1
+            right -= 1
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    return bye_positions
+
+
 def build_bracket(
     qualifiers: list[tuple[Player, GroupStanding]],
     category: str,
@@ -57,11 +120,11 @@ def build_bracket(
     """Build knockout bracket from group stage qualifiers.
 
     Placement strategy:
-    1. G1 (best 1st place): top slot (#1)
-    2. G2 (second best 1st place): bottom slot (last)
-    3. Other 1st place finishers: random draw in predefined slots
-    4. 2nd place finishers: opposite half from their group's 1st place
-    5. Fill remaining slots with BYEs
+    1. First, determine BYE positions (ensuring no BYE vs BYE matches)
+    2. G1 (best 1st place): top slot (#1)
+    3. G2 (second best 1st place): bottom slot (last)
+    4. Other 1st place finishers: random draw in predefined slots
+    5. 2nd place finishers: opposite half from their group's 1st place
     6. Annotate same-country 1st round matches (non-blocking)
 
     Args:
@@ -86,12 +149,14 @@ def build_bracket(
     # Determine bracket size
     num_qualifiers = len(qualifiers)
     bracket_size = next_power_of_2(num_qualifiers)
-    num_byes = bracket_size - num_qualifiers
+
+    # Get BYE positions FIRST (this is the key fix)
+    bye_positions = get_bye_positions_for_bracket(num_qualifiers, bracket_size)
 
     # Determine starting round type
     first_round = get_round_type_for_size(bracket_size)
 
-    # Initialize bracket
+    # Initialize bracket with BYEs already placed
     bracket = Bracket(category=category)
     bracket.slots[first_round] = []
 
@@ -101,7 +166,7 @@ def build_bracket(
             slot_number=slot_num,
             round_type=first_round,
             player_id=None,
-            is_bye=False,
+            is_bye=slot_num in bye_positions,  # Pre-place BYEs
         )
         bracket.slots[first_round].append(slot)
 
@@ -118,37 +183,44 @@ def build_bracket(
 
     sorted_firsts = sorted(firsts, key=first_place_sort_key)
 
-    # Place G1 at top
+    # Place G1 at top (slot 1, but check if it's a BYE position)
     if sorted_firsts:
         g1_player, g1_standing = sorted_firsts[0]
-        bracket.slots[first_round][0].player_id = g1_player.id
+        # Find first non-BYE slot starting from slot 1
+        for slot in bracket.slots[first_round]:
+            if not slot.is_bye and slot.player_id is None:
+                slot.player_id = g1_player.id
+                break
 
-    # Place G2 at bottom
+    # Place G2 at bottom (last slot, but check if it's a BYE position)
     if len(sorted_firsts) > 1:
         g2_player, g2_standing = sorted_firsts[1]
-        bracket.slots[first_round][-1].player_id = g2_player.id
+        # Find first non-BYE slot starting from the end
+        for slot in reversed(bracket.slots[first_round]):
+            if not slot.is_bye and slot.player_id is None:
+                slot.player_id = g2_player.id
+                break
 
     # Remaining firsts (if any)
     remaining_firsts = sorted_firsts[2:]
 
-    # Predefined slots for remaining firsts (avoid top and bottom which are taken)
-    # Strategy: place in quarters of the bracket
-    # For 16-player bracket: slots 1, 16 are taken; good slots: 5, 8, 9, 12, etc.
+    # Get available non-BYE slots for remaining firsts
     available_slots_for_firsts = []
     if bracket_size >= 8:
-        # For 8: slots 1, 8 taken; available: 3, 4, 5, 6
+        # Prefer quarter positions
         quarter = bracket_size // 4
         for i in range(1, 4):  # 3 quarters (skip first and last)
-            slot_idx = i * quarter
-            # Avoid already taken slots
-            if bracket.slots[first_round][slot_idx - 1].player_id is None:
-                available_slots_for_firsts.append(slot_idx - 1)  # Convert to 0-indexed
+            slot_idx = i * quarter - 1  # 0-indexed
+            slot = bracket.slots[first_round][slot_idx]
+            if not slot.is_bye and slot.player_id is None:
+                available_slots_for_firsts.append(slot_idx)
 
-    # If not enough predefined slots, add more
-    if len(available_slots_for_firsts) < len(remaining_firsts):
-        for i in range(1, bracket_size - 1):
-            if i - 1 not in available_slots_for_firsts and bracket.slots[first_round][i - 1].player_id is None:
-                available_slots_for_firsts.append(i - 1)
+    # If not enough predefined slots, add more non-BYE slots
+    for i, slot in enumerate(bracket.slots[first_round]):
+        if i not in available_slots_for_firsts and not slot.is_bye and slot.player_id is None:
+            available_slots_for_firsts.append(i)
+            if len(available_slots_for_firsts) >= len(remaining_firsts) + len(seconds):
+                break
 
     # Randomly assign remaining firsts to available slots
     random.shuffle(available_slots_for_firsts)
@@ -170,7 +242,7 @@ def build_bracket(
 
         if group_id not in first_to_slot:
             # No first-place from this group (shouldn't happen in normal flow)
-            # Just place in any available slot
+            # Just place in any available non-BYE slot
             for slot in bracket.slots[first_round]:
                 if slot.player_id is None and not slot.is_bye:
                     slot.player_id = player.id
@@ -190,10 +262,10 @@ def build_bracket(
             # First is in bottom half, place second in top half
             target_range = range(0, half_point)
 
-        # Find available slot in target range
+        # Find available non-BYE slot in target range
         placed = False
-        for slot_num in target_range:
-            slot = bracket.slots[first_round][slot_num]
+        for slot_idx in target_range:
+            slot = bracket.slots[first_round][slot_idx]
             if slot.player_id is None and not slot.is_bye:
                 slot.player_id = player.id
                 placed = True
@@ -206,14 +278,41 @@ def build_bracket(
                     slot.player_id = player.id
                     break
 
-    # Fill remaining slots with BYEs
-    for slot in bracket.slots[first_round]:
-        if slot.player_id is None:
-            slot.is_bye = True
-
     # Annotate same-country matches (non-blocking warnings)
     if player_repo:
         annotate_same_country_matches(bracket, first_round, player_repo)
+
+    # Create subsequent rounds (empty slots for winners to advance into)
+    # This is needed for process_bye_advancements to work
+    round_progression = {
+        RoundType.ROUND_OF_32: RoundType.ROUND_OF_16,
+        RoundType.ROUND_OF_16: RoundType.QUARTERFINAL,
+        RoundType.QUARTERFINAL: RoundType.SEMIFINAL,
+        RoundType.SEMIFINAL: RoundType.FINAL,
+    }
+
+    current_round = first_round
+    current_size = bracket_size
+
+    while current_round in round_progression:
+        next_round = round_progression[current_round]
+        next_size = current_size // 2
+
+        if next_size < 1:
+            break
+
+        bracket.slots[next_round] = []
+        for slot_num in range(1, next_size + 1):
+            slot = BracketSlot(
+                slot_number=slot_num,
+                round_type=next_round,
+                player_id=None,
+                is_bye=False,
+            )
+            bracket.slots[next_round].append(slot)
+
+        current_round = next_round
+        current_size = next_size
 
     return bracket
 

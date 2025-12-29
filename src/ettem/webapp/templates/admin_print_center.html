@@ -52,11 +52,45 @@
         </p>
         <div class="d-flex gap-2" style="flex-wrap: wrap;">
             {% for category, groups in categories_groups.items() %}
-            <a href="/print/category/{{ category }}/all-match-sheets"
+            <a href="/preview/category/{{ category }}/all-match-sheets"
                class="btn btn-primary"
                title="Todas las hojas de partido de {{ category }}">
                 <span>📋</span>
-                <span>Hojas {{ category }}</span>
+                <span>Hojas Partido {{ category }}</span>
+            </a>
+            <a href="/preview/category/{{ category }}/all-group-sheets"
+               class="btn btn-secondary"
+               title="Todas las hojas de grupo de {{ category }}">
+                <span>📊</span>
+                <span>Hojas Grupo {{ category }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- CSV Exports -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">📥 Exportar a CSV</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+            Descarga datos en formato CSV para Excel o análisis:
+        </p>
+        <div class="d-flex gap-2" style="flex-wrap: wrap;">
+            {% for category, groups in categories_groups.items() %}
+            <a href="/export/standings/{{ category }}"
+               class="btn btn-success btn-sm"
+               title="Exportar clasificación de {{ category }}">
+                <span>📊</span>
+                <span>Standings {{ category }}</span>
+            </a>
+            <a href="/export/bracket/{{ category }}"
+               class="btn btn-warning btn-sm"
+               title="Exportar bracket de {{ category }}">
+                <span>🏆</span>
+                <span>Bracket {{ category }}</span>
             </a>
             {% endfor %}
         </div>
@@ -86,27 +120,27 @@
                         <strong>{{ group.name }}</strong>
                     </td>
                     <td style="text-align: center;">
-                        <a href="/print/group/{{ group.id }}/sheet"
+                        <a href="/preview/group/{{ group.id }}/sheet"
                            class="btn btn-secondary btn-sm"
                            title="Hoja de grupo con matriz de resultados">
                             <span>📊</span>
-                            <span>PDF</span>
+                            <span>Ver</span>
                         </a>
                     </td>
                     <td style="text-align: center;">
-                        <a href="/print/group/{{ group.id }}/matches"
+                        <a href="/preview/group/{{ group.id }}/matches"
                            class="btn btn-secondary btn-sm"
                            title="Lista de partidos del grupo">
                             <span>📝</span>
-                            <span>PDF</span>
+                            <span>Ver</span>
                         </a>
                     </td>
                     <td style="text-align: center;">
-                        <a href="/print/group/{{ group.id }}/all-match-sheets"
+                        <a href="/preview/group/{{ group.id }}/all-match-sheets"
                            class="btn btn-success btn-sm"
-                           title="Todas las hojas de partido (una por página)">
+                           title="Todas las hojas de partido (2 por página)">
                             <span>📋</span>
-                            <span>PDF</span>
+                            <span>Ver</span>
                         </a>
                     </td>
                 </tr>
@@ -116,6 +150,154 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Bracket Section -->
+{% if categories_brackets %}
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">🏆 Llave Eliminatoria (Bracket)</h3>
+        <div class="d-flex gap-2">
+            {% for category in categories_brackets.keys() %}
+            <a href="/admin/sync-bracket/{{ category }}" class="btn btn-secondary btn-sm" title="Actualizar datos de partidos desde la llave">
+                🔄 Sincronizar {{ category }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+            Selecciona los partidos que deseas imprimir. Si los datos no están actualizados, haz clic en "Sincronizar".
+        </p>
+
+        {% for category, cat_data in categories_brackets.items() %}
+        <form action="/print/bracket/selected" method="post" id="bracket-form-{{ category }}">
+            <input type="hidden" name="category" value="{{ category }}">
+
+            <div style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0;">📁 {{ category }} ({{ cat_data.total_matches }} partidos)</h4>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ category }}', true)">
+                            ☑️ Todos
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ category }}', false)">
+                            ☐ Ninguno
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleReadyBracket('{{ category }}')">
+                            ✅ Solo listos
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            👁️ Ver seleccionados
+                        </button>
+                    </div>
+                </div>
+
+                {% for round_type, round_data in cat_data.rounds.items() %}
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: #f0f0f0; border-radius: 4px;">
+                        <input type="checkbox"
+                               id="round-{{ category }}-{{ round_type }}"
+                               onchange="toggleRound('{{ category }}', '{{ round_type }}', this.checked)"
+                               style="width: 18px; height: 18px;">
+                        <label for="round-{{ category }}-{{ round_type }}" style="margin: 0; font-weight: 600; cursor: pointer;">
+                            {{ round_data.name }} ({{ round_data.matches|length }})
+                        </label>
+                    </div>
+
+                    <table class="table" style="font-size: 0.9rem; margin-bottom: 0;">
+                        <tbody>
+                            {% for match in round_data.matches %}
+                            {% set is_pending = match.is_ready and match.status != 'completed' %}
+                            <tr class="bracket-match-row"
+                                data-category="{{ category }}"
+                                data-round="{{ round_type }}"
+                                data-ready="{{ 'true' if match.is_ready else 'false' }}"
+                                data-pending="{{ 'true' if is_pending else 'false' }}"
+                                style="{% if not match.is_ready %}opacity: 0.6;{% endif %}{% if match.status == 'completed' %}background: #f0fff0;{% endif %}">
+                                <td style="width: 40px; text-align: center;">
+                                    <input type="checkbox"
+                                           name="match_ids"
+                                           value="{{ match.id }}"
+                                           class="bracket-checkbox bracket-{{ category }} round-{{ category }}-{{ round_type }}"
+                                           {% if is_pending %}checked{% endif %}
+                                           style="width: 18px; height: 18px;">
+                                </td>
+                                <td>
+                                    <span style="{% if not match.is_ready %}color: #999;{% endif %}">
+                                        {{ match.player1_name }} vs {{ match.player2_name }}
+                                    </span>
+                                </td>
+                                <td style="width: 100px;">
+                                    {% if match.status == 'completed' %}
+                                    <span class="badge badge-success">✓ Jugado</span>
+                                    {% elif match.is_ready %}
+                                    <span class="badge badge-warning">Pendiente</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Esperando</span>
+                                    {% endif %}
+                                </td>
+                                <td style="width: 80px; text-align: center;">
+                                    {% if match.is_ready %}
+                                    <a href="/preview/bracket/match/{{ match.id }}"
+                                       class="btn btn-secondary btn-sm"
+                                       title="Ver hoja">
+                                        👁️
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endfor %}
+            </div>
+        </form>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleAllBracket(category, checked) {
+    document.querySelectorAll('.bracket-' + category).forEach(cb => {
+        cb.checked = checked;
+    });
+    updateRoundCheckboxes(category);
+}
+
+function toggleReadyBracket(category) {
+    document.querySelectorAll('.bracket-' + category).forEach(cb => {
+        const row = cb.closest('tr');
+        const isPending = row.dataset.pending === 'true';
+        cb.checked = isPending;
+    });
+    updateRoundCheckboxes(category);
+}
+
+function toggleRound(category, round, checked) {
+    document.querySelectorAll('.round-' + category + '-' + round).forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+function updateRoundCheckboxes(category) {
+    // Update round header checkboxes based on their matches
+    document.querySelectorAll('[id^="round-' + category + '-"]').forEach(roundCb => {
+        const round = roundCb.id.replace('round-' + category + '-', '');
+        const matches = document.querySelectorAll('.round-' + category + '-' + round);
+        const checkedMatches = document.querySelectorAll('.round-' + category + '-' + round + ':checked');
+        roundCb.checked = matches.length > 0 && matches.length === checkedMatches.length;
+    });
+}
+
+// Initialize round checkboxes on load
+document.addEventListener('DOMContentLoaded', function() {
+    {% for category in categories_brackets.keys() %}
+    updateRoundCheckboxes('{{ category }}');
+    {% endfor %}
+});
+</script>
+{% endif %}
 
 <!-- Help Section -->
 <div class="card">

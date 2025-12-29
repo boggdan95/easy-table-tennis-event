@@ -169,12 +169,16 @@ class Match:
     @property
     def is_walkover(self) -> bool:
         """Check if this was a walkover."""
-        return self.status == MatchStatus.WALKOVER
+        # Handle both enum values and strings (case-insensitively)
+        status_val = self.status.value if isinstance(self.status, MatchStatus) else str(self.status).lower()
+        return status_val == MatchStatus.WALKOVER.value
 
     @property
     def is_completed(self) -> bool:
         """Check if match is finished."""
-        return self.status in (MatchStatus.COMPLETED, MatchStatus.WALKOVER)
+        # Handle both enum values and strings (case-insensitively)
+        status_val = self.status.value if isinstance(self.status, MatchStatus) else str(self.status).lower()
+        return status_val in (MatchStatus.COMPLETED.value, MatchStatus.WALKOVER.value)
 
     def __str__(self) -> str:
         """String representation."""

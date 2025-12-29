@@ -57,7 +57,8 @@ def generate_match_sheet_pdf(
     table_number: Optional[int] = None,
     scheduled_time: Optional[str] = None,
     tournament_name: Optional[str] = None,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    round_number: Optional[int] = None
 ) -> bytes:
     """
     Generate a match sheet PDF for referees.
@@ -71,6 +72,7 @@ def generate_match_sheet_pdf(
         scheduled_time: Optional scheduled time string
         tournament_name: Optional tournament name
         category: Optional category name
+        round_number: Optional round number for group matches
 
     Returns:
         PDF as bytes
@@ -84,6 +86,7 @@ def generate_match_sheet_pdf(
         "scheduled_time": scheduled_time,
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
+        "round_number": round_number,
     }
 
     html = render_html("match_sheet.html", context)

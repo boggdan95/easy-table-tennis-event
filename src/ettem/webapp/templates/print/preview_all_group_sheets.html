@@ -1,0 +1,116 @@
+{% extends "print/preview.html" %}
+
+{% block preview_content %}
+<div class="all-groups-container">
+    {% for g in groups %}
+    <div class="group-sheet-compact">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px;">
+            <div style="font-size: 14pt; font-weight: bold;">{{ g.group.name }}</div>
+            <div style="font-size: 10pt; color: #555;">{{ category }} - {{ tournament_name }}</div>
+        </div>
+
+        <!-- Compact Results Matrix -->
+        <table class="matrix-table" style="width: 100%; margin-bottom: 15px;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding: 6px 10px; min-width: 180px;">Jugador</th>
+                    {% for p in g.players %}
+                    <th style="width: 35px; padding: 6px;">{{ p.player.group_number }}</th>
+                    {% endfor %}
+                    <th style="width: 40px; padding: 6px; background: #f0f0f0;">Pts</th>
+                    <th style="width: 45px; padding: 6px; background: #f0f0f0;">V-D</th>
+                    <th style="width: 50px; padding: 6px; background: #f0f0f0;">Sets</th>
+                    <th style="width: 35px; padding: 6px; background: #f0f0f0;">Pos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in g.players %}
+                <tr>
+                    <td class="player-cell" style="text-align: left; padding: 6px 10px; font-weight: bold; white-space: nowrap;">
+                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }} <span style="color: #666; font-weight: normal;">({{ p.player.pais_cd }})</span>
+                    </td>
+                    {% for opponent in g.players %}
+                        {% if p.player.id == opponent.player.id %}
+                        <td class="diagonal" style="background: #333; color: #fff; text-align: center;">X</td>
+                        {% else %}
+                            {% set result = g.results_matrix.get(p.player.id, {}).get(opponent.player.id) %}
+                            <td style="text-align: center; padding: 6px;">{{ result if result else '' }}</td>
+                        {% endif %}
+                    {% endfor %}
+                    <td style="text-align: center; padding: 6px; background: #f5f5f5; font-weight: bold;">{{ p.stats.points if p.stats.points else '' }}</td>
+                    <td style="text-align: center; padding: 6px; background: #f5f5f5;">{% if p.stats.wins or p.stats.losses %}{{ p.stats.wins }}-{{ p.stats.losses }}{% endif %}</td>
+                    <td style="text-align: center; padding: 6px; background: #f5f5f5;">{% if p.stats.sets_won or p.stats.sets_lost %}{{ p.stats.sets_won }}-{{ p.stats.sets_lost }}{% endif %}</td>
+                    <td style="text-align: center; padding: 6px; background: #f5f5f5; font-weight: bold;">{{ p.stats.position if p.stats.position else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Compact Match Order (horizontal) -->
+        <div style="font-size: 8pt; color: #666; border-top: 1px solid #ccc; padding-top: 8px;">
+            <strong>Orden:</strong>
+            {% for m in g.matches %}
+            <span style="margin-right: 8px;">
+                {{ m.match_order }}) {{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }} vs {{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} |{% endif %}
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Legend at bottom -->
+    <div style="font-size: 7pt; color: #999; margin-top: 15px; text-align: center; border-top: 1px solid #ccc; padding-top: 10px;">
+        Victoria = 2 pts | Derrota = 1 pt | WO = 0 pts
+    </div>
+</div>
+
+<style>
+.all-groups-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 15px;
+}
+
+.group-sheet-compact {
+    background: #fff;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    page-break-inside: avoid;
+}
+
+.group-sheet-compact .matrix-table {
+    border-collapse: collapse;
+}
+
+.group-sheet-compact .matrix-table th,
+.group-sheet-compact .matrix-table td {
+    border: 1px solid #000;
+}
+
+.group-sheet-compact .matrix-table th {
+    background: #e0e0e0;
+    font-size: 9pt;
+}
+
+.group-sheet-compact .matrix-table td {
+    font-size: 9pt;
+}
+
+@media print {
+    .all-groups-container {
+        padding: 0;
+        max-width: 100%;
+    }
+
+    .group-sheet-compact {
+        border: 1px solid #000;
+        margin-bottom: 10px;
+        padding: 8px;
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}

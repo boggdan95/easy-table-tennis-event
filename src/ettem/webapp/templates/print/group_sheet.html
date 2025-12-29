@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Hoja de Grupo</title>
+    <title>{{ group.name }}</title>
     <style>
         @page {
-            size: A4 landscape;
-            margin: 1cm;
+            size: letter;
+            margin: 1.5cm;
         }
 
         * {
@@ -23,7 +23,6 @@
         }
 
         .group-sheet {
-            border: 2px solid #000;
             padding: 10px;
         }
 
@@ -32,95 +31,30 @@
             text-align: center;
             border-bottom: 2px solid #000;
             padding-bottom: 8px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .header h1 {
-            font-size: 14pt;
-            margin-bottom: 3px;
+            font-size: 16pt;
+            margin-bottom: 2px;
         }
 
         .header .subtitle {
-            font-size: 11pt;
-        }
-
-        .header .category {
             font-size: 10pt;
             color: #333;
-        }
-
-        /* Two column layout */
-        .content {
-            display: table;
-            width: 100%;
-        }
-
-        .left-column {
-            display: table-cell;
-            width: 55%;
-            padding-right: 10px;
-            vertical-align: top;
-        }
-
-        .right-column {
-            display: table-cell;
-            width: 45%;
-            padding-left: 10px;
-            vertical-align: top;
-            border-left: 1px solid #000;
-        }
-
-        /* Section titles */
-        .section-title {
-            background: #000;
-            color: #fff;
-            padding: 4px 8px;
-            font-size: 10pt;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        /* Players list */
-        .players-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-        }
-
-        .players-table th,
-        .players-table td {
-            border: 1px solid #000;
-            padding: 5px 8px;
-            text-align: left;
-        }
-
-        .players-table th {
-            background: #e0e0e0;
-            font-size: 9pt;
-        }
-
-        .players-table td.num {
-            text-align: center;
-            width: 30px;
-            font-weight: bold;
-        }
-
-        .players-table td.country {
-            text-align: center;
-            width: 40px;
         }
 
         /* Results Matrix */
         .matrix-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .matrix-table th,
         .matrix-table td {
             border: 1px solid #000;
-            padding: 4px;
+            padding: 5px 6px;
             text-align: center;
             font-size: 9pt;
         }
@@ -133,13 +67,20 @@
         .matrix-table th.player-header {
             text-align: left;
             padding-left: 8px;
+            min-width: 160px;
         }
 
         .matrix-table td.player-cell {
             text-align: left;
             padding-left: 8px;
             font-weight: bold;
-            background: #f5f5f5;
+            background: #f8f8f8;
+            white-space: nowrap;
+        }
+
+        .matrix-table td.player-cell .country {
+            font-weight: normal;
+            color: #666;
         }
 
         .matrix-table td.diagonal {
@@ -148,61 +89,47 @@
         }
 
         .matrix-table td.result-cell {
-            width: 40px;
-            height: 30px;
+            width: 32px;
             font-weight: bold;
+        }
+
+        .matrix-table th.stats-header,
+        .matrix-table td.stats-cell {
+            background: #f0f0f0;
+            width: 38px;
         }
 
         .matrix-table td.stats-cell {
-            background: #f0f0f0;
-            font-size: 9pt;
+            font-size: 8pt;
         }
 
-        /* Match List */
-        .matches-table {
-            width: 100%;
-            border-collapse: collapse;
+        /* Match Order */
+        .match-order {
+            font-size: 8pt;
+            color: #333;
+            border-top: 1px solid #ccc;
+            padding-top: 8px;
+            margin-bottom: 8px;
         }
 
-        .matches-table th,
-        .matches-table td {
-            border: 1px solid #000;
-            padding: 4px 6px;
-            font-size: 9pt;
+        .match-order strong {
+            color: #000;
         }
 
-        .matches-table th {
-            background: #e0e0e0;
-        }
-
-        .matches-table td.match-num {
-            text-align: center;
-            width: 25px;
-            font-weight: bold;
-        }
-
-        .matches-table td.vs {
-            text-align: center;
-            width: 30px;
-        }
-
-        .matches-table td.score {
-            text-align: center;
-            width: 60px;
-        }
-
-        .matches-table td.winner {
-            text-align: center;
-            width: 25px;
+        /* Legend */
+        .legend {
+            font-size: 7pt;
+            color: #666;
+            text-align: right;
         }
 
         /* Footer */
         .footer {
-            margin-top: 10px;
+            margin-top: 20px;
             display: table;
             width: 100%;
             border-top: 1px solid #000;
-            padding-top: 8px;
+            padding-top: 12px;
         }
 
         .footer-cell {
@@ -213,20 +140,20 @@
 
         .footer-line {
             border-bottom: 1px solid #000;
-            height: 25px;
-            margin: 0 20px 3px 20px;
+            height: 20px;
+            margin: 0 15px 3px 15px;
         }
 
         .footer-label {
-            font-size: 8pt;
+            font-size: 7pt;
             color: #666;
         }
 
         .small-footer {
             text-align: center;
-            font-size: 7pt;
+            font-size: 6pt;
             color: #999;
-            margin-top: 5px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -234,105 +161,58 @@
     <div class="group-sheet">
         <!-- Header -->
         <div class="header">
-            <h1>{{ tournament_name }}</h1>
-            <div class="subtitle">{{ group.name }}</div>
-            {% if category %}<div class="category">Categoría: {{ category }}</div>{% endif %}
+            <h1>{{ group.name }}</h1>
+            {% if category %}<div class="subtitle">{{ category }} - {{ tournament_name }}</div>{% endif %}
         </div>
 
-        <div class="content">
-            <!-- Left Column: Players and Matrix -->
-            <div class="left-column">
-                <!-- Players List -->
-                <div class="section-title">JUGADORES</div>
-                <table class="players-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Nombre</th>
-                            <th>País</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in players %}
-                        <tr>
-                            <td class="num">{{ p.player.group_number }}</td>
-                            <td>{{ p.player.nombre }} {{ p.player.apellido }}</td>
-                            <td class="country">{{ p.player.pais_cd }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Results Matrix -->
+        <table class="matrix-table">
+            <thead>
+                <tr>
+                    <th class="player-header">Jugador</th>
+                    {% for p in players %}
+                    <th>{{ p.player.group_number }}</th>
+                    {% endfor %}
+                    <th class="stats-header">Pts</th>
+                    <th class="stats-header">V-D</th>
+                    <th class="stats-header">Sets</th>
+                    <th class="stats-header">Pos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in players %}
+                <tr>
+                    <td class="player-cell">
+                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }} <span class="country">({{ p.player.pais_cd }})</span>
+                    </td>
+                    {% for opponent in players %}
+                        {% if p.player.id == opponent.player.id %}
+                        <td class="diagonal">X</td>
+                        {% else %}
+                            {% set result = results_matrix.get(p.player.id, {}).get(opponent.player.id) %}
+                            <td class="result-cell">{{ result if result else '' }}</td>
+                        {% endif %}
+                    {% endfor %}
+                    <td class="stats-cell" style="font-weight: bold;">{{ p.stats.points if p.stats.points else '' }}</td>
+                    <td class="stats-cell">{% if p.stats.wins or p.stats.losses %}{{ p.stats.wins }}-{{ p.stats.losses }}{% endif %}</td>
+                    <td class="stats-cell">{% if p.stats.sets_won or p.stats.sets_lost %}{{ p.stats.sets_won }}-{{ p.stats.sets_lost }}{% endif %}</td>
+                    <td class="stats-cell" style="font-weight: bold;">{{ p.stats.position if p.stats.position else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
 
-                <!-- Results Matrix -->
-                <div class="section-title">MATRIZ DE RESULTADOS</div>
-                <table class="matrix-table">
-                    <thead>
-                        <tr>
-                            <th class="player-header">Jugador</th>
-                            {% for p in players %}
-                            <th>{{ p.player.group_number }}</th>
-                            {% endfor %}
-                            <th>Pts</th>
-                            <th>V-D</th>
-                            <th>Sets</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in players %}
-                        <tr>
-                            <td class="player-cell">{{ p.player.group_number }}. {{ p.player.apellido }}</td>
-                            {% for opponent in players %}
-                                {% if p.player.id == opponent.player.id %}
-                                <td class="diagonal">X</td>
-                                {% else %}
-                                    {% set result = results_matrix.get(p.player.group_number, {}).get(opponent.player.group_number) %}
-                                    <td class="result-cell">{{ result if result else '' }}</td>
-                                {% endif %}
-                            {% endfor %}
-                            <td class="stats-cell"></td>
-                            <td class="stats-cell"></td>
-                            <td class="stats-cell"></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <!-- Match Order (compact horizontal) -->
+        <div class="match-order">
+            <strong>Orden de partidos:</strong>
+            {% for m in matches %}
+            {{ m.match_order }}) {{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }} vs {{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} | {% endif %}
+            {% endfor %}
+        </div>
 
-            <!-- Right Column: Match List -->
-            <div class="right-column">
-                <div class="section-title">PARTIDOS</div>
-                <table class="matches-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Jugador A</th>
-                            <th>vs</th>
-                            <th>Jugador B</th>
-                            <th>Resultado</th>
-                            <th>G</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for m in matches %}
-                        <tr>
-                            <td class="match-num">{{ m.match_order }}</td>
-                            <td>{{ m.player1.apellido }}</td>
-                            <td class="vs">vs</td>
-                            <td>{{ m.player2.apellido }}</td>
-                            <td class="score"></td>
-                            <td class="winner"></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <!-- Legend -->
-                <div style="margin-top: 10px; font-size: 8pt; color: #666;">
-                    <strong>Leyenda:</strong> G = Ganador (A/B), Resultado = Sets (ej: 3-1)
-                    <br>
-                    <strong>Puntos:</strong> Victoria = 2, Derrota = 1, WO = 0
-                </div>
-            </div>
+        <!-- Legend -->
+        <div class="legend">
+            Victoria = 2 pts | Derrota = 1 pt | WO = 0 pts
         </div>
 
         <!-- Footer -->

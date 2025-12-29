@@ -1,0 +1,130 @@
+{% extends "print/preview.html" %}
+
+{% block preview_content %}
+{% for pair in matches_pairs %}
+<div class="preview-page">
+    {% for md in pair %}
+    <div class="match-sheet-half">
+        <!-- Header -->
+        <div class="header">
+            <h2>{{ tournament_name }}</h2>
+            <div class="subtitle">
+                {% if category %}{{ category }}{% endif %}
+                {% if md.group_name %} - {{ md.group_name }}{% endif %}
+            </div>
+        </div>
+
+        <!-- Match Info Row -->
+        <div class="match-info-row">
+            <div class="match-info-cell">
+                <span class="info-label">MESA</span>
+                <span class="info-value">{{ md.table_number if md.table_number else '___' }}</span>
+            </div>
+            <div class="match-info-cell">
+                <span class="info-label">HORA</span>
+                <span class="info-value">{{ md.scheduled_time if md.scheduled_time else '__:__' }}</span>
+            </div>
+            <div class="match-info-cell">
+                <span class="info-label">PARTIDO</span>
+                <span class="info-value">#{{ md.match.match_order if md.match.match_order else '___' }}</span>
+            </div>
+            <div class="match-info-cell">
+                <span class="info-label">RONDA</span>
+                <span class="info-value">{% if md.match.round_type and md.match.round_type not in ['group', 'RR'] %}{{ md.match.round_type }}{% elif md.group_name %}Grupo {{ md.group_name }} - R{{ md.round_number if md.round_number else md.match.match_order }}{% else %}Grupos{% endif %}</span>
+            </div>
+        </div>
+
+        <!-- Players Compact -->
+        <div class="players-compact">
+            <div class="player-box">
+                <div class="player-label">JUGADOR A</div>
+                <div class="player-name">{{ md.player1.nombre }} {{ md.player1.apellido }}</div>
+                <div class="player-country">({{ md.player1.pais_cd }})</div>
+            </div>
+            <div class="player-box">
+                <div class="player-label">JUGADOR B</div>
+                <div class="player-name">{{ md.player2.nombre }} {{ md.player2.apellido }}</div>
+                <div class="player-country">({{ md.player2.pais_cd }})</div>
+            </div>
+        </div>
+
+        <!-- Score Table Compact -->
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th class="player-col">Jugador</th>
+                    <th>S1</th>
+                    <th>S2</th>
+                    <th>S3</th>
+                    <th>S4</th>
+                    <th>S5</th>
+                    <th>SETS</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="player-cell">{{ md.player1.nombre[0] }}. {{ md.player1.apellido }}</td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="total-cell"></td>
+                </tr>
+                <tr>
+                    <td class="player-cell">{{ md.player2.nombre[0] }}. {{ md.player2.apellido }}</td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="score-cell"></td>
+                    <td class="total-cell"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Result Row -->
+        <div class="result-row">
+            <div class="result-box" style="flex: 2;">
+                <span class="info-label">GANADOR</span>
+                <span class="info-value">________________________</span>
+            </div>
+            <div class="result-box">
+                <span class="info-label">RESULTADO</span>
+                <span class="info-value">___ - ___</span>
+            </div>
+            <div class="result-box">
+                <span class="info-label">WO</span>
+                <span class="info-value">☐</span>
+            </div>
+        </div>
+
+        <!-- Signatures -->
+        <div class="signatures-row">
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Jugador A</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Jugador B</div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Árbitro</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if pair|length == 1 %}
+    <!-- Empty half for odd matches -->
+    <div class="match-sheet-half" style="border-style: dashed; opacity: 0.3;">
+        <div style="text-align: center; padding: 3rem; color: #999;">
+            (Espacio disponible)
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

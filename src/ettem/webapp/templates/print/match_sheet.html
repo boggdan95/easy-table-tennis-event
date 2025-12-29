@@ -5,7 +5,7 @@
     <title>Hoja de Partido</title>
     <style>
         @page {
-            size: A4;
+            size: letter;
             margin: 1.5cm;
         }
 
@@ -259,7 +259,7 @@
             </div>
             <div class="match-info-cell">
                 <span class="match-info-label">RONDA</span>
-                <span class="match-info-value">{% if match.round_type %}{{ match.round_type }}{% else %}Grupos{% endif %}</span>
+                <span class="match-info-value">{% if match.round_type and match.round_type not in ['group', 'RR'] %}{{ match.round_type }}{% elif group_name %}Grupo {{ group_name }} - R{{ round_number if round_number else match.match_order }}{% else %}Grupos{% endif %}</span>
             </div>
         </div>
 

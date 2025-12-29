@@ -5,8 +5,8 @@
     <title>Hojas de Partido</title>
     <style>
         @page {
-            size: A4;
-            margin: 1.5cm;
+            size: letter;
+            margin: 1cm;
         }
 
         * {
@@ -17,37 +17,41 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 11pt;
-            line-height: 1.4;
+            font-size: 9pt;
+            line-height: 1.3;
             color: #000;
         }
 
-        .match-sheet {
-            border: 2px solid #000;
-            padding: 15px;
-            max-width: 100%;
+        .page {
             page-break-after: always;
         }
 
-        .match-sheet:last-child {
+        .page:last-child {
             page-break-after: avoid;
+        }
+
+        /* Half-page match sheet */
+        .match-sheet {
+            border: 2px solid #000;
+            padding: 10px;
+            margin-bottom: 8px;
         }
 
         /* Header */
         .header {
             text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .header h1 {
-            font-size: 16pt;
-            margin-bottom: 5px;
+            font-size: 11pt;
+            margin-bottom: 2px;
         }
 
         .header .subtitle {
-            font-size: 12pt;
+            font-size: 9pt;
             color: #333;
         }
 
@@ -56,12 +60,12 @@
             display: table;
             width: 100%;
             border: 1px solid #000;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
 
         .match-info-cell {
             display: table-cell;
-            padding: 8px 12px;
+            padding: 4px 8px;
             border-right: 1px solid #000;
             text-align: center;
             vertical-align: middle;
@@ -72,302 +76,284 @@
         }
 
         .match-info-label {
-            font-size: 9pt;
+            font-size: 7pt;
             color: #666;
             display: block;
         }
 
         .match-info-value {
-            font-size: 12pt;
+            font-size: 9pt;
             font-weight: bold;
         }
 
         /* Players Section */
-        .players-section {
-            margin-bottom: 15px;
-        }
-
-        .player-row {
+        .players-row {
             display: table;
             width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .player-box {
+            display: table-cell;
+            width: 50%;
             border: 1px solid #000;
-            margin-bottom: -1px;
+            padding: 5px 8px;
+            vertical-align: top;
+        }
+
+        .player-box:first-child {
+            border-right: none;
         }
 
         .player-label {
-            display: table-cell;
-            width: 80px;
-            padding: 10px;
-            background: #f0f0f0;
+            font-size: 7pt;
+            color: #666;
             font-weight: bold;
-            text-align: center;
-            vertical-align: middle;
-            border-right: 1px solid #000;
         }
 
         .player-name {
-            display: table-cell;
-            padding: 10px 15px;
-            font-size: 14pt;
+            font-size: 10pt;
             font-weight: bold;
-            vertical-align: middle;
         }
 
         .player-country {
-            font-size: 10pt;
-            font-weight: normal;
+            font-size: 8pt;
             color: #666;
-            margin-left: 10px;
         }
 
         /* Score Table */
-        .score-section {
-            margin-bottom: 15px;
-        }
-
-        .score-section h3 {
-            font-size: 11pt;
-            margin-bottom: 8px;
-            text-align: center;
-            background: #000;
-            color: #fff;
-            padding: 5px;
-        }
-
         .score-table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 8px;
         }
 
         .score-table th,
         .score-table td {
             border: 1px solid #000;
-            padding: 8px;
+            padding: 3px;
             text-align: center;
+            font-size: 8pt;
         }
 
         .score-table th {
             background: #e0e0e0;
-            font-weight: bold;
+            font-size: 7pt;
         }
 
         .score-table th.player-col {
-            width: 35%;
+            width: 28%;
             text-align: left;
-            padding-left: 15px;
-        }
-
-        .score-table th.set-col {
-            width: 10%;
-        }
-
-        .score-table th.total-col {
-            width: 10%;
-            background: #333;
-            color: #fff;
+            padding-left: 6px;
         }
 
         .score-table td.player-cell {
             text-align: left;
-            padding-left: 15px;
+            padding-left: 6px;
             font-weight: bold;
         }
 
         .score-table td.score-cell {
-            height: 35px;
-            font-size: 14pt;
-            font-weight: bold;
+            height: 18px;
+            width: 11%;
         }
 
         .score-table td.total-cell {
-            background: #f5f5f5;
-            font-size: 16pt;
+            background: #f0f0f0;
             font-weight: bold;
+            width: 12%;
         }
 
-        /* Signatures Section */
-        .signatures-section {
-            margin-top: 20px;
+        /* Result Row */
+        .result-row {
+            display: table;
+            width: 100%;
+            border: 1px solid #000;
+            margin-bottom: 8px;
+        }
+
+        .result-cell {
+            display: table-cell;
+            padding: 3px 6px;
+            text-align: center;
+            border-right: 1px solid #000;
+            vertical-align: middle;
+        }
+
+        .result-cell:last-child {
+            border-right: none;
+        }
+
+        /* Signatures */
+        .signatures-row {
             display: table;
             width: 100%;
         }
 
         .signature-box {
             display: table-cell;
-            width: 33.33%;
-            padding: 10px;
             text-align: center;
-            vertical-align: bottom;
+            padding: 0 5px;
         }
 
         .signature-line {
             border-bottom: 1px solid #000;
-            height: 40px;
-            margin-bottom: 5px;
+            height: 16px;
+            margin-bottom: 2px;
         }
 
         .signature-label {
-            font-size: 9pt;
+            font-size: 6pt;
             color: #666;
-        }
-
-        /* Notes Section */
-        .notes-section {
-            margin-top: 15px;
-            border: 1px solid #000;
-            padding: 10px;
-        }
-
-        .notes-section h4 {
-            font-size: 10pt;
-            margin-bottom: 5px;
-        }
-
-        .notes-lines {
-            height: 40px;
-            border-bottom: 1px dotted #999;
         }
 
         /* Footer */
         .footer {
-            margin-top: 15px;
             text-align: center;
-            font-size: 8pt;
+            font-size: 6pt;
             color: #999;
+            margin-top: 3px;
+        }
+
+        /* Empty placeholder */
+        .empty-half {
+            border: 1px dashed #ccc;
+            padding: 50px;
+            text-align: center;
+            color: #ccc;
+            font-size: 10pt;
         }
     </style>
 </head>
 <body>
+    {% set ns = namespace(page_matches=[]) %}
     {% for md in matches_data %}
-    <div class="match-sheet">
-        <!-- Header -->
-        <div class="header">
-            <h1>{{ tournament_name }}</h1>
-            <div class="subtitle">
-                {% if category %}Categoría: {{ category }}{% endif %}
-                {% if md.group_name %} | {{ md.group_name }}{% endif %}
-            </div>
-        </div>
+        {% set _ = ns.page_matches.append(md) %}
 
-        <!-- Match Info -->
-        <div class="match-info">
-            <div class="match-info-cell">
-                <span class="match-info-label">MESA</span>
-                <span class="match-info-value">{{ md.table_number if md.table_number else '___' }}</span>
-            </div>
-            <div class="match-info-cell">
-                <span class="match-info-label">HORA</span>
-                <span class="match-info-value">{{ md.scheduled_time if md.scheduled_time else '___:___' }}</span>
-            </div>
-            <div class="match-info-cell">
-                <span class="match-info-label">PARTIDO #</span>
-                <span class="match-info-value">{{ md.match.match_order if md.match.match_order else '___' }}</span>
-            </div>
-            <div class="match-info-cell">
-                <span class="match-info-label">RONDA</span>
-                <span class="match-info-value">{% if md.match.round_type %}{{ md.match.round_type }}{% else %}Grupos{% endif %}</span>
-            </div>
-        </div>
+        {% if ns.page_matches|length == 2 or loop.last %}
+        <div class="page">
+            {% for m in ns.page_matches %}
+            <div class="match-sheet">
+                <!-- Header -->
+                <div class="header">
+                    <h1>{{ tournament_name }}</h1>
+                    <div class="subtitle">
+                        {% if category %}{{ category }}{% endif %}
+                        {% if m.group_name %} - {{ m.group_name }}{% endif %}
+                    </div>
+                </div>
 
-        <!-- Players -->
-        <div class="players-section">
-            <div class="player-row">
-                <div class="player-label">JUG. A</div>
-                <div class="player-name">
-                    {{ md.player1.nombre }} {{ md.player1.apellido }}
-                    <span class="player-country">({{ md.player1.pais_cd }})</span>
+                <!-- Match Info -->
+                <div class="match-info">
+                    <div class="match-info-cell">
+                        <span class="match-info-label">MESA</span>
+                        <span class="match-info-value">{{ m.table_number if m.table_number else '___' }}</span>
+                    </div>
+                    <div class="match-info-cell">
+                        <span class="match-info-label">HORA</span>
+                        <span class="match-info-value">{{ m.scheduled_time if m.scheduled_time else '__:__' }}</span>
+                    </div>
+                    <div class="match-info-cell">
+                        <span class="match-info-label">PARTIDO</span>
+                        <span class="match-info-value">#{{ m.match.match_order if m.match.match_order else '___' }}</span>
+                    </div>
+                    <div class="match-info-cell">
+                        <span class="match-info-label">RONDA</span>
+                        <span class="match-info-value">{% if m.match.round_type and m.match.round_type not in ['group', 'RR'] %}{{ m.match.round_type }}{% elif m.group_name %}Grupo {{ m.group_name }} - R{{ m.round_number if m.round_number else m.match.match_order }}{% else %}Grupos{% endif %}</span>
+                    </div>
+                </div>
+
+                <!-- Players -->
+                <div class="players-row">
+                    <div class="player-box">
+                        <div class="player-label">JUGADOR A</div>
+                        <div class="player-name">{{ m.player1.nombre }} {{ m.player1.apellido }}</div>
+                        <div class="player-country">({{ m.player1.pais_cd }})</div>
+                    </div>
+                    <div class="player-box">
+                        <div class="player-label">JUGADOR B</div>
+                        <div class="player-name">{{ m.player2.nombre }} {{ m.player2.apellido }}</div>
+                        <div class="player-country">({{ m.player2.pais_cd }})</div>
+                    </div>
+                </div>
+
+                <!-- Score Table -->
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th class="player-col">Jugador</th>
+                            <th>S1</th>
+                            <th>S2</th>
+                            <th>S3</th>
+                            <th>S4</th>
+                            <th>S5</th>
+                            <th>SETS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="player-cell">{{ m.player1.nombre[0] }}. {{ m.player1.apellido }}</td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="total-cell"></td>
+                        </tr>
+                        <tr>
+                            <td class="player-cell">{{ m.player2.nombre[0] }}. {{ m.player2.apellido }}</td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="score-cell"></td>
+                            <td class="total-cell"></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Result -->
+                <div class="result-row">
+                    <div class="result-cell" style="width: 50%;">
+                        <span class="match-info-label">GANADOR</span>
+                        <span class="match-info-value">________________________</span>
+                    </div>
+                    <div class="result-cell" style="width: 30%;">
+                        <span class="match-info-label">RESULTADO</span>
+                        <span class="match-info-value">___ - ___</span>
+                    </div>
+                    <div class="result-cell" style="width: 20%;">
+                        <span class="match-info-label">WO</span>
+                        <span class="match-info-value">☐</span>
+                    </div>
+                </div>
+
+                <!-- Signatures -->
+                <div class="signatures-row">
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Jugador A</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Jugador B</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <div class="signature-label">Árbitro</div>
+                    </div>
                 </div>
             </div>
-            <div class="player-row">
-                <div class="player-label">JUG. B</div>
-                <div class="player-name">
-                    {{ md.player2.nombre }} {{ md.player2.apellido }}
-                    <span class="player-country">({{ md.player2.pais_cd }})</span>
-                </div>
-            </div>
-        </div>
+            {% endfor %}
 
-        <!-- Score Table -->
-        <div class="score-section">
-            <h3>MARCADOR</h3>
-            <table class="score-table">
-                <thead>
-                    <tr>
-                        <th class="player-col">Jugador</th>
-                        <th class="set-col">Set 1</th>
-                        <th class="set-col">Set 2</th>
-                        <th class="set-col">Set 3</th>
-                        <th class="set-col">Set 4</th>
-                        <th class="set-col">Set 5</th>
-                        <th class="total-col">SETS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="player-cell">{{ md.player1.apellido }}</td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="total-cell"></td>
-                    </tr>
-                    <tr>
-                        <td class="player-cell">{{ md.player2.apellido }}</td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="score-cell"></td>
-                        <td class="total-cell"></td>
-                    </tr>
-                </tbody>
-            </table>
+            {% if ns.page_matches|length == 1 %}
+            <div class="empty-half">
+                (Espacio disponible)
+            </div>
+            {% endif %}
         </div>
-
-        <!-- Result -->
-        <div class="match-info" style="margin-top: 10px;">
-            <div class="match-info-cell" style="width: 50%;">
-                <span class="match-info-label">GANADOR</span>
-                <span class="match-info-value" style="font-size: 14pt;">____________________________</span>
-            </div>
-            <div class="match-info-cell" style="width: 25%;">
-                <span class="match-info-label">RESULTADO</span>
-                <span class="match-info-value">_____ - _____</span>
-            </div>
-            <div class="match-info-cell" style="width: 25%;">
-                <span class="match-info-label">WALKOVER</span>
-                <span class="match-info-value">☐ Sí  ☐ No</span>
-            </div>
-        </div>
-
-        <!-- Signatures -->
-        <div class="signatures-section">
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Jugador A</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Jugador B</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Árbitro</div>
-            </div>
-        </div>
-
-        <!-- Notes -->
-        <div class="notes-section">
-            <h4>Observaciones:</h4>
-            <div class="notes-lines"></div>
-        </div>
-
-        <!-- Footer -->
-        <div class="footer">
-            ETTEM - Easy Table Tennis Event Manager | Página {{ loop.index }} de {{ matches_data|length }}
-        </div>
-    </div>
+        {% set ns.page_matches = [] %}
+        {% endif %}
     {% endfor %}
 </body>
 </html>
