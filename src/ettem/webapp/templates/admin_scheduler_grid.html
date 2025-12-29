@@ -256,15 +256,35 @@
     <div class="matches-panel">
         <div class="matches-panel-header">
             Partidos Sin Programar
-            <span class="badge badge-warning" style="margin-left: 0.5rem;">{{ unscheduled_matches|length }}</span>
+            <span class="badge badge-warning" id="unscheduled-count" style="margin-left: 0.5rem;">{{ unscheduled_matches|length }}</span>
+            <span style="font-size: 0.7rem; color: var(--text-muted); display: block; font-weight: normal; margin-top: 0.25rem;">
+                Arrastra para asignar (guarda automático)
+            </span>
         </div>
-        <div class="matches-panel-filters">
+        <div class="matches-panel-filters" style="display: flex; flex-direction: column; gap: 0.5rem;">
             <select id="filter-category" class="filter-select" onchange="filterMatches()">
                 <option value="">Todas las categorías</option>
                 {% for cat in categories %}
                 <option value="{{ cat }}">{{ cat }}</option>
                 {% endfor %}
             </select>
+            <select id="filter-round" class="filter-select" onchange="filterMatches()">
+                <option value="">Todas las rondas</option>
+                <optgroup label="Fase de Grupos">
+                    <option value="GR1">Grupos - Ronda 1</option>
+                    <option value="GR2">Grupos - Ronda 2</option>
+                    <option value="GR3">Grupos - Ronda 3</option>
+                </optgroup>
+                <optgroup label="Eliminatorias">
+                    <option value="R16">Ronda de 16</option>
+                    <option value="QF">Cuartos de Final</option>
+                    <option value="SF">Semifinales</option>
+                    <option value="F">Final</option>
+                </optgroup>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="assignFilteredMatches()" style="width: 100%;">
+                Asignar Filtrados
+            </button>
         </div>
         <div class="matches-panel-body" id="matches-list">
             {% for match in unscheduled_matches %}
@@ -272,6 +292,7 @@
                  draggable="true"
                  data-match-id="{{ match.id }}"
                  data-category="{{ match.category }}"
+                 data-round="{{ match.round_type or 'grupo' }}"
                  ondragstart="handleDragStart(event)"
                  ondragend="handleDragEnd(event)">
                 <div class="match-header">
@@ -345,19 +366,84 @@ const SESSION_ID = {{ session.id }};
 let draggedMatchId = null;
 let draggedFromSlot = null;
 
-// Filter matches by category
+// Filter matches by category and round
 function filterMatches() {
-    const filter = document.getElementById('filter-category').value;
+    const categoryFilter = document.getElementById('filter-category').value;
+    const roundFilter = document.getElementById('filter-round').value;
     const items = document.querySelectorAll('.match-item');
+    let visibleCount = 0;
 
     items.forEach(item => {
         const category = item.dataset.category;
-        if (!filter || category === filter) {
+        const round = item.dataset.round;
+
+        const matchesCategory = !categoryFilter || category === categoryFilter;
+        const matchesRound = !roundFilter || round === roundFilter;
+
+        if (matchesCategory && matchesRound) {
             item.style.display = 'block';
+            visibleCount++;
         } else {
             item.style.display = 'none';
         }
     });
+
+    // Update count badge
+    document.getElementById('unscheduled-count').textContent = visibleCount;
+}
+
+// Auto-assign all visible (filtered) matches to available slots
+async function assignFilteredMatches() {
+    const visibleMatches = Array.from(document.querySelectorAll('.match-item'))
+        .filter(item => item.style.display !== 'none');
+
+    if (visibleMatches.length === 0) {
+        showToast('No hay partidos para asignar', 'warning');
+        return;
+    }
+
+    // Find all empty cells
+    const emptyCells = Array.from(document.querySelectorAll('.grid-cell'))
+        .filter(cell => !cell.querySelector('.scheduled-match'));
+
+    if (emptyCells.length === 0) {
+        showToast('No hay espacios disponibles en la cuadrícula', 'error');
+        return;
+    }
+
+    const toAssign = Math.min(visibleMatches.length, emptyCells.length);
+
+    if (!confirm(`¿Asignar ${toAssign} partidos automáticamente a los primeros espacios disponibles?`)) {
+        return;
+    }
+
+    // Assign matches to cells in order
+    for (let i = 0; i < toAssign; i++) {
+        const match = visibleMatches[i];
+        const cell = emptyCells[i];
+
+        const matchId = match.dataset.matchId;
+        const timeSlot = cell.dataset.time;
+        const tableNumber = cell.dataset.table;
+
+        const formData = new FormData();
+        formData.append('session_id', SESSION_ID);
+        formData.append('match_id', matchId);
+        formData.append('table_number', tableNumber);
+        formData.append('start_time', timeSlot);
+
+        try {
+            await fetch('/admin/scheduler/slot/assign', {
+                method: 'POST',
+                body: formData
+            });
+        } catch (err) {
+            console.error('Error assigning match', matchId, err);
+        }
+    }
+
+    showToast(`${toAssign} partidos asignados`, 'success');
+    setTimeout(() => location.reload(), 500);
 }
 
 // Drag from unscheduled list

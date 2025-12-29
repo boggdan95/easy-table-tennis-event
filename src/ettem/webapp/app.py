@@ -6116,9 +6116,18 @@ async def scheduler_grid(request: Request, session_id: int):
                 group = group_repo.get_by_id(m.group_id)
                 match_label = f"G{group.name}" if group else "Grupo"
                 category = group.category if group else "?"
+                # Calculate group round number from match_number
+                # For N players: (N-1) rounds, N/2 matches per round
+                group_matches = match_repo.get_by_group(m.group_id)
+                players_in_group = len(set([gm.player1_id for gm in group_matches] + [gm.player2_id for gm in group_matches]))
+                matches_per_round = max(1, players_in_group // 2)
+                match_index = m.match_number - 1 if m.match_number else 0
+                group_round = (match_index // matches_per_round) + 1
+                round_type = f"GR{group_round}"  # GR1, GR2, GR3...
             else:
                 match_label = m.round_type or "Bracket"
                 category = m.category or "?"
+                round_type = m.round_type or "Bracket"
 
             unscheduled_matches.append({
                 "id": m.id,
@@ -6126,7 +6135,8 @@ async def scheduler_grid(request: Request, session_id: int):
                 "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
                 "label": match_label,
                 "category": category,
-                "round_type": m.round_type,
+                "round_type": round_type,
+                "group_id": m.group_id,
             })
 
         context = {
