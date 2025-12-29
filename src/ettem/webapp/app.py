@@ -312,6 +312,7 @@ async def view_category(request: Request, category: str):
     session = get_db_session()
     group_repo = GroupRepository(session)
     player_repo = PlayerRepository(session)
+    match_repo = MatchRepository(session)
     tournament_repo = TournamentRepository(session)
 
     # Get current tournament
@@ -321,13 +322,21 @@ async def view_category(request: Request, category: str):
     # Get groups for this category in current tournament
     groups = group_repo.get_by_category(category, tournament_id=tournament_id)
 
-    # Get players for each group
+    # Get players and match stats for each group
     groups_data = []
     for group in groups:
         players = [player_repo.get_by_id(pid) for pid in group.player_ids]
+
+        # Get match progress
+        matches = match_repo.get_by_group(group.id)
+        total_matches = len(matches)
+        completed_matches = len([m for m in matches if m.winner_id is not None])
+
         groups_data.append({
             "group": group,
-            "players": [p for p in players if p]  # Filter out None
+            "players": [p for p in players if p],  # Filter out None
+            "total_matches": total_matches,
+            "completed_matches": completed_matches,
         })
 
     return render_template(
@@ -416,8 +425,29 @@ async def enter_result_form(request: Request, match_id: int):
     if not match_orm:
         return HTMLResponse(content="Match not found", status_code=404)
 
-    player1 = player_repo.get_by_id(match_orm.player1_id)
-    player2 = player_repo.get_by_id(match_orm.player2_id)
+    player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+    player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+    # Validate that both players are defined (not TBD)
+    if not player1 or not player2:
+        request.session["flash_message"] = "No se puede ingresar resultado: ambos jugadores deben estar definidos"
+        request.session["flash_type"] = "error"
+
+        # Redirect to appropriate page
+        if match_orm.group_id:
+            return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
+        else:
+            # Bracket match - get category from whichever player exists
+            existing_player = player1 or player2
+            if existing_player:
+                return RedirectResponse(url=f"/bracket/{existing_player.categoria}", status_code=303)
+            else:
+                return RedirectResponse(url="/", status_code=303)
+
+    # Get preserved form values (if any, from validation error)
+    form_values = request.session.pop("form_values", None)
+    if form_values:
+        print(f"[DEBUG] Form values found: {form_values}")
 
     return render_template(
         "enter_result.html",
@@ -425,7 +455,8 @@ async def enter_result_form(request: Request, match_id: int):
             "request": request,
             "match": match_orm,
             "player1": player1,
-            "player2": player2
+            "player2": player2,
+            "form_values": form_values
         }
     )
 
@@ -457,6 +488,15 @@ async def save_result(
         request.session["flash_message"] = "Partido no encontrado"
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/", status_code=303)
+
+    # Validate that both players are defined (not TBD)
+    if not match_orm.player1_id or not match_orm.player2_id:
+        request.session["flash_message"] = "No se puede ingresar resultado: ambos jugadores deben estar definidos"
+        request.session["flash_type"] = "error"
+        if match_orm.group_id:
+            return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
+        else:
+            return RedirectResponse(url="/", status_code=303)
 
     # For bracket matches, validate that previous rounds are complete
     if match_orm.group_id is None:  # Bracket match
@@ -530,6 +570,16 @@ async def save_result(
                 if not is_valid:
                     request.session["flash_message"] = f"Error en Set {idx}: {error_msg}"
                     request.session["flash_type"] = "error"
+                    # Preserve form values for re-display
+                    form_vals = {
+                        "set1_p1": set1_p1, "set1_p2": set1_p2,
+                        "set2_p1": set2_p1, "set2_p2": set2_p2,
+                        "set3_p1": set3_p1, "set3_p2": set3_p2,
+                        "set4_p1": set4_p1, "set4_p2": set4_p2,
+                        "set5_p1": set5_p1, "set5_p2": set5_p2,
+                    }
+                    request.session["form_values"] = form_vals
+                    print(f"[DEBUG] Set error - saved form values: {form_vals}")
                     return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
 
                 sets_data.append({
@@ -596,6 +646,45 @@ async def save_result(
         if player:
             category = player.categoria
             advance_bracket_winner(match_orm, winner_id_final, category, session)
+
+    # For group matches, recalculate standings automatically
+    if match_orm.group_id is not None:
+        player_repo = PlayerRepository(session)
+        standing_repo = StandingRepository(session)
+
+        # Get all matches for this group
+        group_match_orms = match_repo.get_by_group(match_orm.group_id)
+
+        # Convert to domain models
+        matches = []
+        for m_orm in group_match_orms:
+            sets = [
+                Set(
+                    set_number=s["set_number"],
+                    player1_points=s["player1_points"],
+                    player2_points=s["player2_points"],
+                )
+                for s in m_orm.sets
+            ]
+            match = Match(
+                id=m_orm.id,
+                player1_id=m_orm.player1_id,
+                player2_id=m_orm.player2_id,
+                group_id=m_orm.group_id,
+                round_type=m_orm.round_type,
+                status=m_orm.status,
+                sets=sets,
+                winner_id=m_orm.winner_id,
+            )
+            matches.append(match)
+
+        # Calculate standings
+        standings = calculate_standings(matches, match_orm.group_id, player_repo)
+
+        # Delete old standings and save new ones
+        standing_repo.delete_by_group(match_orm.group_id)
+        for standing in standings:
+            standing_repo.create(standing)
 
     # Set success message
     request.session["flash_message"] = "Resultado guardado exitosamente"
@@ -675,6 +764,44 @@ async def delete_result(request: Request, match_id: int):
         status=MatchStatus.PENDING.value
     )
 
+    # For group matches, recalculate standings after deleting result
+    if match_orm.group_id is not None:
+        standing_repo = StandingRepository(session)
+
+        # Get all matches for this group
+        group_match_orms = match_repo.get_by_group(match_orm.group_id)
+
+        # Convert to domain models
+        matches = []
+        for m_orm in group_match_orms:
+            sets = [
+                Set(
+                    set_number=s["set_number"],
+                    player1_points=s["player1_points"],
+                    player2_points=s["player2_points"],
+                )
+                for s in m_orm.sets
+            ]
+            match = Match(
+                id=m_orm.id,
+                player1_id=m_orm.player1_id,
+                player2_id=m_orm.player2_id,
+                group_id=m_orm.group_id,
+                round_type=m_orm.round_type,
+                status=m_orm.status,
+                sets=sets,
+                winner_id=m_orm.winner_id,
+            )
+            matches.append(match)
+
+        # Calculate standings
+        standings = calculate_standings(matches, match_orm.group_id, player_repo)
+
+        # Delete old standings and save new ones
+        standing_repo.delete_by_group(match_orm.group_id)
+        for standing in standings:
+            standing_repo.create(standing)
+
     # Set success message
     request.session["flash_message"] = "Resultado eliminado exitosamente"
     request.session["flash_type"] = "success"
@@ -753,6 +880,91 @@ async def view_standings(request: Request, group_id: int):
         "group": group,
         "standings": standings_data,
         "category": group.category
+    })
+
+
+@app.get("/category/{category}/standings", response_class=HTMLResponse)
+async def view_category_standings(request: Request, category: str):
+    """View standings for all groups in a category."""
+    session = get_db_session()
+    group_repo = GroupRepository(session)
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+    tournament_repo = TournamentRepository(session)
+
+    # Get current tournament
+    current_tournament = tournament_repo.get_current()
+    tournament_id = current_tournament.id if current_tournament else None
+
+    # Get all groups for this category
+    groups = group_repo.get_by_category(category, tournament_id=tournament_id)
+
+    if not groups:
+        return render_template("category_standings.html", {
+            "request": request,
+            "category": category,
+            "groups_standings": [],
+            "total_groups": 0
+        })
+
+    # Calculate standings for each group
+    groups_standings = []
+    for group in groups:
+        match_orms = match_repo.get_by_group(group.id)
+
+        # Convert to domain models
+        matches = []
+        for m_orm in match_orms:
+            sets = [
+                Set(
+                    set_number=s["set_number"],
+                    player1_points=s["player1_points"],
+                    player2_points=s["player2_points"],
+                )
+                for s in m_orm.sets
+            ]
+            match = Match(
+                id=m_orm.id,
+                player1_id=m_orm.player1_id,
+                player2_id=m_orm.player2_id,
+                group_id=m_orm.group_id,
+                round_type=m_orm.round_type,
+                status=m_orm.status,
+                sets=sets,
+                winner_id=m_orm.winner_id,
+            )
+            matches.append(match)
+
+        # Calculate standings
+        standings = calculate_standings(matches, group.id, player_repo)
+
+        # Get player details
+        standings_data = []
+        for standing in standings:
+            player = player_repo.get_by_id(standing.player_id)
+            if player:
+                standings_data.append({
+                    "standing": standing,
+                    "player": player
+                })
+
+        # Count completed matches
+        completed = sum(1 for m in match_orms if m.status != "pending")
+        total = len(match_orms)
+
+        groups_standings.append({
+            "group": group,
+            "standings": standings_data,
+            "completed_matches": completed,
+            "total_matches": total,
+            "is_complete": completed == total and total > 0
+        })
+
+    return render_template("category_standings.html", {
+        "request": request,
+        "category": category,
+        "groups_standings": groups_standings,
+        "total_groups": len(groups)
     })
 
 
@@ -1183,11 +1395,41 @@ async def view_bracket_matches(request: Request, category: str):
                 champion = player_repo.get_by_id(champion_id)
                 break
 
+    # Determine active round (first round with incomplete matches)
+    # Priority: first round with playable matches (both players, no winner)
+    # Fallback: first round with incomplete matches (no winner yet)
+    active_round = None
+    fallback_round = None
+
+    for rt in round_order:
+        if rt in matches_with_players:
+            for match_data in matches_with_players[rt]:
+                match_orm = match_data["match"]
+                # A match is playable if it has both players but no winner
+                if (match_orm.player1_id and match_orm.player2_id and
+                    not match_orm.winner_id):
+                    active_round = rt
+                    break
+                # Track first round with incomplete match (no winner)
+                if not match_orm.winner_id and not fallback_round:
+                    fallback_round = rt
+        if active_round:
+            break
+
+    # Use fallback if no playable matches found
+    if not active_round:
+        active_round = fallback_round
+
+    # Final fallback: last round (most advanced)
+    if not active_round and round_order:
+        active_round = round_order[-1]
+
     return render_template("bracket_matches.html", {
         "request": request,
         "category": category,
         "matches_by_round": matches_with_players,
         "round_order": round_order,
+        "active_round": active_round,
         "champion": champion,
         "champion_id": champion_id,
     })
@@ -2432,6 +2674,9 @@ async def admin_generate_bracket_execute(
         # Process BYE advancements
         process_bye_advancements(category, bracket_repo, session)
 
+        # Sync matches with updated slots
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
+
         request.session["flash_message"] = f"Bracket generado: {total_slots} slots, {matches_created} partidos creados"
         request.session["flash_type"] = "success"
 
@@ -2475,6 +2720,9 @@ async def regenerate_bracket_matches(request: Request, category: str):
 
         # Process BYE advancements
         process_bye_advancements(category, bracket_repo, session)
+
+        # Sync matches with updated slots
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
 
         request.session["flash_message"] = f"Partidos regenerados: {matches_created} partidos creados"
         request.session["flash_type"] = "success"
@@ -2945,14 +3193,13 @@ def create_bracket_matches(category: str, bracket_repo, match_repo):
             slots_by_round[round_type] = []
         slots_by_round[round_type].append(slot_orm)
 
-    # Delete existing bracket matches for this category (cleanup)
+    # Get existing bracket matches to avoid duplicates
     existing_matches = match_repo.get_all()
+    existing_bracket_matches = {}
     for match_orm in existing_matches:
         if match_orm.group_id is None:  # Bracket match (not group match)
-            # Check if it belongs to this category by checking player's category
-            # For now, we'll just delete all bracket matches
-            # TODO: Add category field to Match model for better filtering
-            pass
+            key = (match_orm.round_type, match_orm.match_number)
+            existing_bracket_matches[key] = match_orm
 
     matches_created = 0
 
@@ -2981,29 +3228,138 @@ def create_bracket_matches(category: str, bracket_repo, match_repo):
             player1_id = slot1.player_id if not slot1.is_bye else None
             player2_id = slot2.player_id if not slot2.is_bye else None
 
-            # Skip if both slots are BYEs (shouldn't happen but safety check)
-            # But DO create matches even if one or both players are None (will be filled later)
-
             match_number = (i // 2) + 1
             round_name = f"{round_type.value}{match_number}"
 
-            # Create match regardless of whether players are assigned yet
-            # This allows future rounds to exist and be updated when winners advance
-            match = Match(
-                id=0,  # Will be assigned by DB
-                player1_id=player1_id,  # Can be None
-                player2_id=player2_id,  # Can be None
-                group_id=None,  # Bracket match
-                round_type=round_type,
-                round_name=round_name,
-                match_number=match_number,
-                status=MatchStatus.PENDING,
-            )
+            # Handle BYE matches - don't create a match, just advance the player
+            # If one player is BYE, the other advances automatically
+            if (slot1.is_bye and not slot2.is_bye) or (slot2.is_bye and not slot1.is_bye):
+                # One is BYE, one is player - skip creating match
+                # The player advances via process_bye_advancements
+                continue
 
-            match_repo.create(match)
-            matches_created += 1
+            # Check if match already exists for this round and match number
+            match_key = (round_type.value, match_number)
+            if match_key in existing_bracket_matches:
+                # Match already exists, skip creation
+                continue
+
+            # Only create matches for the first round where both players are present
+            # or for later rounds where players will be filled by advancing winners
+            if player1_id is None and player2_id is None:
+                # Both are empty (future round) - create placeholder match
+                match = Match(
+                    id=0,
+                    player1_id=None,
+                    player2_id=None,
+                    group_id=None,
+                    round_type=round_type,
+                    round_name=round_name,
+                    match_number=match_number,
+                    status=MatchStatus.PENDING,
+                )
+                match_repo.create(match)
+                matches_created += 1
+            elif player1_id is not None and player2_id is not None:
+                # Both players are present - create real match
+                match = Match(
+                    id=0,
+                    player1_id=player1_id,
+                    player2_id=player2_id,
+                    group_id=None,
+                    round_type=round_type,
+                    round_name=round_name,
+                    match_number=match_number,
+                    status=MatchStatus.PENDING,
+                )
+                match_repo.create(match)
+                matches_created += 1
 
     return matches_created
+
+
+def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, session):
+    """
+    Synchronize bracket matches with their corresponding slots.
+
+    After process_bye_advancements updates slots, this function updates
+    the matches to have the correct player IDs from the slots.
+    """
+    from ettem.models import RoundType
+
+    # Get all slots grouped by round
+    all_slots = bracket_repo.get_by_category(category)
+    slots_by_round = {}
+    for slot_orm in all_slots:
+        round_type = slot_orm.round_type
+        if round_type not in slots_by_round:
+            slots_by_round[round_type] = []
+        slots_by_round[round_type].append(slot_orm)
+
+    # Get all bracket matches
+    all_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+    # For each round, update matches with players from slots
+    for round_type in [RoundType.ROUND_OF_32, RoundType.ROUND_OF_16,
+                       RoundType.QUARTERFINAL, RoundType.SEMIFINAL, RoundType.FINAL]:
+
+        if round_type not in slots_by_round:
+            continue
+
+        slots = sorted(slots_by_round[round_type], key=lambda s: s.slot_number)
+
+        # Process pairs of slots (1-2, 3-4, etc.)
+        for i in range(0, len(slots), 2):
+            if i + 1 >= len(slots):
+                break
+
+            slot1 = slots[i]
+            slot2 = slots[i + 1]
+            match_number = (i // 2) + 1
+
+            # Find the corresponding match
+            for match_orm in all_matches:
+                if (match_orm.round_type == round_type.value and
+                    match_orm.match_number == match_number):
+
+                    # Update player IDs from slots
+                    player1_id = slot1.player_id if not slot1.is_bye else None
+                    player2_id = slot2.player_id if not slot2.is_bye else None
+
+                    if match_orm.player1_id != player1_id or match_orm.player2_id != player2_id:
+                        match_orm.player1_id = player1_id
+                        match_orm.player2_id = player2_id
+                        session.commit()
+                    break
+
+
+@app.get("/admin/sync-bracket/{category}")
+async def admin_sync_bracket(request: Request, category: str):
+    """
+    Manually sync bracket matches with slot data.
+
+    This fixes the issue where matches show TBD when slots have players.
+    """
+    with get_db_session() as session:
+        bracket_repo = BracketRepository(session)
+        match_repo = MatchRepository(session)
+
+        # Check if bracket exists for this category
+        slots = bracket_repo.get_by_category(category)
+        if not slots:
+            return RedirectResponse(
+                url=f"/admin/print-center?error=No+hay+bracket+para+{category}",
+                status_code=302
+            )
+
+        # Sync matches with slots
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
+
+        # Return to print center with success message
+        return RedirectResponse(
+            url=f"/admin/print-center?success=Bracket+sincronizado+para+{category}",
+            status_code=302
+        )
 
 
 def process_bye_advancements(category: str, bracket_repo, session):
@@ -3343,6 +3699,9 @@ async def admin_manual_bracket_save(request: Request, category: str):
         # Process BYE advancements
         process_bye_advancements(category, bracket_repo, session)
 
+        # Sync matches with updated slots
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
+
         request.session["flash_message"] = f"Bracket manual guardado: {matches_created} partidos creados"
         request.session["flash_type"] = "success"
 
@@ -3387,12 +3746,27 @@ async def print_match_sheet(match_id: int):
         if not player1 or not player2:
             return Response(content="Jugadores no encontrados", status_code=404)
 
-        # Get group name if this is a group match
+        # Get group name and calculate round number if this is a group match
         group_name = None
+        round_number = None
         if match_orm.group_id:
             group = group_repo.get_by_id(match_orm.group_id)
             if group:
                 group_name = group.name
+
+                # Calculate round number
+                all_players = player_repo.get_all()
+                players_in_group = [p for p in all_players if p.group_id == match_orm.group_id]
+                num_players = len(players_in_group)
+                matches_per_round = max(1, num_players // 2)
+
+                # Get all matches in this group to find the index
+                all_group_matches = match_repo.get_by_group(match_orm.group_id)
+                all_group_matches = sorted(all_group_matches, key=lambda m: m.match_number or 999)
+                for idx, gm in enumerate(all_group_matches):
+                    if gm.id == match_orm.id:
+                        round_number = (idx // matches_per_round) + 1
+                        break
 
         # Build match dict
         match_dict = {
@@ -3421,6 +3795,7 @@ async def print_match_sheet(match_id: int):
                 group_name=group_name,
                 tournament_name=get_tournament_name(),
                 category=player1.categoria,
+                round_number=round_number,
             )
 
             filename = f"partido_{match_id}.pdf"
@@ -3454,9 +3829,85 @@ async def print_group_sheet(group_id: int):
         matches_orm = match_repo.get_by_group(group_id)
         matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
-        # Build player dicts with standings (empty for print)
+        # Initialize player stats
+        player_stats = {}
+        for p in players_orm:
+            player_stats[p.id] = {
+                "wins": 0,
+                "losses": 0,
+                "sets_won": 0,
+                "sets_lost": 0,
+                "points": 0,
+            }
+
+        # Build results matrix from actual match results
+        results_matrix = {}
+        for p in players_orm:
+            results_matrix[p.id] = {}
+
+        # Build matches with player info and results
+        matches = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate result from sets
+            result = None
+            if m.sets and len(m.sets) > 0:
+                sets_p1 = sum(1 for s in m.sets if s.get('player1_points', 0) > s.get('player2_points', 0))
+                sets_p2 = sum(1 for s in m.sets if s.get('player2_points', 0) > s.get('player1_points', 0))
+                result = f"{sets_p1}-{sets_p2}"
+                # Fill results matrix (both directions)
+                if m.player1_id in results_matrix:
+                    results_matrix[m.player1_id][m.player2_id] = f"{sets_p1}-{sets_p2}"
+                if m.player2_id in results_matrix:
+                    results_matrix[m.player2_id][m.player1_id] = f"{sets_p2}-{sets_p1}"
+
+                # Update player stats
+                if m.player1_id in player_stats:
+                    player_stats[m.player1_id]["sets_won"] += sets_p1
+                    player_stats[m.player1_id]["sets_lost"] += sets_p2
+                if m.player2_id in player_stats:
+                    player_stats[m.player2_id]["sets_won"] += sets_p2
+                    player_stats[m.player2_id]["sets_lost"] += sets_p1
+
+                # Determine winner and update wins/losses/points
+                if m.winner_id:
+                    if m.winner_id in player_stats:
+                        player_stats[m.winner_id]["wins"] += 1
+                        player_stats[m.winner_id]["points"] += 2
+                    loser_id = m.player2_id if m.winner_id == m.player1_id else m.player1_id
+                    if loser_id in player_stats:
+                        player_stats[loser_id]["losses"] += 1
+                        # 1 point for playing (not walkover)
+                        if m.status != "WALKOVER":
+                            player_stats[loser_id]["points"] += 1
+
+            # Determine winner's group number
+            winner_group_number = None
+            if m.winner_id:
+                if m.winner_id == m.player1_id and p1:
+                    winner_group_number = p1.group_number
+                elif m.winner_id == m.player2_id and p2:
+                    winner_group_number = p2.group_number
+
+            matches.append({
+                "match_order": m.match_number,
+                "result": result,
+                "winner_group_number": winner_group_number,
+                "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
+                "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+            })
+
+        # Build player dicts with stats
         players = []
         for p in players_orm:
+            stats = player_stats.get(p.id, {})
+            # Calculate ratios for tiebreaker
+            sets_won = stats.get("sets_won", 0)
+            sets_lost = stats.get("sets_lost", 0)
+            sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
+
             players.append({
                 "player": {
                     "id": p.id,
@@ -3464,26 +3915,34 @@ async def print_group_sheet(group_id: int):
                     "apellido": p.apellido,
                     "pais_cd": p.pais_cd,
                     "group_number": p.group_number,
+                },
+                "stats": {
+                    "points": stats.get("points", 0),
+                    "wins": stats.get("wins", 0),
+                    "losses": stats.get("losses", 0),
+                    "sets_won": sets_won,
+                    "sets_lost": sets_lost,
+                    "sets_ratio": sets_ratio,
+                    "position": None,
                 }
             })
 
-        # Build matches with player info
-        matches = []
-        for m in matches_orm:
-            p1 = player_repo.get_by_id(m.player1_id)
-            p2 = player_repo.get_by_id(m.player2_id)
-            matches.append({
-                "match_order": m.match_number,
-                "player1": {"apellido": p1.apellido if p1 else "?"},
-                "player2": {"apellido": p2.apellido if p2 else "?"},
-            })
-
-        # Build empty results matrix
-        results_matrix = {}
+        # Calculate positions based on points and tiebreakers
+        players_with_matches = [p for p in players if p["stats"]["wins"] + p["stats"]["losses"] > 0]
+        if players_with_matches:
+            sorted_players = sorted(
+                players_with_matches,
+                key=lambda x: (-x["stats"]["points"], -x["stats"]["sets_ratio"], x["player"]["group_number"])
+            )
+            for pos, p in enumerate(sorted_players, 1):
+                for orig_p in players:
+                    if orig_p["player"]["id"] == p["player"]["id"]:
+                        orig_p["stats"]["position"] = pos
+                        break
 
         try:
             pdf_bytes = pdf_generator.generate_group_sheet_pdf(
-                group={"name": group.name},
+                group={"name": f"Grupo {group.name}"},
                 players=players,
                 matches=matches,
                 results_matrix=results_matrix,
@@ -3522,9 +3981,18 @@ async def print_group_matches(group_id: int):
         for m in matches_orm:
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate result from sets
+            result = None
+            if m.sets and len(m.sets) > 0:
+                sets_p1 = sum(1 for s in m.sets if s.get('player1_points', 0) > s.get('player2_points', 0))
+                sets_p2 = sum(1 for s in m.sets if s.get('player2_points', 0) > s.get('player1_points', 0))
+                result = f"{sets_p1} - {sets_p2}"
+
             matches.append({
                 "match_order": m.match_number,
                 "status": m.status,
+                "result": result,
                 "player1": {
                     "nombre": p1.nombre if p1 else "?",
                     "apellido": p1.apellido if p1 else "?",
@@ -3540,13 +4008,13 @@ async def print_group_matches(group_id: int):
         try:
             pdf_bytes = pdf_generator.generate_match_list_pdf(
                 matches=matches,
-                title=f"Partidos - {group.name}",
+                title=f"Partidos - Grupo {group.name}",
                 tournament_name=get_tournament_name(),
                 category=group.category,
-                group_name=group.name,
+                group_name=f"Grupo {group.name}",
             )
 
-            filename = f"partidos_{group.name.replace(' ', '_')}.pdf"
+            filename = f"partidos_grupo_{group.name.replace(' ', '_')}.pdf"
             return Response(
                 content=pdf_bytes,
                 media_type="application/pdf",
@@ -3572,11 +4040,20 @@ async def print_all_group_match_sheets(group_id: int):
         matches_orm = match_repo.get_by_group(group_id)
         matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
+        # Get number of players in group to calculate rounds
+        all_players = player_repo.get_all()
+        players_in_group = [p for p in all_players if p.group_id == group_id]
+        num_players = len(players_in_group)
+        matches_per_round = max(1, num_players // 2)
+
         # Build matches data
         matches_data = []
-        for m in matches_orm:
+        for idx, m in enumerate(matches_orm):
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate round number (1-based)
+            round_number = (idx // matches_per_round) + 1
 
             matches_data.append({
                 "match": {
@@ -3595,6 +4072,7 @@ async def print_all_group_match_sheets(group_id: int):
                     "pais_cd": p2.pais_cd if p2 else "?",
                 },
                 "group_name": group.name,
+                "round_number": round_number,
             })
 
         try:
@@ -3631,15 +4109,26 @@ async def print_all_category_match_sheets(category: str):
         if not groups:
             return Response(content="No hay grupos en esta categoría", status_code=404)
 
+        # Get all players once
+        all_players = player_repo.get_all()
+
         # Build all matches data
         matches_data = []
         for group in sorted(groups, key=lambda g: g.name):
             matches_orm = match_repo.get_by_group(group.id)
             matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
-            for m in matches_orm:
+            # Get number of players in this group to calculate rounds
+            players_in_group = [p for p in all_players if p.group_id == group.id]
+            num_players = len(players_in_group)
+            matches_per_round = max(1, num_players // 2)
+
+            for idx, m in enumerate(matches_orm):
                 p1 = player_repo.get_by_id(m.player1_id)
                 p2 = player_repo.get_by_id(m.player2_id)
+
+                # Calculate round number (1-based)
+                round_number = (idx // matches_per_round) + 1
 
                 matches_data.append({
                     "match": {
@@ -3658,6 +4147,7 @@ async def print_all_category_match_sheets(category: str):
                         "pais_cd": p2.pais_cd if p2 else "?",
                     },
                     "group_name": group.name,
+                    "round_number": round_number,
                 })
 
         if not matches_data:
@@ -3680,12 +4170,293 @@ async def print_all_category_match_sheets(category: str):
             return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
 
 
+# =============================================================================
+# TOURNAMENT STATUS ROUTE
+# =============================================================================
+
+@app.get("/tournament-status", response_class=HTMLResponse)
+async def tournament_status(request: Request):
+    """Show consolidated tournament status."""
+    from ettem.models import RoundType
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        bracket_repo = BracketRepository(session)
+        standing_repo = StandingRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        if not current_tournament:
+            return render_template("tournament_status.html", {
+                "request": request,
+                "tournament": None,
+                "categories_status": {}
+            })
+
+        tournament_id = current_tournament.id
+
+        # Get all categories
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
+        categories = list(set(g.category for g in all_groups))
+
+        categories_status = {}
+        for category in categories:
+            cat_groups = [g for g in all_groups if g.category == category]
+
+            # Group stage status
+            total_group_matches = 0
+            completed_group_matches = 0
+            for group in cat_groups:
+                group_matches = match_repo.get_by_group(group.id)
+                total_group_matches += len(group_matches)
+                completed_group_matches += sum(1 for m in group_matches if m.status != "pending")
+
+            groups_complete = total_group_matches > 0 and completed_group_matches == total_group_matches
+
+            # Standings status
+            has_standings = False
+            for group in cat_groups:
+                standings = standing_repo.get_by_group(group.id)
+                if standings:
+                    has_standings = True
+                    break
+
+            # Bracket status
+            bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+            has_bracket = len(bracket_slots) > 0
+
+            # Bracket matches status
+            bracket_matches = []
+            champion = None
+            rounds_status = {}
+
+            if has_bracket:
+                all_matches = match_repo.get_all()
+                for m in all_matches:
+                    if m.group_id is None and m.player1_id:
+                        player = player_repo.get_by_id(m.player1_id)
+                        if player and player.categoria == category:
+                            bracket_matches.append(m)
+
+                # Group by round
+                round_order = [
+                    (RoundType.ROUND_OF_32.value, "Ronda de 32"),
+                    (RoundType.ROUND_OF_16.value, "Ronda de 16"),
+                    (RoundType.QUARTERFINAL.value, "Cuartos de Final"),
+                    (RoundType.SEMIFINAL.value, "Semifinales"),
+                    (RoundType.FINAL.value, "Final"),
+                ]
+
+                for round_type, round_name in round_order:
+                    round_matches = [m for m in bracket_matches if m.round_type == round_type]
+                    if round_matches:
+                        total = len(round_matches)
+                        completed = sum(1 for m in round_matches if m.status != "pending")
+                        rounds_status[round_name] = {
+                            "total": total,
+                            "completed": completed,
+                            "complete": total == completed
+                        }
+
+                # Check for champion
+                final_matches = [m for m in bracket_matches if m.round_type == RoundType.FINAL.value]
+                if final_matches and final_matches[0].winner_id:
+                    champion = player_repo.get_by_id(final_matches[0].winner_id)
+
+            categories_status[category] = {
+                "groups": {
+                    "count": len(cat_groups),
+                    "total_matches": total_group_matches,
+                    "completed_matches": completed_group_matches,
+                    "complete": groups_complete
+                },
+                "standings": has_standings,
+                "bracket": {
+                    "exists": has_bracket,
+                    "rounds": rounds_status
+                },
+                "champion": champion
+            }
+
+        return render_template("tournament_status.html", {
+            "request": request,
+            "tournament": current_tournament,
+            "categories_status": categories_status
+        })
+
+
+# =============================================================================
+# CSV EXPORT ROUTES
+# =============================================================================
+
+@app.get("/export/bracket/{category}")
+async def export_bracket_csv(category: str):
+    """Export bracket matches to CSV."""
+    import csv
+    import io
+    from ettem.models import RoundType
+
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Get all bracket matches for this category
+        all_matches = match_repo.get_all()
+        bracket_matches = []
+
+        for m in all_matches:
+            if m.group_id is None:  # Bracket match
+                if m.player1_id:
+                    player = player_repo.get_by_id(m.player1_id)
+                    if player and player.categoria == category:
+                        bracket_matches.append(m)
+                elif m.player2_id:
+                    player = player_repo.get_by_id(m.player2_id)
+                    if player and player.categoria == category:
+                        bracket_matches.append(m)
+
+        # Sort by round order then match number
+        round_order = {
+            RoundType.ROUND_OF_32.value: 1,
+            RoundType.ROUND_OF_16.value: 2,
+            RoundType.QUARTERFINAL.value: 3,
+            RoundType.SEMIFINAL.value: 4,
+            RoundType.FINAL.value: 5,
+        }
+        bracket_matches.sort(key=lambda m: (round_order.get(m.round_type, 99), m.match_number or 0))
+
+        # Round display names
+        round_names = {
+            RoundType.ROUND_OF_32.value: "Ronda de 32",
+            RoundType.ROUND_OF_16.value: "Ronda de 16",
+            RoundType.QUARTERFINAL.value: "Cuartos de Final",
+            RoundType.SEMIFINAL.value: "Semifinales",
+            RoundType.FINAL.value: "Final",
+        }
+
+        # Build CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow(["Ronda", "Partido", "Jugador 1", "Jugador 2", "Ganador", "Sets", "Estado"])
+
+        for m in bracket_matches:
+            player1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+            player2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+            winner = player_repo.get_by_id(m.winner_id) if m.winner_id else None
+
+            player1_name = f"{player1.nombre} {player1.apellido}" if player1 else "TBD"
+            player2_name = f"{player2.nombre} {player2.apellido}" if player2 else "TBD"
+            winner_name = f"{winner.nombre} {winner.apellido}" if winner else "-"
+
+            # Parse sets
+            sets_str = "-"
+            if m.sets_json:
+                import json
+                sets = json.loads(m.sets_json)
+                if sets:
+                    p1_sets = sum(1 for s in sets if s.get("player1_points", 0) > s.get("player2_points", 0))
+                    p2_sets = sum(1 for s in sets if s.get("player2_points", 0) > s.get("player1_points", 0))
+                    sets_str = f"{p1_sets}-{p2_sets}"
+
+            # Status
+            status_map = {
+                "pending": "Pendiente",
+                "completed": "Completado",
+                "WALKOVER": "Walkover",
+            }
+            status = status_map.get(m.status, m.status)
+
+            writer.writerow([
+                round_names.get(m.round_type, m.round_type),
+                m.match_number or "-",
+                player1_name,
+                player2_name,
+                winner_name,
+                sets_str,
+                status
+            ])
+
+        # Return CSV response with BOM for Excel UTF-8 compatibility
+        csv_content = output.getvalue()
+        filename = f"bracket_{category}.csv"
+        csv_bytes = ('\ufeff' + csv_content).encode('utf-8')
+
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
+@app.get("/export/standings/{category}")
+async def export_standings_csv(category: str):
+    """Export standings to CSV."""
+    import csv
+    import io
+
+    with get_db_session() as session:
+        standing_repo = StandingRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+
+        # Get all groups for this category
+        groups = group_repo.get_by_category(category)
+
+        if not groups:
+            return Response(content="No hay grupos para esta categoría", status_code=404)
+
+        # Build CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow(["Grupo", "Posición", "Jugador", "País", "Puntos", "V", "D", "Sets+", "Sets-", "Pts+", "Pts-"])
+
+        for group in groups:
+            standings = standing_repo.get_by_group(group.id)
+            for s in standings:
+                player = player_repo.get_by_id(s.player_id)
+
+                writer.writerow([
+                    group.name if group else "-",
+                    s.position,
+                    f"{player.nombre} {player.apellido}" if player else "-",
+                    player.pais_cd if player else "-",
+                    s.points_total,
+                    s.wins,
+                    s.losses,
+                    s.sets_w,
+                    s.sets_l,
+                    s.points_w,
+                    s.points_l
+                ])
+
+        csv_content = output.getvalue()
+        filename = f"standings_{category}.csv"
+
+        # Add BOM for Excel UTF-8 compatibility
+        csv_bytes = ('\ufeff' + csv_content).encode('utf-8')
+
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
 @app.get("/admin/print-center", response_class=HTMLResponse)
 async def admin_print_center(request: Request):
     """Print center page with all print options."""
     with get_db_session() as session:
         group_repo = GroupRepository(session)
         tournament_repo = TournamentRepository(session)
+        bracket_repo = BracketRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
 
         tournament = tournament_repo.get_current()
         tournament_id = tournament.id if tournament else None
@@ -3707,16 +4478,998 @@ async def admin_print_center(request: Request):
         for cat in categories_groups:
             categories_groups[cat] = sorted(categories_groups[cat], key=lambda g: g["name"])
 
+        # Get bracket matches by category, grouped by round
+        categories_brackets = {}
+        all_bracket_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+        # Round display names
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+        round_order = {"R32": 0, "R16": 1, "QF": 2, "SF": 3, "F": 4}
+
+        for match_orm in all_bracket_matches:
+            # Get player category from either player
+            player = None
+            if match_orm.player1_id:
+                player = player_repo.get_by_id(match_orm.player1_id)
+            elif match_orm.player2_id:
+                player = player_repo.get_by_id(match_orm.player2_id)
+
+            # For matches without players, try to get category from bracket slots
+            if not player:
+                # Get category from bracket slots table
+                bracket_slots = bracket_repo.get_by_category_and_round(
+                    list(categories_groups.keys())[0] if categories_groups else "OPEN",
+                    match_orm.round_type
+                )
+                if bracket_slots:
+                    for slot in bracket_slots:
+                        if slot.player_id:
+                            player = player_repo.get_by_id(slot.player_id)
+                            if player:
+                                break
+
+            if player:
+                category = player.categoria
+            elif categories_groups:
+                # Default to first category if we can't determine
+                category = list(categories_groups.keys())[0]
+            else:
+                continue
+
+            if category not in categories_brackets:
+                categories_brackets[category] = {"rounds": {}, "total_matches": 0}
+
+            round_type = match_orm.round_type
+            if round_type not in categories_brackets[category]["rounds"]:
+                categories_brackets[category]["rounds"][round_type] = {
+                    "name": round_names.get(round_type, round_type),
+                    "order": round_order.get(round_type, 99),
+                    "matches": [],
+                }
+
+            # Get player names
+            p1_name = "TBD"
+            p2_name = "TBD"
+            is_ready = False  # Match is ready to play (both players known)
+
+            if match_orm.player1_id:
+                p1 = player_repo.get_by_id(match_orm.player1_id)
+                if p1:
+                    p1_name = f"{p1.nombre} {p1.apellido}"
+            if match_orm.player2_id:
+                p2 = player_repo.get_by_id(match_orm.player2_id)
+                if p2:
+                    p2_name = f"{p2.nombre} {p2.apellido}"
+
+            if match_orm.player1_id and match_orm.player2_id:
+                is_ready = True
+
+            categories_brackets[category]["rounds"][round_type]["matches"].append({
+                "id": match_orm.id,
+                "round_type": round_type,
+                "player1_name": p1_name,
+                "player2_name": p2_name,
+                "status": match_orm.status,
+                "is_ready": is_ready,
+            })
+            categories_brackets[category]["total_matches"] += 1
+
+        # Sort rounds within each category
+        for cat in categories_brackets:
+            sorted_rounds = dict(sorted(
+                categories_brackets[cat]["rounds"].items(),
+                key=lambda x: x[1]["order"]
+            ))
+            categories_brackets[cat]["rounds"] = sorted_rounds
+
         context = {
             "request": request,
             "categories_groups": categories_groups,
+            "categories_brackets": categories_brackets,
             "tournament_name": tournament.name if tournament else "Sin torneo",
         }
 
         return render_template("admin_print_center.html", context)
 
 
+# ==============================================================================
+# PREVIEW ROUTES (HTML preview before PDF download)
+# ==============================================================================
+
+
+@app.get("/preview/group/{group_id}/sheet", response_class=HTMLResponse)
+async def preview_group_sheet(request: Request, group_id: int):
+    """Preview group sheet before PDF download."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get players in group
+        all_players = player_repo.get_all()
+        players_orm = [p for p in all_players if p.group_id == group_id]
+        players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Initialize player stats
+        player_stats = {}
+        for p in players_orm:
+            player_stats[p.id] = {
+                "wins": 0,
+                "losses": 0,
+                "sets_won": 0,
+                "sets_lost": 0,
+                "points": 0,
+            }
+
+        # Build results matrix from actual match results
+        # Matrix format: results_matrix[player1_id][player2_id] = "3-1" (sets won)
+        results_matrix = {}
+        for p in players_orm:
+            results_matrix[p.id] = {}
+
+        # Build matches with results and calculate stats
+        matches = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate result from sets
+            result = None
+            if m.sets and len(m.sets) > 0:
+                sets_p1 = sum(1 for s in m.sets if s.get('player1_points', 0) > s.get('player2_points', 0))
+                sets_p2 = sum(1 for s in m.sets if s.get('player2_points', 0) > s.get('player1_points', 0))
+                result = f"{sets_p1}-{sets_p2}"
+
+                # Fill results matrix (both directions)
+                if m.player1_id in results_matrix:
+                    results_matrix[m.player1_id][m.player2_id] = f"{sets_p1}-{sets_p2}"
+                if m.player2_id in results_matrix:
+                    results_matrix[m.player2_id][m.player1_id] = f"{sets_p2}-{sets_p1}"
+
+                # Update player stats
+                if m.player1_id in player_stats:
+                    player_stats[m.player1_id]["sets_won"] += sets_p1
+                    player_stats[m.player1_id]["sets_lost"] += sets_p2
+                if m.player2_id in player_stats:
+                    player_stats[m.player2_id]["sets_won"] += sets_p2
+                    player_stats[m.player2_id]["sets_lost"] += sets_p1
+
+                # Determine winner and update wins/losses/points
+                if m.winner_id:
+                    if m.winner_id in player_stats:
+                        player_stats[m.winner_id]["wins"] += 1
+                        player_stats[m.winner_id]["points"] += 2
+                    loser_id = m.player2_id if m.winner_id == m.player1_id else m.player1_id
+                    if loser_id in player_stats:
+                        player_stats[loser_id]["losses"] += 1
+                        # 1 point for playing (not walkover)
+                        if m.status != "WALKOVER":
+                            player_stats[loser_id]["points"] += 1
+
+            # Determine winner's group number
+            winner_group_number = None
+            if m.winner_id:
+                if m.winner_id == m.player1_id and p1:
+                    winner_group_number = p1.group_number
+                elif m.winner_id == m.player2_id and p2:
+                    winner_group_number = p2.group_number
+
+            matches.append({
+                "match_order": m.match_number,
+                "result": result,
+                "winner_group_number": winner_group_number,
+                "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
+                "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+            })
+
+        # Build player dicts with stats
+        players = []
+        for p in players_orm:
+            stats = player_stats.get(p.id, {})
+            # Calculate ratios for tiebreaker
+            sets_won = stats.get("sets_won", 0)
+            sets_lost = stats.get("sets_lost", 0)
+            sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
+
+            players.append({
+                "player": {
+                    "id": p.id,
+                    "nombre": p.nombre,
+                    "apellido": p.apellido,
+                    "pais_cd": p.pais_cd,
+                    "group_number": p.group_number,
+                },
+                "stats": {
+                    "points": stats.get("points", 0),
+                    "wins": stats.get("wins", 0),
+                    "losses": stats.get("losses", 0),
+                    "sets_won": sets_won,
+                    "sets_lost": sets_lost,
+                    "sets_ratio": sets_ratio,
+                    "position": None,  # Will be calculated below
+                }
+            })
+
+        # Calculate positions based on points and tiebreakers
+        # Only for players who have played at least one match
+        players_with_matches = [p for p in players if p["stats"]["wins"] + p["stats"]["losses"] > 0]
+        if players_with_matches:
+            # Sort by: points (desc), sets_ratio (desc), group_number (asc as tiebreaker)
+            sorted_players = sorted(
+                players_with_matches,
+                key=lambda x: (-x["stats"]["points"], -x["stats"]["sets_ratio"], x["player"]["group_number"])
+            )
+            # Assign positions
+            for pos, p in enumerate(sorted_players, 1):
+                # Find this player in the original list and update position
+                for orig_p in players:
+                    if orig_p["player"]["id"] == p["player"]["id"]:
+                        orig_p["stats"]["position"] = pos
+                        break
+
+        context = {
+            "request": request,
+            "preview_title": f"Hoja de Grupo - Grupo {group.name}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/group/{group_id}/sheet",
+            "tournament_name": get_tournament_name(),
+            "category": group.category,
+            "group": {"name": f"Grupo {group.name}"},
+            "players": players,
+            "matches": matches,
+            "results_matrix": results_matrix,
+        }
+
+        return render_template("print/preview_group_sheet.html", context)
+
+
+@app.get("/preview/category/{category}/all-group-sheets", response_class=HTMLResponse)
+async def preview_all_group_sheets(request: Request, category: str):
+    """Preview all group sheets for a category."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        # Get all groups for the category
+        all_groups = group_repo.get_all()
+        groups_in_category = [g for g in all_groups if g.category == category]
+        groups_in_category = sorted(groups_in_category, key=lambda g: g.name)
+
+        if not groups_in_category:
+            return Response(content="No hay grupos en esta categoría", status_code=404)
+
+        groups_data = []
+        for group in groups_in_category:
+            # Get players in group
+            all_players = player_repo.get_all()
+            players_orm = [p for p in all_players if p.group_id == group.id]
+            players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
+
+            # Get matches
+            matches_orm = match_repo.get_by_group(group.id)
+            matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+            # Initialize player stats
+            player_stats = {}
+            for p in players_orm:
+                player_stats[p.id] = {
+                    "wins": 0,
+                    "losses": 0,
+                    "sets_won": 0,
+                    "sets_lost": 0,
+                    "points": 0,
+                }
+
+            # Build results matrix
+            results_matrix = {}
+            for p in players_orm:
+                results_matrix[p.id] = {}
+
+            # Build matches with results and calculate stats
+            matches = []
+            for m in matches_orm:
+                p1 = player_repo.get_by_id(m.player1_id)
+                p2 = player_repo.get_by_id(m.player2_id)
+
+                result = None
+                if m.sets and len(m.sets) > 0:
+                    sets_p1 = sum(1 for s in m.sets if s.get('player1_points', 0) > s.get('player2_points', 0))
+                    sets_p2 = sum(1 for s in m.sets if s.get('player2_points', 0) > s.get('player1_points', 0))
+                    result = f"{sets_p1}-{sets_p2}"
+
+                    if m.player1_id in results_matrix:
+                        results_matrix[m.player1_id][m.player2_id] = f"{sets_p1}-{sets_p2}"
+                    if m.player2_id in results_matrix:
+                        results_matrix[m.player2_id][m.player1_id] = f"{sets_p2}-{sets_p1}"
+
+                    if m.player1_id in player_stats:
+                        player_stats[m.player1_id]["sets_won"] += sets_p1
+                        player_stats[m.player1_id]["sets_lost"] += sets_p2
+                    if m.player2_id in player_stats:
+                        player_stats[m.player2_id]["sets_won"] += sets_p2
+                        player_stats[m.player2_id]["sets_lost"] += sets_p1
+
+                    if m.winner_id:
+                        if m.winner_id in player_stats:
+                            player_stats[m.winner_id]["wins"] += 1
+                            player_stats[m.winner_id]["points"] += 2
+                        loser_id = m.player2_id if m.winner_id == m.player1_id else m.player1_id
+                        if loser_id in player_stats:
+                            player_stats[loser_id]["losses"] += 1
+                            if m.status != "WALKOVER":
+                                player_stats[loser_id]["points"] += 1
+
+                matches.append({
+                    "match_order": m.match_number,
+                    "result": result,
+                    "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
+                    "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+                })
+
+            # Build player dicts with stats
+            players = []
+            for p in players_orm:
+                stats = player_stats.get(p.id, {})
+                sets_won = stats.get("sets_won", 0)
+                sets_lost = stats.get("sets_lost", 0)
+                sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
+
+                players.append({
+                    "player": {
+                        "id": p.id,
+                        "nombre": p.nombre,
+                        "apellido": p.apellido,
+                        "pais_cd": p.pais_cd,
+                        "group_number": p.group_number,
+                    },
+                    "stats": {
+                        "points": stats.get("points", 0),
+                        "wins": stats.get("wins", 0),
+                        "losses": stats.get("losses", 0),
+                        "sets_won": sets_won,
+                        "sets_lost": sets_lost,
+                        "sets_ratio": sets_ratio,
+                        "position": None,
+                    }
+                })
+
+            # Calculate positions
+            players_with_matches = [p for p in players if p["stats"]["wins"] + p["stats"]["losses"] > 0]
+            if players_with_matches:
+                sorted_players = sorted(
+                    players_with_matches,
+                    key=lambda x: (-x["stats"]["points"], -x["stats"]["sets_ratio"], x["player"]["group_number"])
+                )
+                for pos, p in enumerate(sorted_players, 1):
+                    for orig_p in players:
+                        if orig_p["player"]["id"] == p["player"]["id"]:
+                            orig_p["stats"]["position"] = pos
+                            break
+
+            groups_data.append({
+                "group": {"name": f"Grupo {group.name}"},
+                "players": players,
+                "matches": matches,
+                "results_matrix": results_matrix,
+            })
+
+        context = {
+            "request": request,
+            "preview_title": f"Hojas de Grupo - {category}",
+            "back_url": "/admin/print-center",
+            "download_url": None,  # No PDF download for now
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "groups": groups_data,
+        }
+
+        return render_template("print/preview_all_group_sheets.html", context)
+
+
+@app.get("/preview/group/{group_id}/matches", response_class=HTMLResponse)
+async def preview_group_matches(request: Request, group_id: int):
+    """Preview match list before PDF download."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Build matches with player info
+        matches = []
+        for m in matches_orm:
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate result from sets
+            result = None
+            if m.sets and len(m.sets) > 0:
+                sets_p1 = sum(1 for s in m.sets if s.get('player1_points', 0) > s.get('player2_points', 0))
+                sets_p2 = sum(1 for s in m.sets if s.get('player2_points', 0) > s.get('player1_points', 0))
+                result = f"{sets_p1} - {sets_p2}"
+
+            matches.append({
+                "match_order": m.match_number,
+                "status": m.status,
+                "result": result,
+                "player1": {
+                    "nombre": p1.nombre if p1 else "?",
+                    "apellido": p1.apellido if p1 else "?",
+                    "pais_cd": p1.pais_cd if p1 else "?",
+                },
+                "player2": {
+                    "nombre": p2.nombre if p2 else "?",
+                    "apellido": p2.apellido if p2 else "?",
+                    "pais_cd": p2.pais_cd if p2 else "?",
+                },
+            })
+
+        context = {
+            "request": request,
+            "preview_title": f"Lista de Partidos - Grupo {group.name}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/group/{group_id}/matches",
+            "tournament_name": get_tournament_name(),
+            "title": f"Partidos - Grupo {group.name}",
+            "category": group.category,
+            "group_name": f"Grupo {group.name}",
+            "matches": matches,
+        }
+
+        return render_template("print/preview_match_list.html", context)
+
+
+@app.get("/preview/group/{group_id}/all-match-sheets", response_class=HTMLResponse)
+async def preview_all_group_match_sheets(request: Request, group_id: int):
+    """Preview all match sheets for a group before PDF download."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+
+        group = group_repo.get_by_id(group_id)
+        if not group:
+            return Response(content="Grupo no encontrado", status_code=404)
+
+        # Get matches
+        matches_orm = match_repo.get_by_group(group_id)
+        matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+        # Get number of players in group to calculate rounds
+        all_players = player_repo.get_all()
+        players_in_group = [p for p in all_players if p.group_id == group_id]
+        num_players = len(players_in_group)
+        matches_per_round = max(1, num_players // 2)
+
+        # Build matches data
+        matches_data = []
+        for idx, m in enumerate(matches_orm):
+            p1 = player_repo.get_by_id(m.player1_id)
+            p2 = player_repo.get_by_id(m.player2_id)
+
+            # Calculate round number (1-based)
+            round_number = (idx // matches_per_round) + 1
+
+            matches_data.append({
+                "match": {
+                    "id": m.id,
+                    "match_order": m.match_number,
+                    "round_type": m.round_type,
+                },
+                "player1": {
+                    "nombre": p1.nombre if p1 else "?",
+                    "apellido": p1.apellido if p1 else "?",
+                    "pais_cd": p1.pais_cd if p1 else "?",
+                },
+                "player2": {
+                    "nombre": p2.nombre if p2 else "?",
+                    "apellido": p2.apellido if p2 else "?",
+                    "pais_cd": p2.pais_cd if p2 else "?",
+                },
+                "group_name": group.name,
+                "round_number": round_number,
+            })
+
+        # Group matches in pairs (2 per page)
+        matches_pairs = []
+        for i in range(0, len(matches_data), 2):
+            pair = matches_data[i:i+2]
+            matches_pairs.append(pair)
+
+        context = {
+            "request": request,
+            "preview_title": f"Hojas de Partido - {group.name}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/group/{group_id}/all-match-sheets",
+            "tournament_name": get_tournament_name(),
+            "category": group.category,
+            "matches_pairs": matches_pairs,
+        }
+
+        return render_template("print/preview_match_sheets.html", context)
+
+
+@app.get("/preview/category/{category}/all-match-sheets", response_class=HTMLResponse)
+async def preview_all_category_match_sheets(request: Request, category: str):
+    """Preview all match sheets for a category before PDF download."""
+    with get_db_session() as session:
+        group_repo = GroupRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        tournament = tournament_repo.get_current()
+        tournament_id = tournament.id if tournament else None
+
+        # Get all groups in category
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
+        if not groups:
+            return Response(content="No hay grupos en esta categoría", status_code=404)
+
+        # Get all players once
+        all_players = player_repo.get_all()
+
+        # Build all matches data
+        matches_data = []
+        for group in sorted(groups, key=lambda g: g.name):
+            matches_orm = match_repo.get_by_group(group.id)
+            matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
+
+            # Get number of players in this group to calculate rounds
+            players_in_group = [p for p in all_players if p.group_id == group.id]
+            num_players = len(players_in_group)
+            matches_per_round = max(1, num_players // 2)
+
+            for idx, m in enumerate(matches_orm):
+                p1 = player_repo.get_by_id(m.player1_id)
+                p2 = player_repo.get_by_id(m.player2_id)
+
+                # Calculate round number (1-based)
+                round_number = (idx // matches_per_round) + 1
+
+                matches_data.append({
+                    "match": {
+                        "id": m.id,
+                        "match_order": m.match_number,
+                        "round_type": m.round_type,
+                    },
+                    "player1": {
+                        "nombre": p1.nombre if p1 else "?",
+                        "apellido": p1.apellido if p1 else "?",
+                        "pais_cd": p1.pais_cd if p1 else "?",
+                    },
+                    "player2": {
+                        "nombre": p2.nombre if p2 else "?",
+                        "apellido": p2.apellido if p2 else "?",
+                        "pais_cd": p2.pais_cd if p2 else "?",
+                    },
+                    "group_name": group.name,
+                    "round_number": round_number,
+                })
+
+        if not matches_data:
+            return Response(content="No hay partidos en esta categoría", status_code=404)
+
+        # Group matches in pairs (2 per page)
+        matches_pairs = []
+        for i in range(0, len(matches_data), 2):
+            pair = matches_data[i:i+2]
+            matches_pairs.append(pair)
+
+        context = {
+            "request": request,
+            "preview_title": f"Hojas de Partido - {category}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/category/{category}/all-match-sheets",
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "matches_pairs": matches_pairs,
+        }
+
+        return render_template("print/preview_match_sheets.html", context)
+
+
+# ==============================================================================
+# BRACKET PRINT ROUTES
+# ==============================================================================
+
+
+@app.get("/preview/bracket/match/{match_id}", response_class=HTMLResponse)
+async def preview_bracket_match_sheet(request: Request, match_id: int):
+    """Preview a single bracket match sheet."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        match_orm = match_repo.get_by_id(match_id)
+        if not match_orm:
+            return Response(content="Partido no encontrado", status_code=404)
+
+        p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+        p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+        category = p1.categoria if p1 else (p2.categoria if p2 else "?")
+
+        # Round type display names
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+
+        match_data = {
+            "match": {
+                "id": match_orm.id,
+                "match_order": match_orm.match_number or 1,
+                "round_type": match_orm.round_type,
+            },
+            "player1": {
+                "nombre": p1.nombre if p1 else "TBD",
+                "apellido": p1.apellido if p1 else "",
+                "pais_cd": p1.pais_cd if p1 else "?",
+            },
+            "player2": {
+                "nombre": p2.nombre if p2 else "TBD",
+                "apellido": p2.apellido if p2 else "",
+                "pais_cd": p2.pais_cd if p2 else "?",
+            },
+            "group_name": round_names.get(match_orm.round_type, match_orm.round_type),
+            "round_number": 1,
+        }
+
+        matches_pairs = [[match_data]]
+
+        context = {
+            "request": request,
+            "preview_title": f"Hoja de Partido - {round_names.get(match_orm.round_type, match_orm.round_type)}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/bracket/match/{match_id}",
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "matches_pairs": matches_pairs,
+        }
+
+        return render_template("print/preview_match_sheets.html", context)
+
+
+@app.get("/preview/bracket/{category}/all-match-sheets", response_class=HTMLResponse)
+async def preview_bracket_all_match_sheets(request: Request, category: str):
+    """Preview all bracket match sheets for a category."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Get all bracket matches for this category
+        all_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+        # Round type display names
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+        round_order = {"R32": 0, "R16": 1, "QF": 2, "SF": 3, "F": 4}
+
+        matches_data = []
+        for match_orm in all_matches:
+            p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+            p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+            # Check if match belongs to this category
+            match_category = None
+            if p1:
+                match_category = p1.categoria
+            elif p2:
+                match_category = p2.categoria
+
+            if match_category != category:
+                continue
+
+            # Only include matches with both players defined
+            if not p1 or not p2:
+                continue
+
+            matches_data.append({
+                "match": {
+                    "id": match_orm.id,
+                    "match_order": match_orm.match_number or 1,
+                    "round_type": match_orm.round_type,
+                },
+                "player1": {
+                    "nombre": p1.nombre,
+                    "apellido": p1.apellido,
+                    "pais_cd": p1.pais_cd,
+                },
+                "player2": {
+                    "nombre": p2.nombre,
+                    "apellido": p2.apellido,
+                    "pais_cd": p2.pais_cd,
+                },
+                "group_name": round_names.get(match_orm.round_type, match_orm.round_type),
+                "round_number": 1,
+                "sort_key": round_order.get(match_orm.round_type, 99),
+            })
+
+        if not matches_data:
+            return Response(content="No hay partidos definidos en el bracket", status_code=404)
+
+        # Sort by round
+        matches_data = sorted(matches_data, key=lambda m: (m["sort_key"], m["match"]["id"]))
+
+        # Group matches in pairs (2 per page)
+        matches_pairs = []
+        for i in range(0, len(matches_data), 2):
+            pair = matches_data[i:i+2]
+            matches_pairs.append(pair)
+
+        context = {
+            "request": request,
+            "preview_title": f"Hojas de Partido Bracket - {category}",
+            "back_url": "/admin/print-center",
+            "download_url": f"/print/bracket/{category}/all-match-sheets",
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "matches_pairs": matches_pairs,
+        }
+
+        return render_template("print/preview_match_sheets.html", context)
+
+
+@app.get("/print/bracket/match/{match_id}")
+async def print_bracket_match_sheet(match_id: int):
+    """Download PDF for a single bracket match sheet."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        match_orm = match_repo.get_by_id(match_id)
+        if not match_orm:
+            return Response(content="Partido no encontrado", status_code=404)
+
+        p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+        p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+        category = p1.categoria if p1 else (p2.categoria if p2 else "Bracket")
+
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+
+        match_data = {
+            "match": {
+                "id": match_orm.id,
+                "match_order": match_orm.match_number or 1,
+                "round_type": match_orm.round_type,
+            },
+            "player1": {
+                "nombre": p1.nombre if p1 else "TBD",
+                "apellido": p1.apellido if p1 else "",
+                "pais_cd": p1.pais_cd if p1 else "?",
+            },
+            "player2": {
+                "nombre": p2.nombre if p2 else "TBD",
+                "apellido": p2.apellido if p2 else "",
+                "pais_cd": p2.pais_cd if p2 else "?",
+            },
+            "group_name": round_names.get(match_orm.round_type, match_orm.round_type),
+            "round_number": 1,
+        }
+
+        matches_pairs = [[match_data]]
+
+        try:
+            # Flatten matches_pairs to matches_data for the PDF generator
+            matches_data = [m for pair in matches_pairs for m in pair]
+            pdf_bytes = pdf_generator.generate_all_match_sheets_pdf(
+                matches_data=matches_data,
+                tournament_name=get_tournament_name(),
+                category=category,
+            )
+
+            filename = f"partido_bracket_{match_orm.round_type}_{match_id}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
+@app.post("/print/bracket/selected")
+async def print_bracket_selected_matches(
+    request: Request,
+    category: str = Form(...),
+    match_ids: list[int] = Form(...)
+):
+    """Preview selected bracket match sheets before printing."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+        round_order = {"R32": 0, "R16": 1, "QF": 2, "SF": 3, "F": 4}
+
+        matches_data = []
+        for match_id in match_ids:
+            match_orm = match_repo.get_by_id(match_id)
+            if not match_orm:
+                continue
+
+            p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+            p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+            matches_data.append({
+                "match": {
+                    "id": match_orm.id,
+                    "match_order": match_orm.match_number or 1,
+                    "round_type": match_orm.round_type,
+                },
+                "player1": {
+                    "nombre": p1.nombre if p1 else "TBD",
+                    "apellido": p1.apellido if p1 else "",
+                    "pais_cd": p1.pais_cd if p1 else "?",
+                },
+                "player2": {
+                    "nombre": p2.nombre if p2 else "TBD",
+                    "apellido": p2.apellido if p2 else "",
+                    "pais_cd": p2.pais_cd if p2 else "?",
+                },
+                "group_name": round_names.get(match_orm.round_type, match_orm.round_type),
+                "round_number": 1,
+                "sort_key": round_order.get(match_orm.round_type, 99),
+            })
+
+        if not matches_data:
+            request.session["flash_message"] = "No se seleccionaron partidos válidos"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/print-center", status_code=303)
+
+        # Sort by round
+        matches_data = sorted(matches_data, key=lambda m: (m["sort_key"], m["match"]["id"]))
+
+        # Group in pairs (2 per page)
+        matches_pairs = []
+        for i in range(0, len(matches_data), 2):
+            pair = matches_data[i:i+2]
+            matches_pairs.append(pair)
+
+        context = {
+            "request": request,
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "matches_pairs": matches_pairs,
+            "total_matches": len(matches_data),
+            "back_url": "/admin/print-center",
+            "preview_title": f"Hojas de Partido - Bracket {category}",
+        }
+
+        return render_template("print/preview_match_sheets.html", context)
+
+
+@app.get("/print/bracket/{category}/all-match-sheets")
+async def print_bracket_all_match_sheets(category: str):
+    """Download PDF for all bracket match sheets in a category."""
+    with get_db_session() as session:
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        all_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+        round_names = {
+            "R32": "Ronda de 32",
+            "R16": "Octavos de Final",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+        round_order = {"R32": 0, "R16": 1, "QF": 2, "SF": 3, "F": 4}
+
+        matches_data = []
+        for match_orm in all_matches:
+            p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+            p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+            match_category = None
+            if p1:
+                match_category = p1.categoria
+            elif p2:
+                match_category = p2.categoria
+
+            if match_category != category:
+                continue
+
+            if not p1 or not p2:
+                continue
+
+            matches_data.append({
+                "match": {
+                    "id": match_orm.id,
+                    "match_order": match_orm.match_number or 1,
+                    "round_type": match_orm.round_type,
+                },
+                "player1": {
+                    "nombre": p1.nombre,
+                    "apellido": p1.apellido,
+                    "pais_cd": p1.pais_cd,
+                },
+                "player2": {
+                    "nombre": p2.nombre,
+                    "apellido": p2.apellido,
+                    "pais_cd": p2.pais_cd,
+                },
+                "group_name": round_names.get(match_orm.round_type, match_orm.round_type),
+                "round_number": 1,
+                "sort_key": round_order.get(match_orm.round_type, 99),
+            })
+
+        if not matches_data:
+            return Response(content="No hay partidos definidos en el bracket", status_code=404)
+
+        matches_data = sorted(matches_data, key=lambda m: (m["sort_key"], m["match"]["id"]))
+
+        matches_pairs = []
+        for i in range(0, len(matches_data), 2):
+            pair = matches_data[i:i+2]
+            matches_pairs.append(pair)
+
+        try:
+            # Flatten matches_pairs to matches_data for the PDF generator
+            matches_data_flat = [m for pair in matches_pairs for m in pair]
+            pdf_bytes = pdf_generator.generate_all_match_sheets_pdf(
+                matches_data=matches_data_flat,
+                tournament_name=get_tournament_name(),
+                category=category,
+            )
+
+            filename = f"partidos_bracket_{category}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="127.0.0.1", port=8000)
+

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Estado del Torneo - ETTEM{% endblock %}
+
+{% block page_title %}Estado del Torneo{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Primero debes crear o seleccionar un torneo.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- Tournament Header -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <span style="font-size: 2.5rem;">🏆</span>
+            <div>
+                <h2 style="margin: 0;">{{ tournament.name }}</h2>
+                <p style="margin: 0; color: var(--text-muted);">
+                    {{ categories_status|length }} categoría(s) activa(s)
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not categories_status %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 2rem;">
+        <p style="color: var(--text-muted);">No hay categorías configuradas aún.</p>
+        <a href="/admin/create-groups" class="btn btn-primary">
+            <span>👥</span>
+            <span>Crear Grupos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- Categories Status -->
+{% for category, status in categories_status.items() %}
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 class="card-title" style="margin: 0;">
+            📁 Categoría: {{ category }}
+            {% if status.champion %}
+            <span class="badge badge-success" style="margin-left: 0.5rem;">✓ Finalizado</span>
+            {% endif %}
+        </h3>
+        <div class="d-flex gap-2" style="flex-wrap: wrap;">
+            {% if status.groups.complete and not status.standings %}
+            <a href="/admin/calculate-standings?category={{ category }}" class="btn btn-warning btn-sm" title="Calcular clasificación">
+                <span>🧮</span>
+                <span>Calcular Standings</span>
+            </a>
+            {% endif %}
+            {% if status.standings and not status.bracket.exists %}
+            <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-success btn-sm" title="Generar llave eliminatoria">
+                <span>🏅</span>
+                <span>Generar Bracket</span>
+            </a>
+            {% endif %}
+            <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">Ver Categoría →</a>
+        </div>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table" style="margin: 0;">
+            <tbody>
+                <!-- Groups -->
+                <tr>
+                    <td style="width: 200px;">
+                        <strong>👥 Fase de Grupos</strong>
+                    </td>
+                    <td>
+                        {{ status.groups.count }} grupos,
+                        {{ status.groups.completed_matches }}/{{ status.groups.total_matches }} partidos
+                    </td>
+                    <td style="width: 120px; text-align: center;">
+                        {% if status.groups.complete %}
+                        <span class="badge badge-success">✓ Completo</span>
+                        {% elif status.groups.completed_matches > 0 %}
+                        <span class="badge badge-warning">En progreso</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Standings -->
+                <tr>
+                    <td>
+                        <strong>📊 Clasificación</strong>
+                    </td>
+                    <td>
+                        {% if status.standings %}
+                        Calculada
+                        {% else %}
+                        No calculada
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if status.standings %}
+                        <span class="badge badge-success">✓ Lista</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Bracket -->
+                <tr>
+                    <td>
+                        <strong>🏅 Bracket</strong>
+                    </td>
+                    <td>
+                        {% if status.bracket.exists %}
+                        Generado
+                        {% else %}
+                        No generado
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        {% if status.bracket.exists %}
+                        <span class="badge badge-success">✓ Listo</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Bracket Rounds -->
+                {% if status.bracket.rounds %}
+                {% for round_name, round_status in status.bracket.rounds.items() %}
+                <tr style="background: #f9f9f9;">
+                    <td style="padding-left: 2rem;">
+                        ↳ {{ round_name }}
+                    </td>
+                    <td>
+                        {{ round_status.completed }}/{{ round_status.total }} partidos
+                    </td>
+                    <td style="text-align: center;">
+                        {% if round_status.complete %}
+                        <span class="badge badge-success">✓</span>
+                        {% else %}
+                        <span class="badge badge-warning">⏳</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Champion -->
+                {% if status.champion %}
+                <tr style="background: linear-gradient(135deg, #fff9e6, #fff3cd);">
+                    <td>
+                        <strong>👑 Campeón</strong>
+                    </td>
+                    <td colspan="2">
+                        <strong style="font-size: 1.1rem; color: #d4a400;">
+                            {{ status.champion.nombre }} {{ status.champion.apellido }}
+                        </strong>
+                        <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ status.champion.pais_cd }}</span>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+{% endif %}
+{% endblock %}

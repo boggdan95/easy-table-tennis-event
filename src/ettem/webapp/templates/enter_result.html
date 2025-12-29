@@ -5,10 +5,17 @@
 {% block page_title %}{% if match.status == 'pending' %}Ingresar{% else %}Editar{% endif %} Resultado{% endblock %}
 
 {% block topbar_actions %}
+{% if match.group_id %}
 <a href="/group/{{ match.group_id }}/matches" class="btn btn-secondary btn-sm">
     <span>←</span>
     <span>Cancelar</span>
 </a>
+{% else %}
+<a href="/bracket/{{ player1.categoria }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Cancelar</span>
+</a>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -50,8 +57,6 @@
     <div class="card-body">
         <form method="post" action="/match/{{ match.id }}/save-result" data-match-form>
             <div class="form-section">
-                <label class="form-label">Sets (dejar vacío los no jugados)</label>
-
                 <!-- Horizontal Table Layout -->
                 <div style="overflow-x: auto;">
                     <table class="table" style="margin: 0;">
@@ -67,7 +72,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><strong>{{ player1.apellido }}</strong></td>
+                                <td><strong>{{ player1.nombre[0] }}. {{ player1.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
@@ -90,7 +95,7 @@
                                 {% endfor %}
                             </tr>
                             <tr>
-                                <td><strong>{{ player2.apellido }}</strong></td>
+                                <td><strong>{{ player2.nombre[0] }}. {{ player2.apellido }}</strong></td>
                                 {% for i in range(1, 6) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
@@ -189,10 +194,17 @@
                     <span>✓</span>
                     <span>Guardar Resultado</span>
                 </button>
+                {% if match.group_id %}
                 <a href="/group/{{ match.group_id }}/matches" class="btn btn-secondary">
                     <span>✕</span>
                     <span>Cancelar</span>
                 </a>
+                {% else %}
+                <a href="/bracket/{{ player1.categoria }}" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+                {% endif %}
             </div>
         </form>
     </div>

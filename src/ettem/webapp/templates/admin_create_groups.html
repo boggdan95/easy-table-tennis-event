@@ -64,14 +64,12 @@
 
 <!-- Collapsible Information Alerts -->
 <div class="alert alert-info collapsible-alert mb-3" id="player-info" style="display: none;">
-    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-            <span class="icon">ℹ️</span>
-            <div class="alert-content">
-                <div class="alert-title">Vista Previa de Distribución</div>
-            </div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
         <span class="toggle-icon">▼</span>
+        <span class="icon">ℹ️</span>
+        <div class="alert-content">
+            <div class="alert-title">Vista Previa de Distribución</div>
+        </div>
     </div>
     <div class="alert-body" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
         <div id="preview-text">Selecciona una categoría para ver la distribución de grupos</div>
@@ -79,14 +77,12 @@
 </div>
 
 <div class="alert alert-secondary collapsible-alert mb-3" id="country-stats" style="display: none;">
-    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-            <span class="icon">🌍</span>
-            <div class="alert-content">
-                <div class="alert-title">Distribución por País</div>
-            </div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
         <span class="toggle-icon">▼</span>
+        <span class="icon">🌍</span>
+        <div class="alert-content">
+            <div class="alert-title">Distribución por País</div>
+        </div>
     </div>
     <div class="alert-body" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
         <div id="country-stats-content"></div>
@@ -94,14 +90,12 @@
 </div>
 
 <div class="alert alert-warning collapsible-alert mb-3">
-    <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
-        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-            <span class="icon">⚠️</span>
-            <div class="alert-content">
-                <div class="alert-title">Información Importante</div>
-            </div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="togglePageAlert(this.parentElement)">
         <span class="toggle-icon">▶</span>
+        <span class="icon">⚠️</span>
+        <div class="alert-content">
+            <div class="alert-title">Información Importante</div>
+        </div>
     </div>
     <div class="alert-body" style="display: none; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
         <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
@@ -135,27 +129,28 @@
     </div>
 </div>
 
-<!-- Existing Groups (if any) -->
+<!-- Existing Groups (filtered by selected category) -->
 {% if existing_groups %}
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Grupos Existentes</h3>
+<div class="card" id="existing-groups-card" style="display: none;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">Grupos Existentes de <span id="selected-category-name">-</span></h3>
+        <span class="badge badge-warning" id="groups-warning" style="display: none;">
+            ⚠️ Estos grupos se eliminarán al crear nuevos
+        </span>
     </div>
     <div class="card-body" style="padding: 0;">
         <div class="table-responsive">
             <table class="table">
                 <thead>
                     <tr>
-                        <th>Categoría</th>
                         <th>Grupo</th>
                         <th>Jugadores</th>
                         <th>Partidos</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="existing-groups-body">
                     {% for group in existing_groups %}
-                    <tr>
-                        <td><span class="badge badge-primary">{{ group.category }}</span></td>
+                    <tr class="existing-group-row" data-category="{{ group.category }}">
                         <td><strong>{{ group.name }}</strong></td>
                         <td>{{ group.player_count }}</td>
                         <td>{{ group.match_count }}</td>
@@ -163,6 +158,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+        <div id="no-groups-message" class="card-body" style="display: none; text-align: center; color: var(--text-muted);">
+            No hay grupos creados para esta categoría.
         </div>
     </div>
 </div>
@@ -183,6 +181,10 @@ function updatePlayerCount() {
         const count = parseInt(selectedOption.getAttribute('data-count'));
         const groupSize = parseInt(document.querySelector('[name="group_size_preference"]').value);
         const countries = JSON.parse(selectedOption.getAttribute('data-countries') || '{}');
+        const selectedCategory = selectedOption.value;
+
+        // Filter existing groups by category
+        filterExistingGroups(selectedCategory);
 
         // Calculate group distribution
         let groups4 = 0;
@@ -248,6 +250,46 @@ function updatePlayerCount() {
     } else {
         playerInfo.style.display = 'none';
         countryStats.style.display = 'none';
+        // Hide existing groups card when no category selected
+        const existingGroupsCard = document.getElementById('existing-groups-card');
+        if (existingGroupsCard) {
+            existingGroupsCard.style.display = 'none';
+        }
+    }
+}
+
+function filterExistingGroups(category) {
+    const existingGroupsCard = document.getElementById('existing-groups-card');
+    if (!existingGroupsCard) return;
+
+    const rows = document.querySelectorAll('.existing-group-row');
+    const categoryNameSpan = document.getElementById('selected-category-name');
+    const noGroupsMessage = document.getElementById('no-groups-message');
+    const groupsWarning = document.getElementById('groups-warning');
+    const tableBody = document.getElementById('existing-groups-body');
+
+    categoryNameSpan.textContent = category;
+
+    let visibleCount = 0;
+    rows.forEach(row => {
+        if (row.dataset.category === category) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    existingGroupsCard.style.display = 'block';
+
+    if (visibleCount > 0) {
+        tableBody.parentElement.parentElement.style.display = '';
+        noGroupsMessage.style.display = 'none';
+        groupsWarning.style.display = '';
+    } else {
+        tableBody.parentElement.parentElement.style.display = 'none';
+        noGroupsMessage.style.display = 'block';
+        groupsWarning.style.display = 'none';
     }
 }
 
@@ -328,14 +370,12 @@ function renderPreviewModal(data) {
 
             <!-- Help Alert (collapsible) -->
             <div class="alert alert-info collapsible-alert ${tutorialMode ? 'expanded' : ''}" style="margin: 0;">
-                <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="toggleAlert(this.parentElement)">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="icon">ℹ️</span>
-                        <div class="alert-content" style="flex: 1;">
-                            <div class="alert-title">Ayuda - Serpenteo (Snake Seeding)</div>
-                        </div>
-                    </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;" onclick="toggleAlert(this.parentElement)">
                     <span class="toggle-icon">${tutorialMode ? '▼' : '▶'}</span>
+                    <span class="icon">ℹ️</span>
+                    <div class="alert-content" style="flex: 1;">
+                        <div class="alert-title">Ayuda - Serpenteo (Snake Seeding)</div>
+                    </div>
                 </div>
                 <div class="alert-body" style="display: ${tutorialMode ? 'block' : 'none'}; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(0,0,0,0.1);">
                     <div>
