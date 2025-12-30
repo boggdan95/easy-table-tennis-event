@@ -21,8 +21,22 @@
 {% block content %}
 <!-- Match Info Card -->
 <div class="card mb-3">
-    <div class="card-header">
-        <h3 class="card-title">Partido</h3>
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title" style="margin: 0;">Partido</h3>
+        {% if table_number or scheduled_time %}
+        <div style="display: flex; gap: 0.75rem;">
+            {% if table_number %}
+            <span class="badge badge-primary" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
+                Mesa {{ table_number }}
+            </span>
+            {% endif %}
+            {% if scheduled_time %}
+            <span class="badge badge-info" style="font-size: 1rem; padding: 0.5rem 0.75rem;">
+                {{ scheduled_time }}
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
     <div class="card-body">
         <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; font-size: 1.25rem;">

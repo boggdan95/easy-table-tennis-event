@@ -98,6 +98,25 @@
     color: var(--text-muted);
 }
 
+.match-item .match-round {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--secondary-bg);
+    color: var(--secondary-color);
+}
+
+.match-item .player-line {
+    display: block;
+}
+
+.match-item .country-code {
+    font-size: 0.65rem;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-right: 2px;
+}
+
 .match-item .match-players {
     font-size: 0.8rem;
 }
@@ -206,31 +225,102 @@
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: var(--danger-color);
-    color: white;
+    background: #dc3545;
+    color: #ffffff;
     border: none;
     cursor: pointer;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0;
+    text-align: center;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity 0.2s;
 }
 
 .scheduled-match:hover .remove-btn {
     opacity: 1;
 }
 
+.scheduled-match .remove-btn:hover {
+    background: #c82333;
+}
+
+/* Save status indicator */
+.save-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    z-index: 1000;
+    display: none;
+    animation: fadeInOut 2s ease;
+}
+
+.save-status.saving {
+    display: block;
+    background: var(--warning-bg);
+    color: var(--warning-dark);
+    border: 1px solid var(--warning-color);
+}
+
+.save-status.saved {
+    display: block;
+    background: var(--success-bg);
+    color: var(--success-dark);
+    border: 1px solid var(--success-color);
+}
+
+.save-status.error {
+    display: block;
+    background: var(--danger-bg);
+    color: var(--danger-dark);
+    border: 1px solid var(--danger-color);
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(20px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-10px); }
+}
+
 .scheduled-match .sm-label {
     font-weight: bold;
     font-size: 0.7rem;
     color: var(--success-dark);
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.scheduled-match .sm-round {
+    font-size: 0.6rem;
+    padding: 1px 3px;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.1);
+    color: var(--text-muted);
+}
+
+.scheduled-match .sm-category {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+}
+
+.scheduled-match .sm-country {
+    font-size: 0.6rem;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-right: 2px;
 }
 
 .scheduled-match .sm-players {
-    font-size: 0.75rem;
-    line-height: 1.2;
+    font-size: 0.7rem;
+    line-height: 1.3;
 }
 
 /* Filter select */
@@ -258,7 +348,10 @@
             Partidos Sin Programar
             <span class="badge badge-warning" id="unscheduled-count" style="margin-left: 0.5rem;">{{ unscheduled_matches|length }}</span>
             <span style="font-size: 0.7rem; color: var(--text-muted); display: block; font-weight: normal; margin-top: 0.25rem;">
-                Arrastra para asignar (guarda automático)
+                Arrastra para asignar → guarda automático
+            </span>
+            <span style="font-size: 0.7rem; color: var(--success-color); display: block; font-weight: normal;">
+                ✓ Los cambios se guardan al soltar
             </span>
         </div>
         <div class="matches-panel-filters" style="display: flex; flex-direction: column; gap: 0.5rem;">
@@ -270,10 +363,12 @@
             </select>
             <select id="filter-round" class="filter-select" onchange="filterMatches()">
                 <option value="">Todas las rondas</option>
+                <option value="GRUPOS">Grupos (todos)</option>
+                <option value="BRACKET">Bracket (todos)</option>
                 <optgroup label="Fase de Grupos">
-                    <option value="GR1">Grupos - Ronda 1</option>
-                    <option value="GR2">Grupos - Ronda 2</option>
-                    <option value="GR3">Grupos - Ronda 3</option>
+                    <option value="R1">Grupos - Ronda 1</option>
+                    <option value="R2">Grupos - Ronda 2</option>
+                    <option value="R3">Grupos - Ronda 3</option>
                 </optgroup>
                 <optgroup label="Eliminatorias">
                     <option value="R16">Ronda de 16</option>
@@ -297,12 +392,19 @@
                  ondragend="handleDragEnd(event)">
                 <div class="match-header">
                     <span class="match-label">{{ match.label }}</span>
+                    <span class="match-round">{{ match.round_type }}</span>
                     <span class="match-category">{{ match.category }}</span>
                 </div>
                 <div class="match-players">
-                    {{ match.player1 }}
+                    <span class="player-line">
+                        {% if match.player1_country %}<span class="country-code">{{ match.player1_country }}</span>{% endif %}
+                        {{ match.player1 }}
+                    </span>
                     <span class="vs">vs</span>
-                    {{ match.player2 }}
+                    <span class="player-line">
+                        {% if match.player2_country %}<span class="country-code">{{ match.player2_country }}</span>{% endif %}
+                        {{ match.player2 }}
+                    </span>
                 </div>
             </div>
             {% endfor %}
@@ -344,12 +446,16 @@
                          data-slot-id="{{ cell_data.slot_id }}"
                          ondragstart="handleScheduledDragStart(event)"
                          ondragend="handleDragEnd(event)">
-                        <button class="remove-btn" onclick="removeFromSlot({{ cell_data.slot_id }}, event)" title="Quitar">✕</button>
-                        <div class="sm-label">{{ cell_data.label }} - {{ cell_data.category }}</div>
+                        <button class="remove-btn" onclick="removeFromSlot({{ cell_data.slot_id }}, event)" title="Quitar">X</button>
+                        <div class="sm-label">
+                            {{ cell_data.label }}
+                            <span class="sm-round">{{ cell_data.round_type }}</span>
+                            <span class="sm-category">{{ cell_data.category }}</span>
+                        </div>
                         <div class="sm-players">
-                            {{ cell_data.player1 }}<br>
-                            <span style="color: var(--text-muted);">vs</span>
-                            {{ cell_data.player2 }}
+                            {% if cell_data.player1_country %}<span class="sm-country">{{ cell_data.player1_country }}</span>{% endif %}{{ cell_data.player1 }}<br>
+                            <span style="color: var(--text-muted);">vs</span><br>
+                            {% if cell_data.player2_country %}<span class="sm-country">{{ cell_data.player2_country }}</span>{% endif %}{{ cell_data.player2 }}
                         </div>
                     </div>
                     {% endif %}
@@ -361,10 +467,61 @@
     </div>
 </div>
 
+<!-- Save Status Indicator -->
+<div id="save-status" class="save-status"></div>
+
 <script>
 const SESSION_ID = {{ session.id }};
 let draggedMatchId = null;
 let draggedFromSlot = null;
+
+// Reload page preserving current filters
+function reloadWithFilters() {
+    const categoryFilter = document.getElementById('filter-category').value;
+    const roundFilter = document.getElementById('filter-round').value;
+    const url = new URL(window.location.href);
+
+    // Clear existing params
+    url.searchParams.delete('category');
+    url.searchParams.delete('round');
+
+    // Add current filter values
+    if (categoryFilter) url.searchParams.set('category', categoryFilter);
+    if (roundFilter) url.searchParams.set('round', roundFilter);
+
+    window.location.href = url.toString();
+}
+
+// Restore filters from URL on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const savedCategory = params.get('category');
+    const savedRound = params.get('round');
+
+    if (savedCategory) {
+        document.getElementById('filter-category').value = savedCategory;
+    }
+    if (savedRound) {
+        document.getElementById('filter-round').value = savedRound;
+    }
+
+    // Apply filters if any were restored
+    if (savedCategory || savedRound) {
+        filterMatches();
+    }
+});
+
+// Show save status indicator
+function showSaveStatus(type, message) {
+    const status = document.getElementById('save-status');
+    status.textContent = message;
+    status.className = 'save-status ' + type;
+
+    // Remove after animation
+    setTimeout(() => {
+        status.className = 'save-status';
+    }, 2000);
+}
 
 // Filter matches by category and round
 function filterMatches() {
@@ -373,12 +530,27 @@ function filterMatches() {
     const items = document.querySelectorAll('.match-item');
     let visibleCount = 0;
 
+    // Define round groups
+    const groupRounds = ['R1', 'R2', 'R3'];
+    const bracketRounds = ['R16', 'QF', 'SF', 'F'];
+
     items.forEach(item => {
         const category = item.dataset.category;
         const round = item.dataset.round;
 
         const matchesCategory = !categoryFilter || category === categoryFilter;
-        const matchesRound = !roundFilter || round === roundFilter;
+
+        // Handle special filter values
+        let matchesRound = false;
+        if (!roundFilter) {
+            matchesRound = true;  // All rounds
+        } else if (roundFilter === 'GRUPOS') {
+            matchesRound = groupRounds.includes(round);
+        } else if (roundFilter === 'BRACKET') {
+            matchesRound = bracketRounds.includes(round);
+        } else {
+            matchesRound = round === roundFilter;
+        }
 
         if (matchesCategory && matchesRound) {
             item.style.display = 'block';
@@ -417,6 +589,10 @@ async function assignFilteredMatches() {
         return;
     }
 
+    showSaveStatus('saving', `Asignando ${toAssign} partidos...`);
+    let successCount = 0;
+    let errorCount = 0;
+
     // Assign matches to cells in order
     for (let i = 0; i < toAssign; i++) {
         const match = visibleMatches[i];
@@ -426,46 +602,76 @@ async function assignFilteredMatches() {
         const timeSlot = cell.dataset.time;
         const tableNumber = cell.dataset.table;
 
+        console.log('Assigning match', i, ':', { matchId, timeSlot, tableNumber });
+
+        // Skip invalid match IDs
+        if (!matchId || matchId === 'null' || matchId === 'undefined' || matchId === 'None') {
+            console.error('Invalid match ID:', matchId);
+            errorCount++;
+            continue;
+        }
+
         const formData = new FormData();
-        formData.append('session_id', SESSION_ID);
-        formData.append('match_id', matchId);
-        formData.append('table_number', tableNumber);
+        formData.append('session_id', String(SESSION_ID));
+        formData.append('match_id', String(matchId));
+        formData.append('table_number', String(tableNumber));
         formData.append('start_time', timeSlot);
 
         try {
-            await fetch('/admin/scheduler/slot/assign', {
+            const response = await fetch('/admin/scheduler/slot/assign', {
                 method: 'POST',
                 body: formData
             });
+            if (response.ok) {
+                successCount++;
+            } else {
+                const err = await response.text();
+                console.error('Assign error:', err);
+                errorCount++;
+            }
         } catch (err) {
             console.error('Error assigning match', matchId, err);
+            errorCount++;
         }
     }
 
-    showToast(`${toAssign} partidos asignados`, 'success');
-    setTimeout(() => location.reload(), 500);
+    if (errorCount > 0) {
+        showSaveStatus('error', `${successCount} asignados, ${errorCount} errores`);
+    } else {
+        showSaveStatus('saved', `${successCount} partidos asignados`);
+    }
+
+    // Force reload after a moment, preserving filters
+    setTimeout(() => {
+        reloadWithFilters();
+    }, 1000);
 }
 
 // Drag from unscheduled list
 function handleDragStart(e) {
-    draggedMatchId = e.target.dataset.matchId;
+    const item = e.target.closest('.match-item') || e.target;
+    draggedMatchId = item.dataset.matchId;
     draggedFromSlot = null;
-    e.target.classList.add('dragging');
+    item.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedMatchId);
+    console.log('Drag start (unscheduled):', draggedMatchId);
 }
 
 // Drag from scheduled slot
 function handleScheduledDragStart(e) {
-    draggedMatchId = e.target.dataset.matchId;
-    draggedFromSlot = e.target.dataset.slotId;
-    e.target.classList.add('dragging');
+    const item = e.target.closest('.scheduled-match') || e.target;
+    draggedMatchId = item.dataset.matchId;
+    draggedFromSlot = item.dataset.slotId;
+    item.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedMatchId);
+    console.log('Drag start (scheduled):', draggedMatchId, 'from slot:', draggedFromSlot);
 }
 
 function handleDragEnd(e) {
-    e.target.classList.remove('dragging');
+    const item = e.target.closest('.match-item, .scheduled-match') || e.target;
+    item.classList.remove('dragging');
     draggedMatchId = null;
     draggedFromSlot = null;
 }
@@ -488,25 +694,84 @@ async function handleDrop(e) {
     const timeSlot = cell.dataset.time;
     const tableNumber = cell.dataset.table;
 
-    if (!draggedMatchId) return;
+    // IMPORTANTE: Guardar en variables locales ANTES de cualquier await
+    // porque dragend puede dispararse y poner las globales en null
+    const matchId = draggedMatchId;
+    const fromSlot = draggedFromSlot;
 
-    // If dropping on a cell that already has a match, don't allow
-    if (cell.querySelector('.scheduled-match') && !draggedFromSlot) {
-        showToast('Esta celda ya tiene un partido asignado', 'error');
+    console.log('DROP EVENT - matchId:', matchId, 'fromSlot:', fromSlot);
+
+    if (!matchId || matchId === 'null' || matchId === 'undefined') {
+        console.error('Invalid matchId:', matchId);
+        alert('Error: ID de partido no válido. Intenta arrastrar de nuevo.');
         return;
     }
 
-    // If moving from another slot, remove from old slot first
-    if (draggedFromSlot) {
-        await removeFromSlotSilent(draggedFromSlot);
+    const existingMatch = cell.querySelector('.scheduled-match');
+
+    // If dropping from unscheduled list onto occupied cell, block
+    if (existingMatch && !fromSlot) {
+        alert('Esta celda ya tiene un partido asignado');
+        return;
+    }
+
+    showSaveStatus('saving', 'Moviendo...');
+
+    // If target cell has a match, we need to swap
+    if (existingMatch && fromSlot) {
+        const targetMatchId = existingMatch.dataset.matchId;
+        const targetSlotId = existingMatch.dataset.slotId;
+
+        // Get source cell info BEFORE removing
+        const sourceElement = document.querySelector(`[data-slot-id="${fromSlot}"]`);
+        if (!sourceElement) {
+            alert('Error: no se encontró el partido origen');
+            return;
+        }
+        const sourceCell = sourceElement.closest('.grid-cell');
+        const sourceTime = sourceCell.dataset.time;
+        const sourceTable = sourceCell.dataset.table;
+
+        console.log('Swap:', { matchId, targetMatchId, sourceTime, sourceTable, timeSlot, tableNumber });
+
+        // Remove both slots
+        await removeFromSlotSilent(fromSlot);
+        await removeFromSlotSilent(targetSlotId);
+
+        // Assign dragged match to target cell
+        const formData1 = new FormData();
+        formData1.append('session_id', String(SESSION_ID));
+        formData1.append('match_id', String(matchId));
+        formData1.append('table_number', String(tableNumber));
+        formData1.append('start_time', timeSlot);
+        await fetch('/admin/scheduler/slot/assign', { method: 'POST', body: formData1 });
+
+        // Assign target match to source cell
+        const formData2 = new FormData();
+        formData2.append('session_id', String(SESSION_ID));
+        formData2.append('match_id', String(targetMatchId));
+        formData2.append('table_number', String(sourceTable));
+        formData2.append('start_time', sourceTime);
+        await fetch('/admin/scheduler/slot/assign', { method: 'POST', body: formData2 });
+
+        showSaveStatus('saved', 'Intercambiado');
+        setTimeout(() => reloadWithFilters(), 500);
+        return;
+    }
+
+    // If moving from another slot to empty cell
+    if (fromSlot) {
+        await removeFromSlotSilent(fromSlot);
     }
 
     // Assign to new slot
     const formData = new FormData();
-    formData.append('session_id', SESSION_ID);
-    formData.append('match_id', draggedMatchId);
-    formData.append('table_number', tableNumber);
+    formData.append('session_id', String(SESSION_ID));
+    formData.append('match_id', String(matchId));
+    formData.append('table_number', String(tableNumber));
     formData.append('start_time', timeSlot);
+
+    console.log('SENDING ASSIGN:', { SESSION_ID, matchId, tableNumber, timeSlot });
 
     try {
         const response = await fetch('/admin/scheduler/slot/assign', {
@@ -515,14 +780,16 @@ async function handleDrop(e) {
         });
 
         if (response.ok) {
-            // Reload to show updated grid
-            location.reload();
+            showSaveStatus('saved', 'Guardado');
+            setTimeout(() => reloadWithFilters(), 500);
         } else {
-            showToast('Error al asignar partido', 'error');
+            const err = await response.text();
+            console.error('Assign error:', err);
+            showSaveStatus('error', 'Error al guardar');
         }
     } catch (err) {
         console.error(err);
-        showToast('Error de conexión', 'error');
+        alert('Error de conexión');
     }
 }
 
@@ -532,18 +799,27 @@ async function removeFromSlot(slotId, event) {
         event.preventDefault();
     }
 
+    if (!confirm('¿Quitar este partido de la programación?')) {
+        return;
+    }
+
+    showSaveStatus('saving', 'Quitando...');
+
     try {
         const response = await fetch(`/admin/scheduler/slot/${slotId}/remove`, {
             method: 'POST'
         });
 
         if (response.ok) {
-            location.reload();
+            showSaveStatus('saved', 'Listo');
+            setTimeout(() => reloadWithFilters(), 500);
         } else {
+            showSaveStatus('error', 'Error al quitar');
             showToast('Error al quitar partido', 'error');
         }
     } catch (err) {
         console.error(err);
+        showSaveStatus('error', 'Error de conexión');
         showToast('Error de conexión', 'error');
     }
 }

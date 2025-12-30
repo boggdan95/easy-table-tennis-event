@@ -39,6 +39,8 @@
                 <thead>
                     <tr>
                         <th style="width: 60px;">#</th>
+                        <th style="width: 60px; text-align: center;">Mesa</th>
+                        <th style="width: 70px; text-align: center;">Hora</th>
                         <th>Jugador 1</th>
                         <th style="width: 40px; text-align: center;">vs</th>
                         <th>Jugador 2</th>
@@ -51,6 +53,20 @@
                     {% for m in matches %}
                     <tr>
                         <td><span class="badge badge-secondary">{{ m.match.match_number }}</span></td>
+                        <td style="text-align: center;">
+                            {% if m.table_number %}
+                                <span class="badge badge-primary">{{ m.table_number }}</span>
+                            {% else %}
+                                <span style="color: var(--text-muted);">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.scheduled_time %}
+                                <span class="badge badge-info">{{ m.scheduled_time }}</span>
+                            {% else %}
+                                <span style="color: var(--text-muted);">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
                             <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>

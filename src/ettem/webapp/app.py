@@ -20,6 +20,7 @@ from ettem.storage import (
     MatchORM,
     PlayerORM,
     PlayerRepository,
+    ScheduleSlotRepository,
     StandingRepository,
     TournamentRepository,
 )
@@ -531,6 +532,7 @@ async def view_group_matches(request: Request, group_id: int):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    schedule_repo = ScheduleSlotRepository(session)
 
     # Get group
     group = group_repo.get_by_id(group_id)
@@ -545,6 +547,11 @@ async def view_group_matches(request: Request, group_id: int):
     for m_orm in match_orms:
         player1 = player_repo.get_by_id(m_orm.player1_id)
         player2 = player_repo.get_by_id(m_orm.player2_id)
+
+        # Get schedule info
+        schedule_slot = schedule_repo.get_by_match(m_orm.id)
+        table_number = schedule_slot.table_number if schedule_slot else None
+        scheduled_time = schedule_slot.start_time if schedule_slot else None
 
         # Convert sets
         sets = [
@@ -575,6 +582,8 @@ async def view_group_matches(request: Request, group_id: int):
             "player2": player2,
             "player1_sets": match.player1_sets_won,
             "player2_sets": match.player2_sets_won,
+            "table_number": table_number,
+            "scheduled_time": scheduled_time,
         })
 
     return render_template(
@@ -594,6 +603,7 @@ async def enter_result_form(request: Request, match_id: int):
     session = get_db_session()
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    schedule_repo = ScheduleSlotRepository(session)
 
     # Get match
     match_orm = match_repo.get_by_id(match_id)
@@ -602,6 +612,11 @@ async def enter_result_form(request: Request, match_id: int):
 
     player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
     player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+    # Get schedule info
+    schedule_slot = schedule_repo.get_by_match(match_id)
+    table_number = schedule_slot.table_number if schedule_slot else None
+    scheduled_time = schedule_slot.start_time if schedule_slot else None
 
     # Validate that both players are defined (not TBD)
     if not player1 or not player2:
@@ -631,7 +646,9 @@ async def enter_result_form(request: Request, match_id: int):
             "match": match_orm,
             "player1": player1,
             "player2": player2,
-            "form_values": form_values
+            "form_values": form_values,
+            "table_number": table_number,
+            "scheduled_time": scheduled_time,
         }
     )
 
@@ -1157,6 +1174,7 @@ async def view_group_sheet(request: Request, group_id: int):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    schedule_repo = ScheduleSlotRepository(session)
 
     # Get group
     group = group_repo.get_by_id(group_id)
@@ -1169,6 +1187,22 @@ async def view_group_sheet(request: Request, group_id: int):
 
     # Get all matches for this group
     match_orms = match_repo.get_by_group(group_id)
+
+    # Build play order list with schedule info
+    play_order = []
+    for m_orm in match_orms:
+        p1 = player_repo.get_by_id(m_orm.player1_id)
+        p2 = player_repo.get_by_id(m_orm.player2_id)
+        if p1 and p2:
+            schedule_slot = schedule_repo.get_by_match(m_orm.id)
+            play_order.append({
+                "match_id": m_orm.id,
+                "p1_num": p1.group_number,
+                "p2_num": p2.group_number,
+                "table": schedule_slot.table_number if schedule_slot else None,
+                "time": schedule_slot.start_time if schedule_slot else None,
+                "status": m_orm.status,
+            })
 
     # Build results matrix: matrix[player1_group_num][player2_group_num] = result
     # Result format: "3-1" or "WO" or None if not played
@@ -1264,6 +1298,7 @@ async def view_group_sheet(request: Request, group_id: int):
         "players": players_data,
         "results_matrix": results_matrix,
         "category": group.category,
+        "play_order": play_order,
     })
 
 
@@ -4370,6 +4405,7 @@ async def print_group_matches(group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
@@ -4385,6 +4421,11 @@ async def print_group_matches(group_id: int):
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
 
+            # Get schedule info
+            schedule_slot = schedule_repo.get_by_match(m.id)
+            table_number = schedule_slot.table_number if schedule_slot else None
+            scheduled_time = schedule_slot.start_time if schedule_slot else None
+
             # Calculate result from sets
             result = None
             if m.sets and len(m.sets) > 0:
@@ -4396,6 +4437,8 @@ async def print_group_matches(group_id: int):
                 "match_order": m.match_number,
                 "status": m.status,
                 "result": result,
+                "table_number": table_number,
+                "scheduled_time": scheduled_time,
                 "player1": {
                     "nombre": p1.nombre if p1 else "?",
                     "apellido": p1.apellido if p1 else "?",
@@ -4434,6 +4477,7 @@ async def print_all_group_match_sheets(group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
@@ -4454,6 +4498,11 @@ async def print_all_group_match_sheets(group_id: int):
         for idx, m in enumerate(matches_orm):
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
+
+            # Get schedule info
+            schedule_slot = schedule_repo.get_by_match(m.id)
+            table_number = schedule_slot.table_number if schedule_slot else None
+            scheduled_time = schedule_slot.start_time if schedule_slot else None
 
             # Calculate round number (1-based)
             round_number = (idx // matches_per_round) + 1
@@ -4476,6 +4525,8 @@ async def print_all_group_match_sheets(group_id: int):
                 },
                 "group_name": group.name,
                 "round_number": round_number,
+                "table_number": table_number,
+                "scheduled_time": scheduled_time,
             })
 
         try:
@@ -4503,6 +4554,7 @@ async def print_all_category_match_sheets(category: str):
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
         tournament_repo = TournamentRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         tournament = tournament_repo.get_current()
         tournament_id = tournament.id if tournament else None
@@ -4530,6 +4582,11 @@ async def print_all_category_match_sheets(category: str):
                 p1 = player_repo.get_by_id(m.player1_id)
                 p2 = player_repo.get_by_id(m.player2_id)
 
+                # Get schedule info
+                schedule_slot = schedule_repo.get_by_match(m.id)
+                table_number = schedule_slot.table_number if schedule_slot else None
+                scheduled_time = schedule_slot.start_time if schedule_slot else None
+
                 # Calculate round number (1-based)
                 round_number = (idx // matches_per_round) + 1
 
@@ -4551,6 +4608,8 @@ async def print_all_category_match_sheets(category: str):
                     },
                     "group_name": group.name,
                     "round_number": round_number,
+                    "table_number": table_number,
+                    "scheduled_time": scheduled_time,
                 })
 
         if not matches_data:
@@ -5291,6 +5350,7 @@ async def preview_group_matches(request: Request, group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
@@ -5306,6 +5366,11 @@ async def preview_group_matches(request: Request, group_id: int):
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
 
+            # Get schedule info
+            schedule_slot = schedule_repo.get_by_match(m.id)
+            table_number = schedule_slot.table_number if schedule_slot else None
+            scheduled_time = schedule_slot.start_time if schedule_slot else None
+
             # Calculate result from sets
             result = None
             if m.sets and len(m.sets) > 0:
@@ -5317,6 +5382,8 @@ async def preview_group_matches(request: Request, group_id: int):
                 "match_order": m.match_number,
                 "status": m.status,
                 "result": result,
+                "table_number": table_number,
+                "scheduled_time": scheduled_time,
                 "player1": {
                     "nombre": p1.nombre if p1 else "?",
                     "apellido": p1.apellido if p1 else "?",
@@ -5351,6 +5418,7 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
@@ -5371,6 +5439,11 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
         for idx, m in enumerate(matches_orm):
             p1 = player_repo.get_by_id(m.player1_id)
             p2 = player_repo.get_by_id(m.player2_id)
+
+            # Get schedule info
+            schedule_slot = schedule_repo.get_by_match(m.id)
+            table_number = schedule_slot.table_number if schedule_slot else None
+            scheduled_time = schedule_slot.start_time if schedule_slot else None
 
             # Calculate round number (1-based)
             round_number = (idx // matches_per_round) + 1
@@ -5393,6 +5466,8 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
                 },
                 "group_name": group.name,
                 "round_number": round_number,
+                "table_number": table_number,
+                "scheduled_time": scheduled_time,
             })
 
         # Group matches in pairs (2 per page)
@@ -5422,6 +5497,7 @@ async def preview_all_category_match_sheets(request: Request, category: str):
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
         tournament_repo = TournamentRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
         tournament = tournament_repo.get_current()
         tournament_id = tournament.id if tournament else None
@@ -5449,6 +5525,11 @@ async def preview_all_category_match_sheets(request: Request, category: str):
                 p1 = player_repo.get_by_id(m.player1_id)
                 p2 = player_repo.get_by_id(m.player2_id)
 
+                # Get schedule info
+                schedule_slot = schedule_repo.get_by_match(m.id)
+                table_number = schedule_slot.table_number if schedule_slot else None
+                scheduled_time = schedule_slot.start_time if schedule_slot else None
+
                 # Calculate round number (1-based)
                 round_number = (idx // matches_per_round) + 1
 
@@ -5470,6 +5551,8 @@ async def preview_all_category_match_sheets(request: Request, category: str):
                     },
                     "group_name": group.name,
                     "round_number": round_number,
+                    "table_number": table_number,
+                    "scheduled_time": scheduled_time,
                 })
 
         if not matches_data:
@@ -6093,47 +6176,88 @@ async def scheduler_grid(request: Request, session_id: int):
                     match_label = match_orm.round_type or "Bracket"
                     category = match_orm.category or "?"
 
+                # Determine round type for scheduled match
+                if match_orm.group_id:
+                    group_matches_list = sorted(match_repo.get_by_group(match_orm.group_id), key=lambda x: x.match_number or 0)
+                    players_in_group = len(set([gm.player1_id for gm in group_matches_list] + [gm.player2_id for gm in group_matches_list]))
+                    matches_per_round = max(1, players_in_group // 2)
+                    match_index = next((i for i, gm in enumerate(group_matches_list) if gm.id == match_orm.id), 0)
+                    group_round = (match_index // matches_per_round) + 1
+                    round_type = f"R{group_round}"
+                else:
+                    round_type = match_orm.round_type or "Bracket"
+
                 grid_data[slot.start_time][slot.table_number] = {
                     "slot_id": slot.id,
                     "match_id": match_orm.id,
                     "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
                     "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "player1_country": p1.pais_cd if p1 else "",
+                    "player2_country": p2.pais_cd if p2 else "",
                     "label": match_label,
                     "category": category,
+                    "round_type": round_type,
                 }
 
-        # Get unscheduled matches
+        # Get unscheduled matches - only from current tournament
+        # First get valid categories from current tournament
+        tournament_categories = set()
+        all_groups = group_repo.get_all()
+        for g in all_groups:
+            if g.tournament_id == tournament.id:
+                tournament_categories.add(g.category)
+
+        print(f"[DEBUG] Tournament {tournament.id} categories: {tournament_categories}")
+
         all_matches = match_repo.get_all()
+        print(f"[DEBUG] Total matches in DB: {len(all_matches)}")
+
         unscheduled_matches = []
         for m in all_matches:
             if m.id in scheduled_match_ids:
                 continue
 
-            p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
-            p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
-
+            # Filter: only include matches from current tournament
             if m.group_id:
                 group = group_repo.get_by_id(m.group_id)
-                match_label = f"G{group.name}" if group else "Grupo"
-                category = group.category if group else "?"
+                if not group:
+                    print(f"[DEBUG] Skipping match {m.id} - group {m.group_id} not found")
+                    continue
+                if group.tournament_id != tournament.id:
+                    print(f"[DEBUG] Skipping match {m.id} - group belongs to tournament {group.tournament_id}, not {tournament.id}")
+                    continue  # Skip matches from other tournaments
+                match_label = f"G{group.name}"
+                category = group.category
                 # Calculate group round number from match position within group
-                # Sort group matches by match_number to get correct order
                 group_matches_list = sorted(match_repo.get_by_group(m.group_id), key=lambda x: x.match_number or 0)
                 players_in_group = len(set([gm.player1_id for gm in group_matches_list] + [gm.player2_id for gm in group_matches_list]))
                 matches_per_round = max(1, players_in_group // 2)
-                # Find index of current match within its group
                 match_index = next((i for i, gm in enumerate(group_matches_list) if gm.id == m.id), 0)
                 group_round = (match_index // matches_per_round) + 1
-                round_type = f"GR{group_round}"  # GR1, GR2, GR3...
+                round_type = f"R{group_round}"  # R1, R2, R3...
             else:
+                # Bracket match - must have a category that belongs to current tournament
+                if not m.category:
+                    print(f"[DEBUG] Skipping bracket match {m.id} - no category")
+                    continue  # Skip bracket matches without category
+                if m.category not in tournament_categories:
+                    print(f"[DEBUG] Skipping bracket match {m.id} - category {m.category} not in tournament")
+                    continue  # Skip matches from other tournaments
                 match_label = m.round_type or "Bracket"
-                category = m.category or "?"
+                category = m.category
                 round_type = m.round_type or "Bracket"
+
+            p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+            p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+
+            print(f"[DEBUG] Including match {m.id}: {category} {round_type}")
 
             unscheduled_matches.append({
                 "id": m.id,
                 "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
                 "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                "player1_country": p1.pais_cd if p1 else "",
+                "player2_country": p2.pais_cd if p2 else "",
                 "label": match_label,
                 "category": category,
                 "round_type": round_type,

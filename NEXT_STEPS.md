@@ -260,3 +260,30 @@ Jugadores (registro maestro)
 - Filtros en lista de partidos por día/mesa/hora
 - Vista de programación por mesa
 - Control de tiempos entre partidos del mismo jugador
+
+---
+
+## 📅 Sesión 2025-12-29: Scheduler V2.0
+
+### ✅ Completado
+1. **Cuadrícula visual de scheduling** - Mesas en columnas, slots de tiempo en filas
+2. **Drag-and-drop de partidos** - Arrastrar desde lista a slots de la cuadrícula
+3. **Filtros por categoría y ronda** - GRUPOS (todos), BRACKET (todos), o rondas específicas
+4. **Persistencia de filtros en URL** - Los filtros se mantienen al recargar/asignar
+5. **Guardado automático** - Cada asignación se guarda inmediatamente con feedback visual
+6. **Horarios en hojas de partido** - Mesa y Hora en las hojas de impresión
+7. **Horarios en página de resultado** - Badges de Mesa y Hora al ingresar resultados
+8. **Orden de juego en hoja de grupo** - Sección lateral con formato #, Enc., Mesa, Hora
+
+### 🔜 Pendiente para próxima sesión
+1. **Validación al arrastrar** - Resaltar en rojo celdas con conflicto de jugador
+2. **Warnings en cuadrícula** - Iconos de advertencia en partidos con conflictos
+3. **Panel de conflictos** - Resumen de todos los problemas activos
+4. **Vista por jugador** - Ver horarios y descansos de un jugador específico
+
+### Archivos modificados
+- `src/ettem/webapp/app.py` - Rutas de scheduling, schedule info en routes
+- `src/ettem/webapp/templates/admin_scheduler_grid.html` - Cuadrícula con drag-and-drop
+- `src/ettem/webapp/templates/enter_result.html` - Badges Mesa/Hora
+- `src/ettem/webapp/templates/group_sheet.html` - Sección "Orden de Juego"
+- `src/ettem/webapp/templates/group_matches.html` - Columnas Mesa/Hora

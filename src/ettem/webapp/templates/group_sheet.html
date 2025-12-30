@@ -28,10 +28,45 @@
     </div>
 </div>
 
-<!-- Group Sheet Card -->
-<div class="card">
+<!-- Play Order + Group Sheet Container -->
+<div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+
+<!-- Play Order Card -->
+<div class="card" style="flex: 0 0 auto; min-width: 200px;">
     <div class="card-header">
-        <h3 class="card-title">📄 Matriz de Resultados (Orden Original de Sorteo)</h3>
+        <h3 class="card-title">📋 Orden de Juego</h3>
+    </div>
+    <div class="card-body" style="padding: 0.5rem;">
+        <table class="play-order-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Enc.</th>
+                    <th>Mesa</th>
+                    <th>Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in play_order %}
+                <tr class="{% if match.status != 'pending' %}match-completed{% endif %}">
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ match.p1_num }}-{{ match.p2_num }}</strong></td>
+                    <td>{% if match.table %}M{{ match.table }}{% else %}-{% endif %}</td>
+                    <td>{% if match.time %}{{ match.time }}{% else %}-{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not play_order %}
+        <p style="text-align: center; color: #999; padding: 1rem;">Sin partidos</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Group Sheet Card -->
+<div class="card" style="flex: 1 1 auto;">
+    <div class="card-header">
+        <h3 class="card-title">📄 Matriz de Resultados</h3>
     </div>
     <div class="card-body" style="padding: 0; overflow-x: auto;">
 <table class="group-sheet-matrix">
@@ -95,7 +130,49 @@
     </div>
 </div>
 
+</div> <!-- Close flex container -->
+
 <style>
+/* Play Order Table */
+.play-order-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.play-order-table th,
+.play-order-table td {
+    border: 1px solid #e0e0e0;
+    padding: 6px 8px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.play-order-table th {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+    color: white;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.play-order-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+}
+
+.play-order-table tbody tr:hover {
+    background-color: #e3f2fd;
+}
+
+.play-order-table .match-completed {
+    background-color: #e8f5e9 !important;
+    color: #2e7d32;
+}
+
+.play-order-table .match-completed td {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+/* Group Sheet Matrix */
 .group-sheet-matrix {
     border-collapse: collapse;
     width: 100%;
