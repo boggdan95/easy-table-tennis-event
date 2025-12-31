@@ -220,6 +220,33 @@ def migrate_scheduler_tables():
         session.commit()
         print("[MIGRATION] Table 'schedule_slots' created")
 
+    # Add is_finalized column to sessions table if not exists
+    try:
+        session.execute(text("SELECT is_finalized FROM sessions LIMIT 1"))
+    except Exception:
+        print("[MIGRATION] Adding 'is_finalized' column to sessions table...")
+        session.execute(text("ALTER TABLE sessions ADD COLUMN is_finalized INTEGER NOT NULL DEFAULT 0"))
+        session.commit()
+        print("[MIGRATION] Column 'is_finalized' added to sessions")
+
+    # Create time_slots table if not exists
+    try:
+        session.execute(text("SELECT id FROM time_slots LIMIT 1"))
+    except Exception:
+        print("[MIGRATION] Creating 'time_slots' table...")
+        session.execute(text("""
+            CREATE TABLE time_slots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL REFERENCES sessions(id),
+                slot_number INTEGER NOT NULL,
+                start_time VARCHAR(5) NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        session.commit()
+        print("[MIGRATION] Table 'time_slots' created")
+
     session.close()
 
 
@@ -6109,7 +6136,7 @@ async def scheduler_grid(request: Request, session_id: int):
     """Scheduling grid for a specific session - drag and drop matches to table/time slots."""
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
-        from ettem.storage import SessionRepository, ScheduleSlotRepository
+        from ettem.storage import SessionRepository, ScheduleSlotRepository, TimeSlotRepository
 
         tournament = tournament_repo.get_current()
         if not tournament:
@@ -6119,6 +6146,7 @@ async def scheduler_grid(request: Request, session_id: int):
 
         session_repo = SessionRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
+        time_slot_repo = TimeSlotRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         group_repo = GroupRepository(session)
@@ -6130,24 +6158,29 @@ async def scheduler_grid(request: Request, session_id: int):
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
-        # Generate time slots based on session start/end and match duration
         num_tables = tournament.num_tables or 4
         match_duration = tournament.default_match_duration or 20
 
-        # Parse start and end times
-        start_h, start_m = map(int, session_obj.start_time.split(":"))
-        end_h, end_m = map(int, session_obj.end_time.split(":"))
-        start_minutes = start_h * 60 + start_m
-        end_minutes = end_h * 60 + end_m
+        # Get or initialize time slots for this session
+        db_time_slots = time_slot_repo.get_by_session(session_id)
+        if not db_time_slots:
+            # Initialize time slots with default duration
+            db_time_slots = time_slot_repo.initialize_for_session(
+                session_id=session_id,
+                start_time=session_obj.start_time,
+                end_time=session_obj.end_time,
+                default_duration=match_duration
+            )
 
-        # Generate time slots
+        # Build time slots list with duration info
         time_slots = []
-        current = start_minutes
-        while current < end_minutes:
-            h = current // 60
-            m = current % 60
-            time_slots.append(f"{h:02d}:{m:02d}")
-            current += match_duration
+        time_slots_info = {}  # {start_time: {slot_number, duration}}
+        for ts in db_time_slots:
+            time_slots.append(ts.start_time)
+            time_slots_info[ts.start_time] = {
+                "slot_number": ts.slot_number,
+                "duration": ts.duration_minutes,
+            }
 
         # Get scheduled slots for this session (for grid display)
         scheduled_slots = schedule_repo.get_by_session(session_id)
@@ -6290,6 +6323,7 @@ async def scheduler_grid(request: Request, session_id: int):
             "tournament": tournament,
             "session": session_obj,
             "time_slots": time_slots,
+            "time_slots_info": time_slots_info,
             "num_tables": num_tables,
             "match_duration": match_duration,
             "grid_data": grid_data,
@@ -6312,7 +6346,7 @@ async def scheduler_grid_print(request: Request, session_id: int):
     """Printable version of the scheduling grid."""
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
-        from ettem.storage import SessionRepository, ScheduleSlotRepository
+        from ettem.storage import SessionRepository, ScheduleSlotRepository, TimeSlotRepository
 
         tournament = tournament_repo.get_current()
         if not tournament:
@@ -6320,6 +6354,7 @@ async def scheduler_grid_print(request: Request, session_id: int):
 
         session_repo = SessionRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
+        time_slot_repo = TimeSlotRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         group_repo = GroupRepository(session)
@@ -6328,22 +6363,21 @@ async def scheduler_grid_print(request: Request, session_id: int):
         if not session_obj:
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
-        # Generate time slots
         num_tables = tournament.num_tables or 4
         match_duration = tournament.default_match_duration or 20
 
-        start_h, start_m = map(int, session_obj.start_time.split(":"))
-        end_h, end_m = map(int, session_obj.end_time.split(":"))
-        start_minutes = start_h * 60 + start_m
-        end_minutes = end_h * 60 + end_m
+        # Get or initialize time slots for this session
+        db_time_slots = time_slot_repo.get_by_session(session_id)
+        if not db_time_slots:
+            db_time_slots = time_slot_repo.initialize_for_session(
+                session_id=session_id,
+                start_time=session_obj.start_time,
+                end_time=session_obj.end_time,
+                default_duration=match_duration
+            )
 
-        time_slots = []
-        current = start_minutes
-        while current < end_minutes:
-            h = current // 60
-            m = current % 60
-            time_slots.append(f"{h:02d}:{m:02d}")
-            current += match_duration
+        # Build time slots list
+        time_slots = [ts.start_time for ts in db_time_slots]
 
         # Get scheduled slots for this session
         scheduled_slots = schedule_repo.get_by_session(session_id)
@@ -6379,16 +6413,172 @@ async def scheduler_grid_print(request: Request, session_id: int):
                     "category": category,
                 }
 
+        # Filter out empty time slots (rows with no matches)
+        non_empty_time_slots = []
+        for time_slot in time_slots:
+            has_match = any(grid_data[time_slot][table] is not None for table in range(1, num_tables + 1))
+            if has_match:
+                non_empty_time_slots.append(time_slot)
+
         context = {
             "request": request,
             "tournament": tournament,
             "session": session_obj,
-            "time_slots": time_slots,
+            "time_slots": non_empty_time_slots,
             "num_tables": num_tables,
             "grid_data": grid_data,
         }
 
         return render_template("admin_scheduler_print.html", context)
+
+
+@app.post("/admin/scheduler/timeslot/update-duration")
+async def update_timeslot_duration(
+    request: Request,
+    session_id: int = Form(...),
+    slot_number: int = Form(...),
+    duration: int = Form(...)
+):
+    """Update the duration of a time slot and recalculate subsequent slots."""
+    with get_db_session() as session:
+        from ettem.storage import TimeSlotRepository
+
+        time_slot_repo = TimeSlotRepository(session)
+
+        # Validate duration (minimum 5 minutes, maximum 120 minutes)
+        if duration < 5 or duration > 120:
+            request.session["flash_message"] = "La duración debe estar entre 5 y 120 minutos"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/admin/scheduler/grid/{session_id}", status_code=303)
+
+        success = time_slot_repo.update_duration(session_id, slot_number, duration)
+
+        if success:
+            request.session["flash_message"] = f"Duración actualizada a {duration} minutos"
+            request.session["flash_type"] = "success"
+        else:
+            request.session["flash_message"] = "Error al actualizar la duración"
+            request.session["flash_type"] = "error"
+
+        return RedirectResponse(url=f"/admin/scheduler/grid/{session_id}", status_code=303)
+
+
+@app.post("/admin/scheduler/session/{session_id}/finalize")
+async def finalize_session(request: Request, session_id: int):
+    """Finalize a scheduling session - marks it as complete and cleans up empty time slots."""
+    with get_db_session() as session:
+        from ettem.storage import SessionRepository, TimeSlotRepository, ScheduleSlotRepository
+
+        session_repo = SessionRepository(session)
+        time_slot_repo = TimeSlotRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+
+        session_obj = session_repo.get_by_id(session_id)
+        if not session_obj:
+            request.session["flash_message"] = "Jornada no encontrada"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        # Get all time slots and scheduled matches
+        time_slots = time_slot_repo.get_by_session(session_id)
+        scheduled_slots = schedule_repo.get_by_session(session_id)
+
+        # Build set of time slots that have matches
+        used_time_slots = {slot.start_time for slot in scheduled_slots}
+
+        # Delete empty time slots
+        deleted_count = 0
+        for ts in time_slots:
+            if ts.start_time not in used_time_slots:
+                session.delete(ts)
+                deleted_count += 1
+
+        # Mark session as finalized
+        session_obj.is_finalized = 1
+        session.commit()
+
+        msg = f"Jornada finalizada"
+        if deleted_count > 0:
+            msg += f" ({deleted_count} bloques vacíos eliminados)"
+        request.session["flash_message"] = msg
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/admin/scheduler/grid/{session_id}", status_code=303)
+
+
+@app.post("/admin/scheduler/session/{session_id}/reopen")
+async def reopen_session(request: Request, session_id: int):
+    """Reopen a finalized scheduling session for further editing."""
+    with get_db_session() as session:
+        from ettem.storage import SessionRepository
+
+        session_repo = SessionRepository(session)
+        session_obj = session_repo.get_by_id(session_id)
+
+        if not session_obj:
+            request.session["flash_message"] = "Jornada no encontrada"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        session_obj.is_finalized = 0
+        session.commit()
+
+        request.session["flash_message"] = "Jornada reabierta para edición"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/admin/scheduler/grid/{session_id}", status_code=303)
+
+
+@app.post("/admin/scheduler/session/{session_id}/add-timeslot")
+async def add_timeslot(request: Request, session_id: int):
+    """Add a new time slot at the end of the session."""
+    with get_db_session() as session:
+        from ettem.storage import SessionRepository, TimeSlotRepository
+
+        session_repo = SessionRepository(session)
+        time_slot_repo = TimeSlotRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        session_obj = session_repo.get_by_id(session_id)
+        if not session_obj:
+            request.session["flash_message"] = "Jornada no encontrada"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        tournament = tournament_repo.get_current()
+        default_duration = tournament.default_match_duration or 20 if tournament else 20
+
+        # Get existing time slots
+        existing_slots = time_slot_repo.get_by_session(session_id)
+
+        if existing_slots:
+            # Calculate new slot start time based on last slot
+            last_slot = existing_slots[-1]
+            last_h, last_m = map(int, last_slot.start_time.split(":"))
+            new_start_minutes = last_h * 60 + last_m + last_slot.duration_minutes
+            new_slot_number = last_slot.slot_number + 1
+        else:
+            # No slots exist, start from session start time
+            start_h, start_m = map(int, session_obj.start_time.split(":"))
+            new_start_minutes = start_h * 60 + start_m
+            new_slot_number = 0
+
+        new_h = new_start_minutes // 60
+        new_m = new_start_minutes % 60
+        new_start_time = f"{new_h:02d}:{new_m:02d}"
+
+        # Create the new time slot
+        time_slot_repo.create(
+            session_id=session_id,
+            slot_number=new_slot_number,
+            start_time=new_start_time,
+            duration_minutes=default_duration
+        )
+
+        request.session["flash_message"] = f"Bloque añadido: {new_start_time}"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/admin/scheduler/grid/{session_id}", status_code=303)
 
 
 @app.post("/admin/scheduler/slot/assign")

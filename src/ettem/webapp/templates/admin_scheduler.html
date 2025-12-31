@@ -125,7 +125,12 @@
                 <tbody>
                     {% for sess in sessions %}
                     <tr>
-                        <td><strong>{{ sess.name }}</strong></td>
+                        <td>
+                            <strong>{{ sess.name }}</strong>
+                            {% if sess.is_finalized %}
+                            <span class="badge badge-success" style="margin-left: 0.5rem;">✓ Finalizada</span>
+                            {% endif %}
+                        </td>
                         <td>{{ sess.date.strftime('%d/%m/%Y') }}</td>
                         <td>{{ sess.start_time }} - {{ sess.end_time }}</td>
                         <td style="text-align: center;">
@@ -133,14 +138,16 @@
                         </td>
                         <td style="text-align: center;">
                             <div class="d-flex gap-1" style="justify-content: center;">
-                                <a href="/admin/scheduler/grid/{{ sess.id }}" class="btn btn-primary btn-sm" title="Abrir Cuadrícula">
-                                    Programar
+                                <a href="/admin/scheduler/grid/{{ sess.id }}" class="btn btn-primary btn-sm" title="{% if sess.is_finalized %}Ver{% else %}Programar{% endif %}">
+                                    {% if sess.is_finalized %}Ver{% else %}Programar{% endif %}
                                 </a>
+                                {% if not sess.is_finalized %}
                                 <form action="/admin/scheduler/session/{{ sess.id }}/delete" method="post" style="display: inline;" data-confirm="¿Eliminar esta jornada y todos sus partidos programados?">
                                     <button type="submit" class="btn btn-danger btn-sm" title="Eliminar Jornada">
                                         ✕
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>

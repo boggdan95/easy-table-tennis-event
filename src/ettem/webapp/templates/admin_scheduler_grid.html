@@ -13,6 +13,24 @@
     <span>🖨️</span>
     <span>Imprimir</span>
 </a>
+{% if session.is_finalized %}
+<form action="/admin/scheduler/session/{{ session.id }}/reopen" method="post" style="display: inline;">
+    <button type="submit" class="btn btn-warning btn-sm" title="Reabrir para edición">
+        <span>🔓</span>
+        <span>Reabrir</span>
+    </button>
+</form>
+<span class="badge badge-success" style="font-size: 0.9rem;">
+    ✓ Finalizada
+</span>
+{% else %}
+<form action="/admin/scheduler/session/{{ session.id }}/finalize" method="post" style="display: inline;" onsubmit="return confirm('¿Finalizar esta jornada? Los bloques vacíos serán eliminados.');">
+    <button type="submit" class="btn btn-success btn-sm" title="Marcar como finalizada">
+        <span>✓</span>
+        <span>Finalizar</span>
+    </button>
+</form>
+{% endif %}
 <span class="badge badge-primary" style="font-size: 0.9rem;">
     {{ session.date.strftime('%d/%m/%Y') }} | {{ session.start_time }} - {{ session.end_time }}
 </span>
@@ -177,7 +195,7 @@
 /* Time Cell */
 .time-cell {
     background: var(--bg-primary);
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
     font-weight: bold;
     font-size: 0.9rem;
     text-align: center;
@@ -186,6 +204,139 @@
     position: sticky;
     left: 0;
     z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.time-cell .time-value {
+    font-size: 0.9rem;
+}
+
+.time-cell .duration-info {
+    font-size: 0.65rem;
+    font-weight: normal;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+
+.time-cell .duration-info:hover {
+    background: var(--border-color);
+    color: var(--text-dark);
+}
+
+.time-cell .duration-info .edit-icon {
+    font-size: 0.6rem;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.time-cell .duration-info:hover .edit-icon {
+    opacity: 1;
+}
+
+/* Duration Edit Modal */
+.duration-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.duration-modal.active {
+    display: flex;
+}
+
+.duration-modal-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    min-width: 300px;
+}
+
+.duration-modal-content h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+}
+
+.duration-modal-content .form-group {
+    margin-bottom: 1rem;
+}
+
+.duration-modal-content label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.duration-modal-content input[type="number"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.duration-modal-content .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.duration-modal-content .info-text {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+/* Add Time Slot Button */
+.add-slot-row {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.add-slot-row:hover {
+    opacity: 1;
+}
+
+.add-slot-cell {
+    background: var(--bg-secondary) !important;
+}
+
+.btn-add-slot {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: bold;
+    transition: background 0.2s;
+}
+
+.btn-add-slot:hover {
+    background: #218838;
+}
+
+.empty-add-cell {
+    background: var(--bg-secondary) !important;
+    border-style: dashed !important;
 }
 
 /* Grid Cell (drop zone) */
@@ -666,8 +817,15 @@
 
             <!-- Time Rows -->
             {% for time_slot in time_slots %}
+            {% set slot_info = time_slots_info[time_slot] %}
             <div class="grid-row">
-                <div class="time-cell">{{ time_slot }}</div>
+                <div class="time-cell">
+                    <span class="time-value">{{ time_slot }}</span>
+                    <span class="duration-info" onclick="openDurationModal('{{ time_slot }}', {{ slot_info.slot_number }}, {{ slot_info.duration }})" title="Editar duración">
+                        {{ slot_info.duration }} min
+                        <span class="edit-icon">✏️</span>
+                    </span>
+                </div>
                 {% for table in range(1, num_tables + 1) %}
                 <div class="grid-cell"
                      data-time="{{ time_slot }}"
@@ -702,12 +860,51 @@
                 {% endfor %}
             </div>
             {% endfor %}
+
+            <!-- Add Time Slot Button (only if not finalized) -->
+            {% if not session.is_finalized %}
+            <div class="grid-row add-slot-row">
+                <div class="time-cell add-slot-cell">
+                    <form action="/admin/scheduler/session/{{ session.id }}/add-timeslot" method="post" style="margin: 0;">
+                        <button type="submit" class="btn-add-slot" title="Añadir bloque horario">
+                            + Añadir
+                        </button>
+                    </form>
+                </div>
+                {% for table in range(1, num_tables + 1) %}
+                <div class="grid-cell empty-add-cell"></div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Save Status Indicator -->
 <div id="save-status" class="save-status"></div>
+
+<!-- Duration Edit Modal -->
+<div id="duration-modal" class="duration-modal" onclick="closeDurationModalOnBackdrop(event)">
+    <div class="duration-modal-content">
+        <h3>⏱️ Editar Duración</h3>
+        <p class="info-text">
+            Bloque: <strong id="modal-time-display"></strong><br>
+            Los bloques siguientes se recalcularán automáticamente.
+        </p>
+        <form id="duration-form" action="/admin/scheduler/timeslot/update-duration" method="post">
+            <input type="hidden" name="session_id" value="{{ session.id }}">
+            <input type="hidden" id="modal-slot-number" name="slot_number" value="">
+            <div class="form-group">
+                <label for="modal-duration">Duración (minutos)</label>
+                <input type="number" id="modal-duration" name="duration" min="5" max="120" step="5" required>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeDurationModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 const SESSION_ID = {{ session.id }};
@@ -1473,6 +1670,35 @@ document.addEventListener('click', function(e) {
     const container = document.querySelector('.player-search-container');
     if (container && !container.contains(e.target)) {
         document.getElementById('player-search-results').classList.remove('show');
+    }
+});
+
+// ============================================================================
+// Duration Modal Functions
+// ============================================================================
+
+function openDurationModal(timeSlot, slotNumber, currentDuration) {
+    document.getElementById('modal-time-display').textContent = timeSlot;
+    document.getElementById('modal-slot-number').value = slotNumber;
+    document.getElementById('modal-duration').value = currentDuration;
+    document.getElementById('duration-modal').classList.add('active');
+    document.getElementById('modal-duration').focus();
+}
+
+function closeDurationModal() {
+    document.getElementById('duration-modal').classList.remove('active');
+}
+
+function closeDurationModalOnBackdrop(event) {
+    if (event.target.id === 'duration-modal') {
+        closeDurationModal();
+    }
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDurationModal();
     }
 });
 </script>

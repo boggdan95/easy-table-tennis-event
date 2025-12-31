@@ -239,11 +239,38 @@ class SessionORM(Base):
     start_time = Column(String(5), nullable=False)  # HH:MM format
     end_time = Column(String(5), nullable=False)  # HH:MM format
     order = Column(Integer, nullable=False, default=0)  # For sorting sessions
+    is_finalized = Column(Integer, nullable=False, default=0)  # 0 = draft, 1 = finalized
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
     tournament = relationship("TournamentORM", back_populates="sessions")
     schedule_slots = relationship("ScheduleSlotORM", back_populates="session")
+    time_slots = relationship("TimeSlotORM", back_populates="session", order_by="TimeSlotORM.slot_number")
+
+
+class TimeSlotORM(Base):
+    """Time slot table.
+
+    Represents a time block within a session with configurable duration.
+    When duration changes, subsequent slots recalculate their start times.
+    """
+
+    __tablename__ = "time_slots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    slot_number = Column(Integer, nullable=False)  # 0, 1, 2, ... (order within session)
+    start_time = Column(String(5), nullable=False)  # HH:MM format (calculated)
+    duration_minutes = Column(Integer, nullable=False)  # Duration in minutes
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    session = relationship("SessionORM", back_populates="time_slots")
+
+    __table_args__ = (
+        # Unique constraint: one slot number per session
+        {"sqlite_autoincrement": True},
+    )
 
 
 class ScheduleSlotORM(Base):
@@ -1302,3 +1329,131 @@ class ScheduleSlotRepository:
             self.session.commit()
             return True
         return False
+
+
+class TimeSlotRepository:
+    """Repository for TimeSlot (configurable time blocks) operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, session_id: int, slot_number: int, start_time: str, duration_minutes: int) -> TimeSlotORM:
+        """Create a new time slot."""
+        slot_orm = TimeSlotORM(
+            session_id=session_id,
+            slot_number=slot_number,
+            start_time=start_time,
+            duration_minutes=duration_minutes,
+        )
+        self.session.add(slot_orm)
+        self.session.commit()
+        self.session.refresh(slot_orm)
+        return slot_orm
+
+    def get_by_session(self, session_id: int) -> list[TimeSlotORM]:
+        """Get all time slots for a session, ordered by slot number."""
+        return (
+            self.session.query(TimeSlotORM)
+            .filter(TimeSlotORM.session_id == session_id)
+            .order_by(TimeSlotORM.slot_number)
+            .all()
+        )
+
+    def get_by_session_and_slot(self, session_id: int, slot_number: int) -> Optional[TimeSlotORM]:
+        """Get a specific time slot by session and slot number."""
+        return (
+            self.session.query(TimeSlotORM)
+            .filter(TimeSlotORM.session_id == session_id, TimeSlotORM.slot_number == slot_number)
+            .first()
+        )
+
+    def get_by_session_and_time(self, session_id: int, start_time: str) -> Optional[TimeSlotORM]:
+        """Get a specific time slot by session and start time."""
+        return (
+            self.session.query(TimeSlotORM)
+            .filter(TimeSlotORM.session_id == session_id, TimeSlotORM.start_time == start_time)
+            .first()
+        )
+
+    def update_duration(self, session_id: int, slot_number: int, new_duration: int) -> bool:
+        """Update duration and recalculate subsequent slot start times."""
+        slots = self.get_by_session(session_id)
+        if not slots:
+            return False
+
+        # Find the slot to update
+        target_slot = None
+        for slot in slots:
+            if slot.slot_number == slot_number:
+                target_slot = slot
+                break
+
+        if not target_slot:
+            return False
+
+        # Update the duration
+        target_slot.duration_minutes = new_duration
+
+        # Recalculate start times for all subsequent slots
+        for i, slot in enumerate(slots):
+            if slot.slot_number > slot_number:
+                # Calculate new start time based on previous slot
+                prev_slot = slots[i - 1]
+                prev_h, prev_m = map(int, prev_slot.start_time.split(":"))
+                prev_minutes = prev_h * 60 + prev_m + prev_slot.duration_minutes
+                new_h = prev_minutes // 60
+                new_m = prev_minutes % 60
+                slot.start_time = f"{new_h:02d}:{new_m:02d}"
+
+        self.session.commit()
+        return True
+
+    def initialize_for_session(self, session_id: int, start_time: str, end_time: str, default_duration: int) -> list[TimeSlotORM]:
+        """Initialize time slots for a session with default duration.
+
+        Args:
+            session_id: Session ID
+            start_time: Session start time (HH:MM)
+            end_time: Session end time (HH:MM)
+            default_duration: Default duration in minutes
+
+        Returns:
+            List of created TimeSlotORM instances
+        """
+        # Delete existing time slots for this session
+        self.session.query(TimeSlotORM).filter(TimeSlotORM.session_id == session_id).delete()
+
+        start_h, start_m = map(int, start_time.split(":"))
+        end_h, end_m = map(int, end_time.split(":"))
+        start_minutes = start_h * 60 + start_m
+        end_minutes = end_h * 60 + end_m
+
+        slots = []
+        current = start_minutes
+        slot_number = 0
+
+        while current < end_minutes:
+            h = current // 60
+            m = current % 60
+            slot_time = f"{h:02d}:{m:02d}"
+
+            slot_orm = TimeSlotORM(
+                session_id=session_id,
+                slot_number=slot_number,
+                start_time=slot_time,
+                duration_minutes=default_duration,
+            )
+            self.session.add(slot_orm)
+            slots.append(slot_orm)
+
+            current += default_duration
+            slot_number += 1
+
+        self.session.commit()
+        return slots
+
+    def delete_by_session(self, session_id: int) -> int:
+        """Delete all time slots for a session."""
+        count = self.session.query(TimeSlotORM).filter(TimeSlotORM.session_id == session_id).delete()
+        self.session.commit()
+        return count
