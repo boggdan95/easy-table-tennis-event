@@ -17,7 +17,7 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 7. **Avanzar ganadores** automáticamente por rondas
 8. **Ver resultados finales** (campeón, podio, clasificaciones)
 
-### ✅ Estado Actual del MVP (V1.1.0)
+### ✅ Estado Actual: MVP COMPLETO (V1.1.1)
 
 | Funcionalidad | Estado | Notas |
 |--------------|--------|-------|
@@ -34,48 +34,38 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 | Generar bracket (manual) | ✅ Completo | Drag-and-drop, validaciones |
 | Ver bracket visual | ✅ Completo | Vista gráfica por rondas |
 | Ver partidos de bracket | ✅ Completo | Lista por ronda |
-| **Ingresar resultados de bracket** | ✅ **COMPLETO** | Usa mismo sistema que grupos |
-| **Avance automático de ganadores** | ✅ **COMPLETO** | Winner → siguiente ronda |
-| **Ver campeón y podio** | ⚠️ **FALTA** | Vista dedicada final |
+| Ingresar resultados de bracket | ✅ Completo | Usa mismo sistema que grupos |
+| Avance automático de ganadores | ✅ Completo | Winner → siguiente ronda |
+| Ver campeón y podio | ✅ Completo | Vista `/category/{cat}/results` |
 | Exportar a CSV | ✅ Completo | CLI (grupos/standings/bracket) |
-| Exportar a CSV desde UI | ❌ Falta | Mejora futura |
 
 ---
 
-## 🚧 Para Completar el MVP
+## ✅ V2.0 - Scheduler COMPLETO
 
-### 📋 Tareas Críticas (V1.1.1 - MVP Final)
+**Objetivo:** Asignar horarios y mesas para los partidos del torneo.
 
-1. **Vista de Resultados Finales y Podio** 🏆
-   - Página dedicada `/category/{category}/results`
-   - Mostrar campeón (ganador de Final)
-   - Mostrar podio (1°, 2°, 3°/4°)
-   - Mostrar clasificación completa de bracket
-   - Navegación desde página de categoría
-
-2. **Mejoras UX Críticas**
-   - Botón en navbar para "Resultados Finales" cuando existe bracket completo
-   - Indicador visual de progreso del torneo (Grupos → Bracket → Finalizado)
-   - Badge de "CAMPEÓN" en vista de bracket cuando hay ganador
-
-3. **Testing del Flujo Completo**
-   - Test end-to-end de torneo completo
-   - Validar que todos los partidos se pueden jugar
-   - Validar que avance automático funciona correctamente
-   - Validar que se puede identificar al campeón
-
-### 📝 Tareas Opcionales (Nice to Have)
-
-- Exportar resultados finales a CSV desde UI
-- Imprimir certificado/diploma del campeón
-- Estadísticas agregadas del torneo
-- Histórico de partidos por jugador
+| Funcionalidad | Estado | Notas |
+|--------------|--------|-------|
+| Configuración de mesas | ✅ Completo | Número de mesas configurable |
+| Configuración de horarios | ✅ Completo | Jornadas con inicio/fin |
+| Crear/editar/eliminar jornadas | ✅ Completo | UI completa |
+| Cuadrícula drag-and-drop | ✅ Completo | Asignar partidos a mesa/hora |
+| Validación de conflictos | ✅ Completo | Rojo/verde al arrastrar |
+| Warnings visuales | ✅ Completo | Sin descanso, superposición |
+| Buscador de jugador | ✅ Completo | Resalta partidos del jugador |
+| Duraciones flexibles | ✅ Completo | Editar duración por bloque |
+| Añadir bloques horarios | ✅ Completo | Botón "+ Añadir" |
+| Finalizar jornadas | ✅ Completo | Limpia slots vacíos |
+| Reabrir jornadas | ✅ Completo | Para continuar editando |
+| Vista imprimible | ✅ Completo | Sin slots vacíos, con países |
+| Filtros por categoría/ronda | ✅ Completo | En panel de partidos |
 
 ---
 
-## 🗺️ Roadmap Post-MVP
+## 🗺️ Roadmap Futuro
 
-### V1.2 - Mejoras de Usabilidad
+### V2.1 - Mejoras de Usabilidad
 
 **Objetivo:** Hacer la herramienta más amigable y robusta
 
@@ -83,65 +73,41 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 - [ ] Eliminar jugadores (con validación de dependencias)
 - [ ] Eliminar categorías completas
 - [ ] Regenerar bracket con nuevas configuraciones
-- [ ] Undo/Redo de operaciones críticas
 - [ ] Backup y restore de base de datos
 - [ ] Validaciones más estrictas en formularios
 - [ ] Mensajes de error más descriptivos
 
-**Duración estimada:** 2-3 sesiones
-
 ---
 
-### V1.3 - Exportación e Impresión
+### V2.2 - Exportación e Impresión
 
 **Objetivo:** Generar documentos imprimibles para operación del torneo
 
-- [ ] Exportar a CSV desde UI (grupos, standings, bracket, resultados)
+- [ ] Exportar a CSV desde UI (grupos, standings, bracket, horarios)
+- [ ] Encabezado personalizable (logo, nombre torneo)
 - [ ] Generar PDF de hojas de grupo (group sheets)
 - [ ] Generar PDF de bracket vacío
 - [ ] Generar PDF de resultados finales con podio
 - [ ] Generar PDF de certificados de participación
 - [ ] Generar PDF de certificados de campeón/podio
 - [ ] Imprimir etiquetas para mesas
-
-**Duración estimada:** 3-4 sesiones
+- [ ] Imprimir horario por jugador
 
 ---
 
-### V1.4 - Múltiples Categorías
+### V2.3 - Múltiples Categorías Mejorado
 
-**Objetivo:** Gestionar eventos con múltiples categorías simultáneas
+**Objetivo:** Gestionar eventos con múltiples categorías de forma más eficiente
 
 - [ ] Dashboard global con todas las categorías
-- [ ] Selector de categoría activa
 - [ ] Vista comparativa de progreso entre categorías
 - [ ] Operaciones batch (ej: calcular standings de todas las categorías)
 - [ ] Validación de jugadores duplicados entre categorías
 - [ ] Exportación agregada de todas las categorías
 
-**Duración estimada:** 2-3 sesiones
-
 ---
 
-### V2.0 - Scheduler y Asignación de Mesas
-
-**Objetivo:** Asignar horarios y mesas automáticamente
-
-- [ ] Configuración de mesas disponibles
-- [ ] Configuración de horarios (inicio, duración, breaks)
-- [ ] Algoritmo de scheduling automático
-- [ ] Asignación manual de partidos a mesas/horarios
-- [ ] Vista de cronograma por mesa
-- [ ] Vista de cronograma por jugador
-- [ ] Notificaciones de próximos partidos
-- [ ] Buffers entre partidos
-- [ ] Manejo de delays y reprogramaciones
-
-**Duración estimada:** 5-7 sesiones
-
----
-
-### V2.1 - Operación en Vivo
+### V3.0 - Operación en Vivo
 
 **Objetivo:** Herramientas para operar el torneo en tiempo real
 
@@ -153,11 +119,9 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 - [ ] QR codes para tracking de jugadores
 - [ ] Marcador electrónico integrado
 
-**Duración estimada:** 6-8 sesiones
-
 ---
 
-### V3.0 - Avanzado
+### V4.0 - Avanzado
 
 **Objetivo:** Funcionalidades profesionales para eventos grandes
 
@@ -170,26 +134,24 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 - [ ] Análisis estadístico avanzado
 - [ ] Soporte para dobles y equipos
 
-**Duración estimada:** 15-20 sesiones
-
 ---
 
-## 📊 Prioridades
+## 📊 Estado del Proyecto
 
-### Ahora (V1.1.1)
-1. ✅ Vista de Resultados Finales
-2. ✅ Testing del flujo completo
-3. ✅ Documentación de uso
+### Versiones Completadas
 
-### Próximo (V1.2-V1.4)
-- Mejoras de usabilidad
-- Exportación e impresión
-- Soporte multi-categoría
+| Versión | Descripción | Estado |
+|---------|-------------|--------|
+| V1.0.0 | Core funcional (CLI + motor deportivo) | ✅ |
+| V1.0.1 | Edición de resultados + validación | ✅ |
+| V1.0.2 | i18n + UI moderna | ✅ |
+| V1.1.0 | Gestión completa desde UI | ✅ |
+| V1.1.1 | MVP Final (podio, resultados) | ✅ |
+| V2.0.0 | Scheduler completo | ✅ |
 
-### Futuro (V2.0+)
-- Scheduler
-- Operación en vivo
-- Funcionalidades avanzadas
+### Próxima Versión Sugerida
+
+**V2.1 - Mejoras de Usabilidad** o **V2.2 - Exportación e Impresión**
 
 ---
 
@@ -211,53 +173,18 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 - **SQLite:** Base de datos (simple, portátil)
 - **SQLAlchemy:** ORM robusto
 - **Vanilla JS:** Sin frameworks pesados
-- **No scheduler en V1:** Complejidad deferida
 
 ---
 
-## 📈 Métricas de Éxito del MVP
+## 📈 Métricas de Éxito (MVP Cumplido)
 
-Un MVP exitoso debe poder:
-
-- [ ] Gestionar un torneo de 12+ jugadores en 1 categoría
-- [ ] Completar todos los partidos de grupos (Round Robin)
-- [ ] Calcular clasificaciones correctamente con desempates
-- [ ] Generar bracket de 8/16/32 jugadores
-- [ ] Completar todos los partidos de bracket hasta final
-- [ ] Identificar al campeón correctamente
-- [ ] Exportar resultados a CSV
-- [ ] Durar un evento de 4-6 horas sin crashes
-- [ ] Usarse por una persona sin conocimientos técnicos
-
----
-
-## 🔄 Proceso de Desarrollo
-
-### Workflow por Versión
-
-1. **Planning:** Definir scope de la versión
-2. **Desarrollo:** Implementar funcionalidades
-3. **Testing:** Pruebas manuales + automatizadas
-4. **Documentación:** Actualizar README y CLAUDE.md
-5. **Release:** Merge a `main` con tag de versión
-
-### Ramas de Git
-
-- `main` - Código estable y probado
-- `feature/*` - Nuevas funcionalidades
-- `bugfix/*` - Correcciones de bugs
-- `hotfix/*` - Fixes urgentes en producción
-
----
-
-## 📞 Próximos Pasos
-
-### Sesión Actual (Completar MVP V1.1.1)
-
-1. Crear vista de resultados finales (`/category/{category}/results`)
-2. Implementar lógica de podio (1°, 2°, 3°/4°)
-3. Agregar navegación a resultados finales
-4. Testing end-to-end del flujo completo
-5. Actualizar documentación
-
-**Tiempo estimado:** 1-2 horas
+- [x] Gestionar un torneo de 12+ jugadores en 1 categoría
+- [x] Completar todos los partidos de grupos (Round Robin)
+- [x] Calcular clasificaciones correctamente con desempates
+- [x] Generar bracket de 8/16/32 jugadores
+- [x] Completar todos los partidos de bracket hasta final
+- [x] Identificar al campeón correctamente
+- [x] Exportar resultados a CSV
+- [x] Programar partidos en mesas y horarios
+- [ ] Durar un evento de 4-6 horas sin crashes (pendiente testing real)
+- [ ] Usarse por una persona sin conocimientos técnicos (pendiente testing real)
