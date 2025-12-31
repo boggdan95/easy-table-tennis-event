@@ -6149,9 +6149,11 @@ async def scheduler_grid(request: Request, session_id: int):
             time_slots.append(f"{h:02d}:{m:02d}")
             current += match_duration
 
-        # Get scheduled slots for this session
+        # Get scheduled slots for this session (for grid display)
         scheduled_slots = schedule_repo.get_by_session(session_id)
-        scheduled_match_ids = {slot.match_id for slot in scheduled_slots}
+
+        # Get ALL scheduled match IDs across ALL sessions (to filter unscheduled list)
+        all_scheduled_match_ids = schedule_repo.get_all_scheduled_match_ids()
 
         # Build grid data: {time_slot: {table: match_data or None}}
         grid_data = {}
@@ -6192,6 +6194,8 @@ async def scheduler_grid(request: Request, session_id: int):
                     "match_id": match_orm.id,
                     "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
                     "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "player1_id": match_orm.player1_id,
+                    "player2_id": match_orm.player2_id,
                     "player1_country": p1.pais_cd if p1 else "",
                     "player2_country": p2.pais_cd if p2 else "",
                     "label": match_label,
@@ -6214,7 +6218,8 @@ async def scheduler_grid(request: Request, session_id: int):
 
         unscheduled_matches = []
         for m in all_matches:
-            if m.id in scheduled_match_ids:
+            # Skip matches already scheduled in ANY session
+            if m.id in all_scheduled_match_ids:
                 continue
 
             # Filter: only include matches from current tournament
@@ -6256,6 +6261,8 @@ async def scheduler_grid(request: Request, session_id: int):
                 "id": m.id,
                 "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
                 "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                "player1_id": m.player1_id,
+                "player2_id": m.player2_id,
                 "player1_country": p1.pais_cd if p1 else "",
                 "player2_country": p2.pais_cd if p2 else "",
                 "label": match_label,
@@ -6263,6 +6270,20 @@ async def scheduler_grid(request: Request, session_id: int):
                 "round_type": round_type,
                 "group_id": m.group_id,
             })
+
+        # Build list of all players for search functionality
+        all_players = player_repo.get_all(tournament_id=tournament.id)
+        players_list = [
+            {
+                "id": p.id,
+                "name": f"{p.nombre} {p.apellido}",
+                "category": p.categoria or "",
+            }
+            for p in all_players
+        ]
+
+        # Get categories for filter dropdown
+        categories = sorted(tournament_categories)
 
         context = {
             "request": request,
@@ -6273,6 +6294,8 @@ async def scheduler_grid(request: Request, session_id: int):
             "match_duration": match_duration,
             "grid_data": grid_data,
             "unscheduled_matches": unscheduled_matches,
+            "players_list": players_list,
+            "categories": categories,
         }
 
         flash_message = request.session.pop("flash_message", None)
@@ -6282,6 +6305,90 @@ async def scheduler_grid(request: Request, session_id: int):
             context["flash_type"] = flash_type
 
         return render_template("admin_scheduler_grid.html", context)
+
+
+@app.get("/admin/scheduler/grid/{session_id}/print", response_class=HTMLResponse)
+async def scheduler_grid_print(request: Request, session_id: int):
+    """Printable version of the scheduling grid."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        from ettem.storage import SessionRepository, ScheduleSlotRepository
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return RedirectResponse(url="/", status_code=303)
+
+        session_repo = SessionRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+
+        session_obj = session_repo.get_by_id(session_id)
+        if not session_obj:
+            return RedirectResponse(url="/admin/scheduler", status_code=303)
+
+        # Generate time slots
+        num_tables = tournament.num_tables or 4
+        match_duration = tournament.default_match_duration or 20
+
+        start_h, start_m = map(int, session_obj.start_time.split(":"))
+        end_h, end_m = map(int, session_obj.end_time.split(":"))
+        start_minutes = start_h * 60 + start_m
+        end_minutes = end_h * 60 + end_m
+
+        time_slots = []
+        current = start_minutes
+        while current < end_minutes:
+            h = current // 60
+            m = current % 60
+            time_slots.append(f"{h:02d}:{m:02d}")
+            current += match_duration
+
+        # Get scheduled slots for this session
+        scheduled_slots = schedule_repo.get_by_session(session_id)
+
+        # Build grid data
+        grid_data = {}
+        for time_slot in time_slots:
+            grid_data[time_slot] = {}
+            for table in range(1, num_tables + 1):
+                grid_data[time_slot][table] = None
+
+        for slot in scheduled_slots:
+            match_orm = match_repo.get_by_id(slot.match_id)
+            if match_orm and slot.start_time in grid_data:
+                p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+                p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+                if match_orm.group_id:
+                    group = group_repo.get_by_id(match_orm.group_id)
+                    match_label = f"G{group.name}" if group else "Grupo"
+                    category = group.category if group else "?"
+                else:
+                    match_label = match_orm.round_type or "Bracket"
+                    category = match_orm.category or "?"
+
+                grid_data[slot.start_time][slot.table_number] = {
+                    "match_id": match_orm.id,
+                    "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "player1_country": p1.pais_cd if p1 else "",
+                    "player2_country": p2.pais_cd if p2 else "",
+                    "label": match_label,
+                    "category": category,
+                }
+
+        context = {
+            "request": request,
+            "tournament": tournament,
+            "session": session_obj,
+            "time_slots": time_slots,
+            "num_tables": num_tables,
+            "grid_data": grid_data,
+        }
+
+        return render_template("admin_scheduler_print.html", context)
 
 
 @app.post("/admin/scheduler/slot/assign")

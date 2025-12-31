@@ -1229,6 +1229,15 @@ class ScheduleSlotRepository:
         """Get schedule slot for a specific match."""
         return self.session.query(ScheduleSlotORM).filter(ScheduleSlotORM.match_id == match_id).first()
 
+    def get_all(self) -> list[ScheduleSlotORM]:
+        """Get all schedule slots."""
+        return self.session.query(ScheduleSlotORM).all()
+
+    def get_all_scheduled_match_ids(self) -> set[int]:
+        """Get set of all match IDs that have been scheduled in any session."""
+        slots = self.session.query(ScheduleSlotORM.match_id).all()
+        return {slot.match_id for slot in slots}
+
     def get_by_session_and_table(self, session_id: int, table_number: int) -> list[ScheduleSlotORM]:
         """Get all schedule slots for a specific table in a session."""
         return (

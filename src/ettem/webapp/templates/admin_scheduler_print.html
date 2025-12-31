@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programación - {{ session.name }} - {{ tournament.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            padding: 10px;
+            background: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .header .date-info {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .schedule-table th,
+        .schedule-table td {
+            border: 1px solid #333;
+            padding: 6px 4px;
+            text-align: center;
+            vertical-align: top;
+        }
+
+        .schedule-table th {
+            background: #333;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .schedule-table th.time-header {
+            background: #666;
+            width: 60px;
+        }
+
+        .schedule-table td.time-cell {
+            background: #f0f0f0;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .schedule-table td.match-cell {
+            min-height: 50px;
+            font-size: 10px;
+            line-height: 1.3;
+        }
+
+        .match-info {
+            padding: 2px;
+        }
+
+        .match-label {
+            font-weight: bold;
+            font-size: 9px;
+            background: #e0e0e0;
+            padding: 1px 4px;
+            border-radius: 2px;
+            display: inline-block;
+            margin-bottom: 3px;
+        }
+
+        .match-category {
+            font-size: 8px;
+            color: #666;
+            margin-left: 3px;
+        }
+
+        .player-name {
+            display: block;
+            font-size: 10px;
+        }
+
+        .country-code {
+            font-size: 8px;
+            font-weight: bold;
+            color: #666;
+            margin-right: 2px;
+        }
+
+        .vs {
+            color: #999;
+            font-size: 9px;
+        }
+
+        .empty-cell {
+            color: #ccc;
+        }
+
+        .print-actions {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .print-actions button {
+            padding: 10px 30px;
+            font-size: 14px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 0 5px;
+        }
+
+        .print-actions button:hover {
+            background: #0056b3;
+        }
+
+        .print-actions .btn-secondary {
+            background: #6c757d;
+        }
+
+        .print-actions .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 9px;
+            color: #999;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+        }
+
+        /* Print styles */
+        @media print {
+            .print-actions {
+                display: none !important;
+            }
+
+            body {
+                padding: 0;
+                font-size: 10px;
+            }
+
+            .schedule-table th,
+            .schedule-table td {
+                padding: 4px 3px;
+            }
+
+            .header {
+                margin-bottom: 10px;
+            }
+
+            @page {
+                size: landscape;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-actions">
+        <button onclick="window.print()">🖨️ Imprimir</button>
+        <button class="btn-secondary" onclick="window.close()">✕ Cerrar</button>
+    </div>
+
+    <div class="header">
+        <h1>{{ tournament.name }}</h1>
+        <div class="subtitle">{{ session.name }}</div>
+        <div class="date-info">
+            {{ session.date.strftime('%d/%m/%Y') }} | {{ session.start_time }} - {{ session.end_time }}
+        </div>
+    </div>
+
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th class="time-header">Hora</th>
+                {% for table in range(1, num_tables + 1) %}
+                <th>Mesa {{ table }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for time_slot in time_slots %}
+            <tr>
+                <td class="time-cell">{{ time_slot }}</td>
+                {% for table in range(1, num_tables + 1) %}
+                <td class="match-cell">
+                    {% set cell_data = grid_data[time_slot][table] %}
+                    {% if cell_data %}
+                    <div class="match-info">
+                        <span class="match-label">{{ cell_data.label }}</span>
+                        <span class="match-category">{{ cell_data.category }}</span>
+                        <span class="player-name">
+                            {% if cell_data.player1_country %}<span class="country-code">{{ cell_data.player1_country }} -</span> {% endif %}{{ cell_data.player1 }}
+                        </span>
+                        <span class="vs">vs</span>
+                        <span class="player-name">
+                            {% if cell_data.player2_country %}<span class="country-code">{{ cell_data.player2_country }} -</span> {% endif %}{{ cell_data.player2 }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <span class="empty-cell">-</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Generado por ETTEM - Easy Table Tennis Event Manager
+    </div>
+</body>
+</html>

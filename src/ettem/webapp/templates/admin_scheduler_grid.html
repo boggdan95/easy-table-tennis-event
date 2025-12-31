@@ -9,8 +9,17 @@
     <span>←</span>
     <span>Volver</span>
 </a>
+<a href="/admin/scheduler/grid/{{ session.id }}/print" target="_blank" class="btn btn-primary btn-sm">
+    <span>🖨️</span>
+    <span>Imprimir</span>
+</a>
 <span class="badge badge-primary" style="font-size: 0.9rem;">
     {{ session.date.strftime('%d/%m/%Y') }} | {{ session.start_time }} - {{ session.end_time }}
+</span>
+<span id="conflict-counter" class="conflict-counter no-conflicts" style="display: none;">
+    <span>⚠️</span>
+    <span id="conflict-count">0</span>
+    <span>conflictos</span>
 </span>
 {% endblock %}
 
@@ -196,7 +205,216 @@
 }
 
 .grid-cell.has-conflict {
-    background: rgba(255, 0, 0, 0.1);
+    background: rgba(220, 53, 69, 0.25) !important;
+    border: 2px dashed #dc3545 !important;
+}
+
+.grid-cell.has-conflict::after {
+    content: "⚠️ Conflicto";
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 0.6rem;
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.grid-cell.is-valid {
+    background: rgba(40, 167, 69, 0.15) !important;
+    border: 2px dashed #28a745 !important;
+}
+
+.grid-cell {
+    position: relative;
+}
+
+/* Warning icon for conflicts */
+.conflict-warning {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    background: #dc3545;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    cursor: help;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.conflict-warning.warning-overlap {
+    background: #dc3545;
+}
+
+.conflict-warning.warning-no-rest {
+    background: #fd7e14;
+}
+
+.conflict-warning.warning-multiple {
+    background: #6f42c1;
+}
+
+/* Tooltip for conflict warning */
+.conflict-tooltip {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+    max-width: 250px;
+    white-space: normal;
+    text-align: left;
+    line-height: 1.4;
+}
+
+.conflict-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 10px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.conflict-warning:hover .conflict-tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Conflict counter badge */
+.conflict-counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: #dc3545;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.conflict-counter.no-conflicts {
+    background: #28a745;
+}
+
+/* Player search */
+.player-search-container {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.player-search-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.player-search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.player-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+}
+
+.player-search-results.show {
+    display: block;
+}
+
+.player-search-item {
+    padding: 0.5rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.player-search-item:last-child {
+    border-bottom: none;
+}
+
+.player-search-item:hover {
+    background: var(--primary-bg);
+}
+
+.player-search-item .category-badge {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--secondary-bg);
+    color: var(--secondary-color);
+    margin-left: 4px;
+}
+
+/* Player schedule summary */
+.player-schedule-summary {
+    background: var(--info-bg);
+    border: 1px solid var(--info-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    display: none;
+}
+
+.player-schedule-summary.show {
+    display: block;
+}
+
+.player-schedule-summary .player-name {
+    font-weight: bold;
+    color: var(--info-dark);
+}
+
+.player-schedule-summary .schedule-list {
+    margin-top: 0.25rem;
+    color: var(--text-muted);
+}
+
+.player-schedule-summary .clear-search {
+    float: right;
+    cursor: pointer;
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+/* Highlighted match (when searching) */
+.scheduled-match.highlighted {
+    box-shadow: 0 0 0 3px #007bff, 0 0 10px rgba(0, 123, 255, 0.5);
+    z-index: 5;
+}
+
+.match-item.highlighted {
+    box-shadow: 0 0 0 3px #007bff, 0 0 10px rgba(0, 123, 255, 0.5);
 }
 
 /* Scheduled Match in Grid */
@@ -355,6 +573,23 @@
             </span>
         </div>
         <div class="matches-panel-filters" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <!-- Player Search -->
+            <div class="player-search-container">
+                <input type="text"
+                       id="player-search"
+                       class="player-search-input"
+                       placeholder="🔍 Buscar jugador..."
+                       autocomplete="off"
+                       oninput="handlePlayerSearch(event)"
+                       onfocus="handlePlayerSearch(event)">
+                <div id="player-search-results" class="player-search-results"></div>
+            </div>
+            <div id="player-schedule-summary" class="player-schedule-summary">
+                <span class="clear-search" onclick="clearPlayerSearch()">✕</span>
+                <div class="player-name" id="selected-player-name"></div>
+                <div class="schedule-list" id="selected-player-schedule"></div>
+            </div>
+
             <select id="filter-category" class="filter-select" onchange="filterMatches()">
                 <option value="">Todas las categorías</option>
                 {% for cat in categories %}
@@ -388,6 +623,8 @@
                  data-match-id="{{ match.id }}"
                  data-category="{{ match.category }}"
                  data-round="{{ match.round_type or 'grupo' }}"
+                 data-player1-id="{{ match.player1_id or '' }}"
+                 data-player2-id="{{ match.player2_id or '' }}"
                  ondragstart="handleDragStart(event)"
                  ondragend="handleDragEnd(event)">
                 <div class="match-header">
@@ -444,6 +681,8 @@
                          draggable="true"
                          data-match-id="{{ cell_data.match_id }}"
                          data-slot-id="{{ cell_data.slot_id }}"
+                         data-player1-id="{{ cell_data.player1_id or '' }}"
+                         data-player2-id="{{ cell_data.player2_id or '' }}"
                          ondragstart="handleScheduledDragStart(event)"
                          ondragend="handleDragEnd(event)">
                         <button class="remove-btn" onclick="removeFromSlot({{ cell_data.slot_id }}, event)" title="Quitar">X</button>
@@ -474,6 +713,76 @@
 const SESSION_ID = {{ session.id }};
 let draggedMatchId = null;
 let draggedFromSlot = null;
+let draggedPlayer1Id = null;
+let draggedPlayer2Id = null;
+let selectedPlayerId = null;
+
+// Players list for search
+const PLAYERS_LIST = {{ players_list | tojson }};
+
+// Build a map of scheduled matches: { time_slot: [{ player1_id, player2_id, cell }] }
+function buildScheduledMatchesMap() {
+    const map = {};
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        const timeSlot = cell.dataset.time;
+        if (!map[timeSlot]) map[timeSlot] = [];
+
+        const scheduledMatch = cell.querySelector('.scheduled-match');
+        if (scheduledMatch) {
+            map[timeSlot].push({
+                player1_id: scheduledMatch.dataset.player1Id,
+                player2_id: scheduledMatch.dataset.player2Id,
+                cell: cell
+            });
+        }
+    });
+    return map;
+}
+
+// Highlight cells with conflicts when dragging
+function highlightConflicts(player1Id, player2Id, excludeCell = null) {
+    if (!player1Id && !player2Id) return;
+
+    const scheduledMap = buildScheduledMatchesMap();
+
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        // Skip the cell we're dragging from
+        if (excludeCell && cell === excludeCell) return;
+
+        const timeSlot = cell.dataset.time;
+        const hasScheduledMatch = cell.querySelector('.scheduled-match');
+
+        // Check if any scheduled match in the same time slot has one of our players
+        const conflictingMatches = scheduledMap[timeSlot]?.filter(m => {
+            // Don't count ourselves as conflict
+            if (m.cell === excludeCell) return false;
+
+            const p1 = String(m.player1_id);
+            const p2 = String(m.player2_id);
+            const dragP1 = String(player1Id);
+            const dragP2 = String(player2Id);
+
+            return (p1 === dragP1 || p1 === dragP2 || p2 === dragP1 || p2 === dragP2);
+        }) || [];
+
+        if (conflictingMatches.length > 0) {
+            // There's a conflict in this time slot - mark all cells in this row
+            cell.classList.add('has-conflict');
+            cell.classList.remove('is-valid');
+        } else if (!hasScheduledMatch) {
+            // Empty cell with no conflicts - it's valid
+            cell.classList.add('is-valid');
+            cell.classList.remove('has-conflict');
+        }
+    });
+}
+
+// Clear all conflict/valid highlights
+function clearHighlights() {
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        cell.classList.remove('has-conflict', 'is-valid');
+    });
+}
 
 // Reload page preserving current filters
 function reloadWithFilters() {
@@ -652,10 +961,15 @@ function handleDragStart(e) {
     const item = e.target.closest('.match-item') || e.target;
     draggedMatchId = item.dataset.matchId;
     draggedFromSlot = null;
+    draggedPlayer1Id = item.dataset.player1Id;
+    draggedPlayer2Id = item.dataset.player2Id;
     item.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedMatchId);
-    console.log('Drag start (unscheduled):', draggedMatchId);
+    console.log('Drag start (unscheduled):', draggedMatchId, 'players:', draggedPlayer1Id, draggedPlayer2Id);
+
+    // Highlight conflicts
+    highlightConflicts(draggedPlayer1Id, draggedPlayer2Id);
 }
 
 // Drag from scheduled slot
@@ -663,10 +977,16 @@ function handleScheduledDragStart(e) {
     const item = e.target.closest('.scheduled-match') || e.target;
     draggedMatchId = item.dataset.matchId;
     draggedFromSlot = item.dataset.slotId;
+    draggedPlayer1Id = item.dataset.player1Id;
+    draggedPlayer2Id = item.dataset.player2Id;
     item.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', draggedMatchId);
-    console.log('Drag start (scheduled):', draggedMatchId, 'from slot:', draggedFromSlot);
+    console.log('Drag start (scheduled):', draggedMatchId, 'from slot:', draggedFromSlot, 'players:', draggedPlayer1Id, draggedPlayer2Id);
+
+    // Highlight conflicts (exclude current cell)
+    const currentCell = item.closest('.grid-cell');
+    highlightConflicts(draggedPlayer1Id, draggedPlayer2Id, currentCell);
 }
 
 function handleDragEnd(e) {
@@ -674,6 +994,11 @@ function handleDragEnd(e) {
     item.classList.remove('dragging');
     draggedMatchId = null;
     draggedFromSlot = null;
+    draggedPlayer1Id = null;
+    draggedPlayer2Id = null;
+
+    // Clear highlights
+    clearHighlights();
 }
 
 function handleDragOver(e) {
@@ -833,6 +1158,323 @@ async function removeFromSlotSilent(slotId) {
         console.error(err);
     }
 }
+
+// ============================================
+// CONFLICT DETECTION SYSTEM
+// ============================================
+
+// Get all time slots in order
+function getTimeSlots() {
+    const slots = [];
+    document.querySelectorAll('.time-cell').forEach(cell => {
+        const time = cell.textContent.trim();
+        if (time && !slots.includes(time)) {
+            slots.push(time);
+        }
+    });
+    return slots;
+}
+
+// Build a complete map of all scheduled matches with their info
+function buildCompleteScheduleMap() {
+    const matches = [];
+    document.querySelectorAll('.scheduled-match').forEach(match => {
+        const cell = match.closest('.grid-cell');
+        matches.push({
+            matchId: match.dataset.matchId,
+            player1Id: match.dataset.player1Id,
+            player2Id: match.dataset.player2Id,
+            timeSlot: cell.dataset.time,
+            table: cell.dataset.table,
+            cell: cell,
+            element: match
+        });
+    });
+    return matches;
+}
+
+// Get player name from match element (without country code)
+function getPlayerNames(matchElement) {
+    const playersDiv = matchElement.querySelector('.sm-players');
+    if (!playersDiv) return { player1: 'Jugador 1', player2: 'Jugador 2' };
+
+    const lines = playersDiv.innerHTML.split('<br>');
+    let player1 = 'Jugador 1';
+    let player2 = 'Jugador 2';
+
+    // Helper to clean name: remove HTML tags and country codes (3 uppercase letters at start)
+    const cleanName = (text) => {
+        let name = text.replace(/<[^>]*>/g, '').trim();
+        // Remove country code prefix (e.g., "COL" or "ARG")
+        name = name.replace(/^[A-Z]{2,3}\s*/, '');
+        return name.trim() || 'Jugador';
+    };
+
+    if (lines.length >= 1) {
+        player1 = cleanName(lines[0]);
+    }
+    if (lines.length >= 3) {
+        player2 = cleanName(lines[2]);
+    }
+
+    return { player1, player2 };
+}
+
+// Detect all conflicts and add warning icons
+function detectAllConflicts() {
+    const allMatches = buildCompleteScheduleMap();
+    const timeSlots = getTimeSlots();
+    let totalConflicts = 0;
+
+    // Remove any existing warnings first
+    document.querySelectorAll('.conflict-warning').forEach(w => w.remove());
+
+    allMatches.forEach(match => {
+        const conflicts = [];
+        const playerIds = [match.player1Id, match.player2Id].filter(id => id && id !== 'None' && id !== '');
+
+        if (playerIds.length === 0) return;
+
+        // Find the index of current time slot
+        const currentTimeIndex = timeSlots.indexOf(match.timeSlot);
+
+        // Check for conflicts with other matches
+        allMatches.forEach(otherMatch => {
+            if (otherMatch.matchId === match.matchId) return;
+
+            const otherPlayerIds = [otherMatch.player1Id, otherMatch.player2Id].filter(id => id && id !== 'None' && id !== '');
+
+            // Check if any player is shared
+            const sharedPlayers = playerIds.filter(pid => otherPlayerIds.includes(pid));
+
+            if (sharedPlayers.length > 0) {
+                const otherTimeIndex = timeSlots.indexOf(otherMatch.timeSlot);
+
+                // Same time slot = overlap conflict
+                if (match.timeSlot === otherMatch.timeSlot) {
+                    const { player1, player2 } = getPlayerNames(match.element);
+                    const conflictingPlayer = sharedPlayers[0] === match.player1Id ? player1 : player2;
+                    conflicts.push({
+                        type: 'overlap',
+                        message: `⚠️ ${conflictingPlayer}: 2 partidos a las ${match.timeSlot}`
+                    });
+                }
+                // Adjacent time slots = no rest conflict
+                else if (Math.abs(currentTimeIndex - otherTimeIndex) === 1) {
+                    const { player1, player2 } = getPlayerNames(match.element);
+                    const conflictingPlayer = sharedPlayers[0] === match.player1Id ? player1 : player2;
+                    conflicts.push({
+                        type: 'no-rest',
+                        message: `⏱️ ${conflictingPlayer}: sin descanso`
+                    });
+                }
+            }
+        });
+
+        // Add warning to cell if there are conflicts
+        if (conflicts.length > 0) {
+            addWarningToCell(match.cell, conflicts);
+            totalConflicts++;
+        }
+    });
+
+    // Update conflict counter
+    updateConflictCounter(totalConflicts);
+}
+
+// Add warning icon to a cell
+function addWarningToCell(cell, conflicts) {
+    // Determine warning type based on most severe conflict
+    const hasOverlap = conflicts.some(c => c.type === 'overlap');
+    const hasNoRest = conflicts.some(c => c.type === 'no-rest');
+
+    let warningClass = 'warning-no-rest';
+    let icon = '⏱️';
+
+    if (hasOverlap) {
+        warningClass = 'warning-overlap';
+        icon = '⚠️';
+    }
+
+    if (hasOverlap && hasNoRest) {
+        warningClass = 'warning-multiple';
+        icon = '❗';
+    }
+
+    // Create warning element
+    const warning = document.createElement('div');
+    warning.className = `conflict-warning ${warningClass}`;
+    warning.innerHTML = `
+        ${icon}
+        <div class="conflict-tooltip">
+            ${conflicts.map(c => c.message).join('<br>')}
+        </div>
+    `;
+
+    // Add to the scheduled-match element, not the cell
+    const scheduledMatch = cell.querySelector('.scheduled-match');
+    if (scheduledMatch) {
+        scheduledMatch.style.position = 'relative';
+        scheduledMatch.appendChild(warning);
+    }
+}
+
+// Update the conflict counter in the header
+function updateConflictCounter(count) {
+    const counter = document.getElementById('conflict-counter');
+    const countSpan = document.getElementById('conflict-count');
+
+    if (counter && countSpan) {
+        countSpan.textContent = count;
+
+        if (count > 0) {
+            counter.style.display = 'inline-flex';
+            counter.classList.remove('no-conflicts');
+        } else {
+            counter.style.display = 'none';
+            counter.classList.add('no-conflicts');
+        }
+    }
+}
+
+// Run conflict detection on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure all elements are rendered
+    setTimeout(detectAllConflicts, 100);
+});
+
+// ============================================
+// PLAYER SEARCH FUNCTIONALITY
+// ============================================
+
+// Handle player search input
+function handlePlayerSearch(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const resultsDiv = document.getElementById('player-search-results');
+
+    if (query.length < 2) {
+        resultsDiv.classList.remove('show');
+        return;
+    }
+
+    // Filter players by name
+    const matches = PLAYERS_LIST.filter(p =>
+        p.name.toLowerCase().includes(query)
+    ).slice(0, 10); // Limit to 10 results
+
+    if (matches.length === 0) {
+        resultsDiv.innerHTML = '<div class="player-search-item" style="color: var(--text-muted);">No se encontraron jugadores</div>';
+    } else {
+        resultsDiv.innerHTML = matches.map(p => `
+            <div class="player-search-item" onclick="selectPlayer(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
+                ${p.name}
+                <span class="category-badge">${p.category || ''}</span>
+            </div>
+        `).join('');
+    }
+
+    resultsDiv.classList.add('show');
+}
+
+// Select a player and highlight their matches
+function selectPlayer(playerId, playerName) {
+    selectedPlayerId = playerId;
+
+    // Hide search results
+    document.getElementById('player-search-results').classList.remove('show');
+    document.getElementById('player-search').value = playerName;
+
+    // Clear previous highlights
+    document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+
+    // Find all matches for this player
+    const playerMatches = [];
+
+    // Check scheduled matches in grid
+    document.querySelectorAll('.scheduled-match').forEach(match => {
+        const p1 = match.dataset.player1Id;
+        const p2 = match.dataset.player2Id;
+
+        if (String(p1) === String(playerId) || String(p2) === String(playerId)) {
+            match.classList.add('highlighted');
+            const cell = match.closest('.grid-cell');
+            playerMatches.push({
+                time: cell.dataset.time,
+                table: cell.dataset.table,
+                scheduled: true
+            });
+        }
+    });
+
+    // Check unscheduled matches
+    document.querySelectorAll('.match-item').forEach(match => {
+        const p1 = match.dataset.player1Id;
+        const p2 = match.dataset.player2Id;
+
+        if (String(p1) === String(playerId) || String(p2) === String(playerId)) {
+            match.classList.add('highlighted');
+            playerMatches.push({
+                scheduled: false,
+                label: match.querySelector('.match-label')?.textContent || 'Partido'
+            });
+        }
+    });
+
+    // Show summary
+    const summaryDiv = document.getElementById('player-schedule-summary');
+    const nameDiv = document.getElementById('selected-player-name');
+    const scheduleDiv = document.getElementById('selected-player-schedule');
+
+    nameDiv.textContent = playerName;
+
+    // Build schedule text
+    const scheduledMatches = playerMatches.filter(m => m.scheduled);
+    const unscheduledMatches = playerMatches.filter(m => !m.scheduled);
+
+    let scheduleHtml = '';
+    if (scheduledMatches.length > 0) {
+        // Sort by time
+        scheduledMatches.sort((a, b) => a.time.localeCompare(b.time));
+        scheduleHtml += '📅 ' + scheduledMatches.map(m => `${m.time} (Mesa ${m.table})`).join(' → ');
+    }
+    if (unscheduledMatches.length > 0) {
+        if (scheduleHtml) scheduleHtml += '<br>';
+        scheduleHtml += `⏳ ${unscheduledMatches.length} partido(s) sin programar`;
+    }
+    if (playerMatches.length === 0) {
+        scheduleHtml = 'No tiene partidos en esta jornada';
+    }
+
+    scheduleDiv.innerHTML = scheduleHtml;
+    summaryDiv.classList.add('show');
+
+    // Scroll to first scheduled match if exists
+    if (scheduledMatches.length > 0) {
+        const firstHighlighted = document.querySelector('.scheduled-match.highlighted');
+        if (firstHighlighted) {
+            firstHighlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
+// Clear player search
+function clearPlayerSearch() {
+    selectedPlayerId = null;
+    document.getElementById('player-search').value = '';
+    document.getElementById('player-search-results').classList.remove('show');
+    document.getElementById('player-schedule-summary').classList.remove('show');
+
+    // Remove all highlights
+    document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    const container = document.querySelector('.player-search-container');
+    if (container && !container.contains(e.target)) {
+        document.getElementById('player-search-results').classList.remove('show');
+    }
+});
 </script>
 
 {% endblock %}
