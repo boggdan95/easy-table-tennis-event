@@ -65,7 +65,36 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 
 ## 🗺️ Roadmap Futuro
 
-### V2.1 - Mejoras de Usabilidad
+### V2.1 - Sistema de Licencias (Monetización)
+
+**Objetivo:** Preparar el producto para venta/distribución comercial
+
+**Sistema de Activación:**
+- [ ] Generador de claves de licencia (admin tool)
+- [ ] Validación de licencia al iniciar la app
+- [ ] Tipos de licencia: Trial (30 días), Event (1 evento), Annual, Lifetime
+- [ ] Información de licencia en UI (quién, hasta cuándo, tipo)
+- [ ] Bloqueo graceful al expirar (solo lectura, no puede crear nuevo)
+
+**Branding/Personalización:**
+- [ ] Logo del torneo/club configurable
+- [ ] Nombre del torneo en headers y exports
+- [ ] Colores personalizables (tema)
+
+**Preparación para Distribución:**
+- [ ] Empaquetado como ejecutable Windows (.exe con PyInstaller)
+- [ ] Instalador simple (wizard básico)
+- [ ] Documentación de usuario (PDF/HTML)
+- [ ] Página de "Acerca de" con versión y licencia
+
+**Nice to have:**
+- [ ] Activación online (validar licencia contra servidor)
+- [ ] Telemetría básica (opt-in) para analytics de uso
+- [ ] Sistema de actualizaciones automáticas
+
+---
+
+### V2.2 - Mejoras de Usabilidad
 
 **Objetivo:** Hacer la herramienta más amigable y robusta
 
@@ -79,7 +108,7 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 
 ---
 
-### V2.2 - Exportación e Impresión
+### V2.3 - Exportación e Impresión
 
 **Objetivo:** Generar documentos imprimibles para operación del torneo
 
@@ -95,29 +124,29 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 
 ---
 
-### V2.3 - Múltiples Categorías Mejorado
-
-**Objetivo:** Gestionar eventos con múltiples categorías de forma más eficiente
-
-- [ ] Dashboard global con todas las categorías
-- [ ] Vista comparativa de progreso entre categorías
-- [ ] Operaciones batch (ej: calcular standings de todas las categorías)
-- [ ] Validación de jugadores duplicados entre categorías
-- [ ] Exportación agregada de todas las categorías
-
----
-
-### V3.0 - Operación en Vivo
+### V2.4 - Operación en Vivo
 
 **Objetivo:** Herramientas para operar el torneo en tiempo real
 
 - [ ] Panel de control para mesa (tablet/móvil)
 - [ ] Ingreso rápido de resultados por mesa
-- [ ] Display público de resultados en vivo
-- [ ] Display de "próximos partidos"
-- [ ] Notificaciones automáticas a jugadores
+- [ ] Display público de resultados en vivo (proyector/TV)
+- [ ] Display de "próximos partidos" por mesa
+- [ ] Notificaciones automáticas a jugadores (WhatsApp/SMS)
 - [ ] QR codes para tracking de jugadores
-- [ ] Marcador electrónico integrado
+
+---
+
+### V3.0 - SaaS / Cloud
+
+**Objetivo:** Versión cloud para escalar el negocio
+
+- [ ] Multi-tenant (múltiples organizadores/eventos)
+- [ ] Sistema de usuarios y roles (admin, árbitro, jugador)
+- [ ] API REST para integraciones
+- [ ] Dashboard de administración central
+- [ ] Facturación y pagos online
+- [ ] Hosting en la nube (AWS/GCP/Azure)
 
 ---
 
@@ -125,14 +154,12 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 
 **Objetivo:** Funcionalidades profesionales para eventos grandes
 
-- [ ] Sistema de credenciales y roles (admin, referee, player)
-- [ ] Multi-tenant (múltiples eventos en paralelo)
-- [ ] API REST para integraciones
 - [ ] App móvil (React Native / Flutter)
 - [ ] Integración con sistemas de ranking (ITTF, nacionales)
 - [ ] Streaming de resultados a web pública
 - [ ] Análisis estadístico avanzado
 - [ ] Soporte para dobles y equipos
+- [ ] Marcador electrónico integrado
 
 ---
 
@@ -149,9 +176,9 @@ El MVP debe permitir gestionar un torneo completo de principio a fin:
 | V1.1.1 | MVP Final (podio, resultados) | ✅ |
 | V2.0.0 | Scheduler completo | ✅ |
 
-### Próxima Versión Sugerida
+### Próxima Versión
 
-**V2.1 - Mejoras de Usabilidad** o **V2.2 - Exportación e Impresión**
+**V2.1 - Sistema de Licencias** ← Prioridad para monetización
 
 ---
 
