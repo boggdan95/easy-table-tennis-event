@@ -47,18 +47,28 @@
             <div class="d-flex gap-2">
                 <button type="button" onclick="openPreviewModal()" class="btn btn-primary">
                     <span>👁️</span>
-                    <span>Vista Previa con Serpenteo</span>
+                    <span>Previsualizar Grupos</span>
                 </button>
                 <button type="submit" class="btn btn-success">
                     <span>✓</span>
-                    <span>Crear Directamente</span>
+                    <span>Crear Grupos</span>
                 </button>
-                <a href="/" class="btn btn-secondary">
-                    <span>✕</span>
-                    <span>Cancelar</span>
-                </a>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- Warning for existing groups - shown dynamically -->
+<div class="alert alert-danger mb-3" id="existing-groups-warning" style="display: none;">
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 1.5rem;">⚠️</span>
+        <div>
+            <div style="font-weight: 600; font-size: 1.1rem;">Esta categoría ya tiene grupos creados</div>
+            <div style="margin-top: 0.25rem;">
+                Al crear nuevos grupos, se eliminarán los <strong id="existing-groups-count">0</strong> grupos existentes
+                y sus <strong id="existing-matches-count">0</strong> partidos (incluyendo resultados ingresados).
+            </div>
+        </div>
     </div>
 </div>
 
@@ -250,17 +260,27 @@ function updatePlayerCount() {
     } else {
         playerInfo.style.display = 'none';
         countryStats.style.display = 'none';
-        // Hide existing groups card when no category selected
+        // Hide existing groups card and warning when no category selected
         const existingGroupsCard = document.getElementById('existing-groups-card');
         if (existingGroupsCard) {
             existingGroupsCard.style.display = 'none';
+        }
+        const existingGroupsWarning = document.getElementById('existing-groups-warning');
+        if (existingGroupsWarning) {
+            existingGroupsWarning.style.display = 'none';
         }
     }
 }
 
 function filterExistingGroups(category) {
     const existingGroupsCard = document.getElementById('existing-groups-card');
-    if (!existingGroupsCard) return;
+    const existingGroupsWarning = document.getElementById('existing-groups-warning');
+
+    if (!existingGroupsCard) {
+        // No existing groups at all
+        if (existingGroupsWarning) existingGroupsWarning.style.display = 'none';
+        return;
+    }
 
     const rows = document.querySelectorAll('.existing-group-row');
     const categoryNameSpan = document.getElementById('selected-category-name');
@@ -271,10 +291,14 @@ function filterExistingGroups(category) {
     categoryNameSpan.textContent = category;
 
     let visibleCount = 0;
+    let totalMatches = 0;
     rows.forEach(row => {
         if (row.dataset.category === category) {
             row.style.display = '';
             visibleCount++;
+            // Get match count from the row (3rd column)
+            const matchCount = parseInt(row.cells[2]?.textContent || '0');
+            totalMatches += matchCount;
         } else {
             row.style.display = 'none';
         }
@@ -286,10 +310,22 @@ function filterExistingGroups(category) {
         tableBody.parentElement.parentElement.style.display = '';
         noGroupsMessage.style.display = 'none';
         groupsWarning.style.display = '';
+
+        // Show prominent warning
+        if (existingGroupsWarning) {
+            existingGroupsWarning.style.display = 'block';
+            document.getElementById('existing-groups-count').textContent = visibleCount;
+            document.getElementById('existing-matches-count').textContent = totalMatches;
+        }
     } else {
         tableBody.parentElement.parentElement.style.display = 'none';
         noGroupsMessage.style.display = 'block';
         groupsWarning.style.display = 'none';
+
+        // Hide prominent warning
+        if (existingGroupsWarning) {
+            existingGroupsWarning.style.display = 'none';
+        }
     }
 }
 

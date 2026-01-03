@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Hoja Grupo {{ group.name }} - ETTEM{% endblock %}
+{% block title %}Grupo {{ group.name }} {{ category }} - ETTEM{% endblock %}
 
-{% block page_title %}Grupo {{ group.name }} - Hoja{% endblock %}
+{% block page_title %}Grupo {{ group.name }} - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">

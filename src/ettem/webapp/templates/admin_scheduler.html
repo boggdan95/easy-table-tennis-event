@@ -38,29 +38,43 @@
 
 <!-- Configuration -->
 <div class="card mb-3">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <h3 class="card-title">Configuración del Torneo</h3>
+        {% if config_locked %}
+        <button type="button" class="btn btn-warning btn-sm" onclick="unlockConfig()">
+            <span>🔓</span>
+            <span>Desbloquear</span>
+        </button>
+        {% endif %}
     </div>
     <div class="card-body">
-        <form action="/admin/scheduler/config" method="post">
+        {% if config_locked %}
+        <div class="alert alert-info mb-3" style="margin-bottom: 1rem;">
+            <span>🔒</span> Configuración bloqueada porque ya existen jornadas. Desbloquea para editar.
+        </div>
+        {% endif %}
+        <form action="/admin/scheduler/config" method="post" id="config-form">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="num_tables">Número de Mesas</label>
                     <input type="number" id="num_tables" name="num_tables" class="form-control"
-                           value="{{ tournament.num_tables or 4 }}" min="1" max="20" required>
+                           value="{{ tournament.num_tables or 4 }}" min="1" max="20" required
+                           {% if config_locked %}disabled{% endif %}>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="default_match_duration">Duración por Partido (min)</label>
                     <input type="number" id="default_match_duration" name="default_match_duration" class="form-control"
-                           value="{{ tournament.default_match_duration or 20 }}" min="10" max="60" required>
+                           value="{{ tournament.default_match_duration or 20 }}" min="10" max="60" required
+                           {% if config_locked %}disabled{% endif %}>
                 </div>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="min_rest_time">Descanso Mínimo (min)</label>
                     <input type="number" id="min_rest_time" name="min_rest_time" class="form-control"
-                           value="{{ tournament.min_rest_time or 10 }}" min="0" max="60" required>
+                           value="{{ tournament.min_rest_time or 10 }}" min="0" max="60" required
+                           {% if config_locked %}disabled{% endif %}>
                 </div>
                 <div>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="config-submit" {% if config_locked %}disabled{% endif %}>
                         Guardar Configuración
                     </button>
                 </div>
@@ -178,5 +192,28 @@
         </ol>
     </div>
 </div>
+
+<script>
+function unlockConfig() {
+    if (!confirm('¿Desbloquear la configuración? Cambiar estos valores puede afectar las jornadas existentes.')) {
+        return;
+    }
+
+    // Enable all form inputs
+    document.getElementById('num_tables').disabled = false;
+    document.getElementById('default_match_duration').disabled = false;
+    document.getElementById('min_rest_time').disabled = false;
+    document.getElementById('config-submit').disabled = false;
+
+    // Hide the unlock button and info message
+    const unlockBtn = document.querySelector('.btn-warning[onclick="unlockConfig()"]');
+    if (unlockBtn) unlockBtn.style.display = 'none';
+
+    const infoAlert = document.querySelector('.alert-info');
+    if (infoAlert) infoAlert.style.display = 'none';
+
+    toast.info('Configuración desbloqueada. Recuerda guardar los cambios.');
+}
+</script>
 
 {% endblock %}

@@ -47,13 +47,13 @@
             </tbody>
         </table>
 
-        <!-- Compact Match Order (horizontal) -->
+        <!-- Compact Match Order (horizontal) with schedule info - 3 per line -->
         <div style="font-size: 8pt; color: #666; border-top: 1px solid #ccc; padding-top: 8px;">
             <strong>Orden:</strong>
             {% for m in g.matches %}
             <span style="margin-right: 8px;">
-                {{ m.match_order }}) {{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }} vs {{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} |{% endif %}
-            </span>
+                {{ m.match_order }}) {{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }} vs {{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% if m.table_number or m.scheduled_time %} <span style="color: #0066cc;">[{% if m.table_number %}M{{ m.table_number }}{% endif %}{% if m.table_number and m.scheduled_time %} {% endif %}{% if m.scheduled_time %}{{ m.scheduled_time }}{% endif %}]</span>{% endif %}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} |{% endif %}
+            </span>{% if loop.index % 3 == 0 and not loop.last %}<br>{% endif %}
             {% endfor %}
         </div>
     </div>

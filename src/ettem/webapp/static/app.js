@@ -307,7 +307,10 @@ function toggleSubmenu(event, category) {
     if (event.target === link || event.target.closest('.nav-link-category') === link) {
         // Only navigate if we're collapsing (expanded class was just removed)
         if (!link.classList.contains('expanded')) {
-            window.location.href = link.href;
+            const href = link.getAttribute('data-href') || link.href;
+            if (href) {
+                window.location.href = href;
+            }
         }
     }
 }

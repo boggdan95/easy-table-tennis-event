@@ -47,10 +47,17 @@
 <div class="card">
     <div class="card-body" style="text-align: center; padding: 2rem;">
         <p style="color: var(--text-muted);">No hay categorías configuradas aún.</p>
-        <a href="/admin/create-groups" class="btn btn-primary">
-            <span>👥</span>
-            <span>Crear Grupos</span>
-        </a>
+        <p style="margin-bottom: 1rem;">Importa jugadores para comenzar:</p>
+        <div class="d-flex gap-2" style="justify-content: center; flex-wrap: wrap;">
+            <a href="/admin/import-players" class="btn btn-success">
+                <span>📥</span>
+                <span>Importar Jugadores</span>
+            </a>
+            <a href="/admin/create-groups" class="btn btn-primary">
+                <span>👥</span>
+                <span>Crear Grupos</span>
+            </a>
+        </div>
     </div>
 </div>
 {% else %}
