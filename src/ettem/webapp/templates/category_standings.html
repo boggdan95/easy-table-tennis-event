@@ -65,6 +65,9 @@
             {% if group_data.is_complete %}
             <span class="badge badge-success" style="margin-left: 0.5rem;">✓</span>
             {% endif %}
+            {% if group_data.has_tiebreaker %}
+            <span class="badge badge-warning" style="margin-left: 0.25rem;" title="Hubo desempate en este grupo">⚖️</span>
+            {% endif %}
         </h3>
         <div class="d-flex gap-2">
             <span class="badge badge-secondary">
@@ -116,7 +119,26 @@
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
                                 <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ s.player.pais_cd }}</span>
+                                {% if s.tiebreaker %}
+                                <span class="badge badge-warning" style="font-size: 0.7rem;" title="Desempate por {{ s.tiebreaker.tie_broken_by }}">⚖️</span>
+                                {% endif %}
                             </div>
+                            {% if s.tiebreaker %}
+                            <div style="font-size: 0.7rem; color: #666; margin-top: 2px;">
+                                <span style="background: #fff3e0; padding: 1px 4px; border-radius: 3px; border: 1px solid #ffb74d;">
+                                    H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
+                                    {% if s.tiebreaker.tie_broken_by == 'sets_ratio' %}
+                                        <strong style="color: #e65100;">✓</strong>
+                                    {% endif %}
+                                    | {{ s.tiebreaker.h2h_points_w }}-{{ s.tiebreaker.h2h_points_l }}
+                                    {% if s.tiebreaker.tie_broken_by == 'points_ratio' %}
+                                        <strong style="color: #e65100;">✓</strong>
+                                    {% elif s.tiebreaker.tie_broken_by == 'seed' %}
+                                        | Seed:{{ s.tiebreaker.seed }} <strong style="color: #e65100;">✓</strong>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
                         </td>
                         <td style="text-align: center;">
                             <strong style="color: #2196F3;">{{ s.standing.points_total }}</strong>

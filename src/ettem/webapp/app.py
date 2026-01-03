@@ -625,7 +625,7 @@ async def view_group_matches(request: Request, group_id: int):
 
 
 @app.get("/match/{match_id}/enter-result", response_class=HTMLResponse)
-async def enter_result_form(request: Request, match_id: int):
+async def enter_result_form(request: Request, match_id: int, return_to: Optional[str] = None):
     """Show form to enter match result."""
     session = get_db_session()
     match_repo = MatchRepository(session)
@@ -676,6 +676,7 @@ async def enter_result_form(request: Request, match_id: int):
             "form_values": form_values,
             "table_number": table_number,
             "scheduled_time": scheduled_time,
+            "return_to": return_to,
         }
     )
 
@@ -696,10 +697,18 @@ async def save_result(
     set4_p2: Optional[str] = Form(None),
     set5_p1: Optional[str] = Form(None),
     set5_p2: Optional[str] = Form(None),
+    return_to: Optional[str] = Form(None),
 ):
     """Save match result."""
     session = get_db_session()
     match_repo = MatchRepository(session)
+
+    # Helper to build redirect URL preserving return_to parameter
+    def enter_result_url():
+        url = f"/match/{match_id}/enter-result"
+        if return_to:
+            url += f"?return_to={return_to}"
+        return url
 
     # Get match
     match_orm = match_repo.get_by_id(match_id)
@@ -726,7 +735,7 @@ async def save_result(
             if not is_valid:
                 request.session["flash_message"] = error_msg
                 request.session["flash_type"] = "error"
-                return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+                return RedirectResponse(url=enter_result_url(), status_code=303)
 
     # Helper function to parse integer or None
     def parse_int(value: Optional[str]) -> Optional[int]:
@@ -750,7 +759,7 @@ async def save_result(
         if not is_valid:
             request.session["flash_message"] = f"Error en walkover: {error_msg}"
             request.session["flash_type"] = "error"
-            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+            return RedirectResponse(url=enter_result_url(), status_code=303)
 
         match_orm.status = MatchStatus.WALKOVER.value
         match_orm.winner_id = winner_id_int
@@ -799,7 +808,7 @@ async def save_result(
                     }
                     request.session["form_values"] = form_vals
                     print(f"[DEBUG] Set error - saved form values: {form_vals}")
-                    return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+                    return RedirectResponse(url=enter_result_url(), status_code=303)
 
                 sets_data.append({
                     "set_number": idx,
@@ -818,7 +827,7 @@ async def save_result(
                 form_vals[f"set{i}_p1"] = raw_inputs[(i-1)*2] or ""
                 form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals
-            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+            return RedirectResponse(url=enter_result_url(), status_code=303)
 
         # Validate the complete match
         sets_tuples = [(s["player1_points"], s["player2_points"]) for s in sets_data]
@@ -836,7 +845,7 @@ async def save_result(
                 form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals
             print(f"[DEBUG] Saved form values: {form_vals}")
-            return RedirectResponse(url=f"/match/{match_id}/enter-result", status_code=303)
+            return RedirectResponse(url=enter_result_url(), status_code=303)
 
         # Determine winner based on sets won
         p1_sets = sum(1 for s in sets_data if s["player1_points"] > s["player2_points"])
@@ -912,8 +921,10 @@ async def save_result(
     request.session["flash_message"] = "Resultado guardado exitosamente"
     request.session["flash_type"] = "success"
 
-    # Redirect based on match type (group or bracket)
-    if match_orm.group_id is not None:
+    # Redirect based on return_to parameter or match type
+    if return_to == "live":
+        return RedirectResponse(url="/admin/live-results", status_code=303)
+    elif match_orm.group_id is not None:
         # Group match - redirect to group matches page
         return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
     else:
@@ -1165,7 +1176,10 @@ async def view_category_standings(request: Request, category: str):
             matches.append(match)
 
         # Calculate standings
-        standings, _ = calculate_standings(matches, group.id, player_repo)
+        standings, tiebreakers = calculate_standings(matches, group.id, player_repo)
+
+        # Build tiebreaker lookup by player_id
+        tiebreaker_lookup = {tb.player_id: tb for tb in tiebreakers} if tiebreakers else {}
 
         # Get player details
         standings_data = []
@@ -1174,7 +1188,8 @@ async def view_category_standings(request: Request, category: str):
             if player:
                 standings_data.append({
                     "standing": standing,
-                    "player": player
+                    "player": player,
+                    "tiebreaker": tiebreaker_lookup.get(standing.player_id)
                 })
 
         # Count completed matches
@@ -1186,7 +1201,8 @@ async def view_category_standings(request: Request, category: str):
             "standings": standings_data,
             "completed_matches": completed,
             "total_matches": total,
-            "is_complete": completed == total and total > 0
+            "is_complete": completed == total and total > 0,
+            "has_tiebreaker": len(tiebreakers) > 0 if tiebreakers else False
         })
 
     return render_template("category_standings.html", {
@@ -6976,72 +6992,93 @@ async def admin_live_results(request: Request, category: Optional[str] = None):
                     "is_scheduled": schedule_info is not None,
                 })
 
-        # Group matches by time slot
-        time_slots = {}
+        # Group matches by session and time slot
+        # Structure: { session_id: { time_str: [matches] } }
+        sessions_time_slots = {}
         unscheduled = []
 
         for md in matches_data:
             if md["is_scheduled"]:
+                session_id = md["schedule"]["session_id"]
                 time_key = md["schedule"]["start_time"]
-                if time_key not in time_slots:
-                    time_slots[time_key] = []
-                time_slots[time_key].append(md)
+
+                if session_id not in sessions_time_slots:
+                    sessions_time_slots[session_id] = {}
+                if time_key not in sessions_time_slots[session_id]:
+                    sessions_time_slots[session_id][time_key] = []
+                sessions_time_slots[session_id][time_key].append(md)
             else:
                 unscheduled.append(md)
 
-        # Sort each time slot by table number
-        for time_key in time_slots:
-            time_slots[time_key].sort(key=lambda x: x["schedule"]["table_number"])
+        # Get session info for display
+        session_lookup = {}
+        for slot in all_slots:
+            if slot.session_id not in session_lookup:
+                sess = session_repo.get_by_id(slot.session_id)
+                if sess:
+                    session_lookup[slot.session_id] = sess
 
-        # Convert to sorted list of (time, matches)
-        sorted_time_slots = sorted(time_slots.items(), key=lambda x: x[0])
-
-        # Build initial data structure
+        # Build data structure grouped by session
         time_slots_data = []
-        for time_str, matches in sorted_time_slots:
-            completed_count = sum(1 for m in matches if m["match"].status != MatchStatus.PENDING.value and m["match"].status != MatchStatus.PENDING)
-            total_count = len(matches)
-            time_slots_data.append({
-                "time": time_str,
-                "matches": matches,
-                "completed": completed_count,
-                "total": total_count,
-                "status": "pending",  # Will be updated below
-            })
 
-        # Determine status based on completion pattern (not system time)
-        # Logic: If a later slot has completions but an earlier slot has pending matches,
-        #        the earlier slot is "delayed"
+        for session_id in sorted(sessions_time_slots.keys()):
+            session_slots = sessions_time_slots[session_id]
+            session_info = session_lookup.get(session_id)
+            session_name = session_info.name if session_info else f"Sesión {session_id}"
 
-        # Find the latest slot index that has any completions
-        latest_with_completion = -1
-        for i, slot in enumerate(time_slots_data):
-            if slot["completed"] > 0:
-                latest_with_completion = i
+            # Sort time slots within this session
+            sorted_slots = sorted(session_slots.items(), key=lambda x: x[0])
 
-        # Find the first slot that has pending matches
-        first_with_pending = -1
-        for i, slot in enumerate(time_slots_data):
-            if slot["completed"] < slot["total"]:
-                first_with_pending = i
-                break
+            # Build slot data for this session
+            session_slot_data = []
+            for time_str, matches in sorted_slots:
+                # Sort by table number
+                matches.sort(key=lambda x: x["schedule"]["table_number"])
+                completed_count = sum(1 for m in matches if m["match"].status != MatchStatus.PENDING.value and m["match"].status != MatchStatus.PENDING)
+                total_count = len(matches)
+                session_slot_data.append({
+                    "time": time_str,
+                    "matches": matches,
+                    "completed": completed_count,
+                    "total": total_count,
+                    "status": "pending",
+                    "session_id": session_id,
+                    "session_name": session_name,
+                })
 
-        # Assign statuses
-        for i, slot in enumerate(time_slots_data):
-            if slot["completed"] == slot["total"]:
-                # Fully completed
-                slot["status"] = "completed"
-            elif i < latest_with_completion:
-                # Has pending matches but a later slot already has completions = delayed
-                slot["status"] = "delayed"
-            elif i == first_with_pending:
-                # First slot with pending matches = current
-                slot["status"] = "current"
-            else:
-                # Future slots
-                slot["status"] = "future"
+            # Determine status based on completion pattern WITHIN THIS SESSION ONLY
+            # Logic: If a later slot has completions but an earlier slot has pending matches,
+            #        the earlier slot is "delayed"
 
-        # Find current slot index for display focus
+            # Find the latest slot index that has any completions (within this session)
+            latest_with_completion = -1
+            for i, slot in enumerate(session_slot_data):
+                if slot["completed"] > 0:
+                    latest_with_completion = i
+
+            # Find the first slot that has pending matches (within this session)
+            first_with_pending = -1
+            for i, slot in enumerate(session_slot_data):
+                if slot["completed"] < slot["total"]:
+                    first_with_pending = i
+                    break
+
+            # Assign statuses (within this session)
+            for i, slot in enumerate(session_slot_data):
+                if slot["completed"] == slot["total"]:
+                    slot["status"] = "completed"
+                elif i < latest_with_completion:
+                    # Has pending but a later slot in SAME SESSION has completions = delayed
+                    slot["status"] = "delayed"
+                elif i == first_with_pending:
+                    slot["status"] = "current"
+                else:
+                    slot["status"] = "future"
+
+            # Add all slots from this session to the main list
+            time_slots_data.extend(session_slot_data)
+
+        # Find current slot index for display focus (first "current" or first with pending)
         current_slot_index = 0
         for i, slot in enumerate(time_slots_data):
             if slot["status"] == "current":

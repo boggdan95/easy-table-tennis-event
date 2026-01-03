@@ -70,6 +70,9 @@
     </div>
     <div class="card-body">
         <form method="post" action="/match/{{ match.id }}/save-result" data-match-form>
+            {% if return_to %}
+            <input type="hidden" name="return_to" value="{{ return_to }}">
+            {% endif %}
             <div class="form-section">
                 <!-- Horizontal Table Layout -->
                 <div style="overflow-x: auto;">

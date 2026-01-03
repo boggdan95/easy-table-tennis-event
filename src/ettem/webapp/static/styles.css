@@ -445,6 +445,26 @@ body {
     color: var(--text-secondary);
 }
 
+/* Time Slot Cards (Live Results) */
+.time-slot-card {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.time-slot-card .card-header {
+    margin-bottom: 0;
+    padding: 1rem 1.25rem;
+    border-bottom: none;
+}
+
+.time-slot-card .card-body {
+    padding: 0;
+}
+
+.time-slot-card .slot-content {
+    border-top: 1px solid var(--border-color);
+}
+
 /* Grid System */
 .grid {
     display: grid;
