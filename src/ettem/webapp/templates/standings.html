@@ -76,7 +76,33 @@
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
                                 <span class="badge badge-secondary">{{ s.player.pais_cd }}</span>
+                                {% if s.tiebreaker %}
+                                <span class="badge badge-warning" style="font-size: 0.75rem;" title="Desempate por {{ s.tiebreaker.tie_broken_by }}">⚖️</span>
+                                {% endif %}
                             </div>
+                            {% if s.tiebreaker %}
+                            <div style="font-size: 0.75rem; color: #666; margin-top: 4px;">
+                                <span style="background: #fff3e0; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffb74d;">
+                                    H2H: Sets {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
+                                    {% if s.tiebreaker.tie_broken_by == 'sets_ratio' %}
+                                        <strong style="color: #e65100;">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %}) ✓</strong>
+                                    {% else %}
+                                        <span style="color: #999;">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %} =)</span>
+                                    {% endif %}
+                                    | Pts {{ s.tiebreaker.h2h_points_w }}-{{ s.tiebreaker.h2h_points_l }}
+                                    {% if s.tiebreaker.tie_broken_by == 'points_ratio' %}
+                                        <strong style="color: #e65100;">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %}) ✓</strong>
+                                    {% elif s.tiebreaker.tie_broken_by == 'seed' %}
+                                        <span style="color: #999;">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %} =)</span>
+                                    {% else %}
+                                        <span style="color: #999;">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %})</span>
+                                    {% endif %}
+                                    {% if s.tiebreaker.tie_broken_by == 'seed' %}
+                                        | <strong style="color: #e65100;">Seed: {{ s.tiebreaker.seed }} ✓</strong>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
                         </td>
                         <td style="text-align: center;">
                             <strong style="font-size: 1.1rem; color: #2196F3;">{{ s.standing.points_total }}</strong>
@@ -100,6 +126,19 @@
     </div>
     {% endif %}
     <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid #e0e0e0; padding-top: 1rem;">
+        {% if has_tiebreaker %}
+        <div style="background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #e65100; margin-bottom: 0.5rem;">
+                <span>⚖️</span>
+                <span>Desempate Aplicado</span>
+            </div>
+            <p style="margin: 0; color: #555; font-size: 0.9rem;">
+                Hubo empate entre jugadores con los mismos puntos. El desempate se calculó usando
+                <strong>solo los partidos entre los jugadores empatados</strong> (Head-to-Head).
+                Los stats H2H se muestran debajo de cada jugador afectado.
+            </p>
+        </div>
+        {% endif %}
         <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
             <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
                 <span class="details-arrow">▶</span>
@@ -113,7 +152,12 @@
             <div style="padding: 0.5rem 1rem 1rem 1rem; color: #555; line-height: 1.8;">
                 <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
                 <br>
-                <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.
+                <strong>Desempate (solo entre empatados):</strong>
+                <ol style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                    <li>Ratio de sets ganados/perdidos (H2H)</li>
+                    <li>Ratio de puntos ganados/perdidos (H2H)</li>
+                    <li>Seed original del jugador (menor gana)</li>
+                </ol>
                 <br>
                 Los primeros 2 clasificados avanzan a la llave de eliminación directa.
             </div>

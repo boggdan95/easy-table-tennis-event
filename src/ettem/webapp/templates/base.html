@@ -52,6 +52,10 @@
                         <span class="icon">🕐</span>
                         <span class="sidebar-text">Programar Horarios</span>
                     </a>
+                    <a href="/admin/live-results" class="nav-link" title="Resultados en Vivo">
+                        <span class="icon">⚡</span>
+                        <span class="sidebar-text">Resultados en Vivo</span>
+                    </a>
                 </div>
 
                 {% if categories %}
@@ -59,7 +63,7 @@
                     <div class="nav-section-title">Categorías</div>
                     {% for cat in categories %}
                     <div class="nav-category">
-                        <button type="button" class="nav-link nav-link-category" onclick="toggleSubmenu(event, '{{ cat }}')" title="Categoría {{ cat }}">
+                        <button type="button" class="nav-link nav-link-category" onclick="toggleSubmenu(event, '{{ cat }}')" title="Categoría {{ cat }}" data-href="/category/{{ cat }}">
                             <span class="icon">🏆</span>
                             <span class="sidebar-text">{{ cat }}</span>
                             <span class="submenu-arrow sidebar-text">▼</span>

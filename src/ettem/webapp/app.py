@@ -901,7 +901,7 @@ async def save_result(
             matches.append(match)
 
         # Calculate standings
-        standings = calculate_standings(matches, match_orm.group_id, player_repo)
+        standings, _ = calculate_standings(matches, match_orm.group_id, player_repo)
 
         # Delete old standings and save new ones
         standing_repo.delete_by_group(match_orm.group_id)
@@ -1021,7 +1021,7 @@ async def delete_result(request: Request, match_id: int):
             matches.append(match)
 
         # Calculate standings
-        standings = calculate_standings(matches, match_orm.group_id, player_repo)
+        standings, _ = calculate_standings(matches, match_orm.group_id, player_repo)
 
         # Delete old standings and save new ones
         standing_repo.delete_by_group(match_orm.group_id)
@@ -1089,23 +1089,26 @@ async def view_standings(request: Request, group_id: int):
         matches.append(match)
 
     # Calculate standings
-    standings = calculate_standings(matches, group_id, player_repo)
+    standings, tiebreaker_info = calculate_standings(matches, group_id, player_repo)
 
     # Get player details
     standings_data = []
     for standing in standings:
         player = player_repo.get_by_id(standing.player_id)
         if player:
+            tb_info = tiebreaker_info.get(standing.player_id)
             standings_data.append({
                 "standing": standing,
-                "player": player
+                "player": player,
+                "tiebreaker": tb_info
             })
 
     return render_template("standings.html", {
         "request": request,
         "group": group,
         "standings": standings_data,
-        "category": group.category
+        "category": group.category,
+        "has_tiebreaker": len(tiebreaker_info) > 0
     })
 
 
@@ -1162,7 +1165,7 @@ async def view_category_standings(request: Request, category: str):
             matches.append(match)
 
         # Calculate standings
-        standings = calculate_standings(matches, group.id, player_repo)
+        standings, _ = calculate_standings(matches, group.id, player_repo)
 
         # Get player details
         standings_data = []
@@ -1282,7 +1285,7 @@ async def view_group_sheet(request: Request, group_id: int):
         results_matrix[p2.group_number][p1.group_number] = p2_result
 
     # Calculate stats for each player
-    standings = calculate_standings(
+    standings, _ = calculate_standings(
         [
             Match(
                 id=m.id,
@@ -1369,7 +1372,7 @@ async def recalculate_standings(category: str):
             matches.append(match)
 
         # Calculate standings
-        standings = calculate_standings(matches, group.id, player_repo)
+        standings, _ = calculate_standings(matches, group.id, player_repo)
 
         # Delete old standings
         standing_repo.delete_by_group(group.id)
@@ -2516,7 +2519,20 @@ async def admin_create_groups_execute(
                     match.group_id = group_orm.id
                     match_repo.create(match)
 
-        request.session["flash_message"] = f"Se crearon exitosamente {len(groups)} grupos con {len(matches)} partidos para la categoría {category}"
+        # Create empty bracket structure for scheduling
+        # Default: 2 players advance per group (1st and 2nd place)
+        advance_per_group = 2
+        bracket_repo = BracketRepository(session)
+        slots_created, bracket_matches = create_empty_bracket_structure(
+            category=category,
+            num_groups=len(groups),
+            advance_per_group=advance_per_group,
+            bracket_repo=bracket_repo,
+            match_repo=match_repo,
+            tournament_id=tournament_id
+        )
+
+        request.session["flash_message"] = f"Se crearon {len(groups)} grupos con {len(matches)} partidos + {bracket_matches} partidos de bracket para {category}"
         request.session["flash_type"] = "success"
 
         return RedirectResponse(url=f"/category/{category}", status_code=303)
@@ -2649,7 +2665,7 @@ async def admin_calculate_standings_all(request: Request):
                 matches.append(match)
 
             # Calculate standings
-            standings = calculate_standings(matches, group_orm.id, player_repo)
+            standings, _ = calculate_standings(matches, group_orm.id, player_repo)
 
             # Delete old standings for this group
             standing_repo.delete_by_group(group_orm.id)
@@ -2723,7 +2739,7 @@ async def admin_calculate_standings_category(
                 matches.append(match)
 
             # Calculate standings
-            standings = calculate_standings(matches, group_orm.id, player_repo)
+            standings, _ = calculate_standings(matches, group_orm.id, player_repo)
 
             # Delete old standings for this group
             standing_repo.delete_by_group(group_orm.id)
@@ -2837,10 +2853,27 @@ async def admin_generate_bracket_execute(
         player_repo = PlayerRepository(session)
         bracket_repo = BracketRepository(session)
         tournament_repo = TournamentRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
 
         # Get current tournament
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
+
+        # VALIDATION: Check that all group matches are completed
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
+        pending_matches = []
+        for group in groups:
+            matches = match_repo.get_by_group(group.id)
+            for match in matches:
+                if match.status == MatchStatus.PENDING.value or match.status == MatchStatus.PENDING:
+                    pending_matches.append((group.name, match.id))
+
+        if pending_matches:
+            groups_with_pending = sorted(set(str(g) for g, _ in pending_matches))
+            request.session["flash_message"] = f"No se puede generar bracket: hay {len(pending_matches)} partidos pendientes en los grupos: {', '.join(groups_with_pending)}. Completa todos los partidos de grupo primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/generate-bracket", status_code=303)
 
         # Get all standings for this category
         all_standings = standing_repo.get_all()
@@ -2895,7 +2928,7 @@ async def admin_generate_bracket_execute(
                 )
                 qualifiers.append((player, standing))
 
-        # Build bracket
+        # Build bracket (creates in-memory structure with player placements)
         bracket = build_bracket(
             qualifiers=qualifiers,
             category=category,
@@ -2903,26 +2936,66 @@ async def admin_generate_bracket_execute(
             player_repo=player_repo,
         )
 
-        # Save bracket to database
-        bracket_repo.delete_by_category(category, tournament_id=tournament_id)  # Clear old bracket
-
-        total_slots = 0
-        for round_type, slots in bracket.slots.items():
-            for slot in slots:
-                bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
-                total_slots += 1
-
-        # Create matches from bracket slots
         match_repo = MatchRepository(session)
-        matches_created = create_bracket_matches(category, bracket_repo, match_repo)
 
-        # Process BYE advancements
-        process_bye_advancements(category, bracket_repo, session)
+        # Check if empty bracket structure already exists (created when groups were made)
+        existing_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
 
-        # Sync matches with updated slots
-        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
+        if existing_slots:
+            # UPDATE existing slots with player IDs (preserves schedule)
+            print(f"[DEBUG generate_bracket] Found {len(existing_slots)} existing slots, updating with players")
 
-        request.session["flash_message"] = f"Bracket generado: {total_slots} slots, {matches_created} partidos creados"
+            # Group existing slots by round_type for easier lookup
+            existing_by_round = {}
+            for slot in existing_slots:
+                if slot.round_type not in existing_by_round:
+                    existing_by_round[slot.round_type] = {}
+                existing_by_round[slot.round_type][slot.slot_number] = slot
+
+            total_updated = 0
+            for round_type, slots in bracket.slots.items():
+                round_key = round_type.value if hasattr(round_type, 'value') else round_type
+                if round_key in existing_by_round:
+                    for slot in slots:
+                        if slot.slot_number in existing_by_round[round_key]:
+                            db_slot = existing_by_round[round_key][slot.slot_number]
+                            db_slot.player_id = slot.player_id
+                            db_slot.is_bye = slot.is_bye
+                            db_slot.same_country_warning = slot.same_country_warning
+                            total_updated += 1
+
+            session.commit()
+
+            # Sync matches with updated slots (updates player IDs in existing matches)
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+
+            # Process BYE advancements
+            process_bye_advancements(category, bracket_repo, session)
+
+            # Sync again after BYE processing
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+
+            request.session["flash_message"] = f"Bracket actualizado: {total_updated} slots con jugadores asignados"
+        else:
+            # No existing structure - create from scratch (legacy behavior)
+            print(f"[DEBUG generate_bracket] No existing slots, creating new bracket")
+
+            total_slots = 0
+            for round_type, slots in bracket.slots.items():
+                for slot in slots:
+                    bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+                    total_slots += 1
+
+            # Create matches from bracket slots
+            matches_created = create_bracket_matches(category, bracket_repo, match_repo)
+
+            # Process BYE advancements
+            process_bye_advancements(category, bracket_repo, session)
+
+            # Sync matches with updated slots
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session)
+
+            request.session["flash_message"] = f"Bracket generado: {total_slots} slots, {matches_created} partidos creados"
         request.session["flash_type"] = "success"
 
         return RedirectResponse(url=f"/bracket/{category}", status_code=303)
@@ -3525,6 +3598,99 @@ def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_i
     return matches_created
 
 
+def create_empty_bracket_structure(category: str, num_groups: int, advance_per_group: int,
+                                    bracket_repo, match_repo, tournament_id: int = None):
+    """
+    Create empty bracket structure (slots and matches) when groups are created.
+
+    This allows scheduling bracket matches in advance, before group phase completes.
+    When "Generate Bracket" is called later, the slots get updated with actual player IDs.
+
+    Args:
+        category: Category name (e.g., "OPEN", "SUB13")
+        num_groups: Number of groups created
+        advance_per_group: How many players advance per group (typically 2)
+        bracket_repo: BracketRepository instance
+        match_repo: MatchRepository instance
+        tournament_id: Tournament ID
+
+    Returns:
+        Tuple of (slots_created, matches_created)
+    """
+    from ettem.bracket import next_power_of_2, get_round_type_for_size, get_bye_positions_for_bracket
+    from ettem.models import BracketSlot, RoundType
+
+    # Calculate bracket size
+    num_qualifiers = num_groups * advance_per_group
+    bracket_size = next_power_of_2(num_qualifiers)
+
+    print(f"[DEBUG create_empty_bracket] category={category}, groups={num_groups}, advance={advance_per_group}")
+    print(f"[DEBUG create_empty_bracket] qualifiers={num_qualifiers}, bracket_size={bracket_size}")
+
+    # Get BYE positions
+    bye_positions = get_bye_positions_for_bracket(num_qualifiers, bracket_size)
+    print(f"[DEBUG create_empty_bracket] bye_positions={bye_positions}")
+
+    # Get first round type
+    first_round = get_round_type_for_size(bracket_size)
+
+    # Delete any existing bracket slots and matches for this category/tournament
+    deleted_slots = bracket_repo.delete_by_category(category, tournament_id=tournament_id)
+    deleted_matches = match_repo.delete_bracket_matches_by_category(category)
+    print(f"[DEBUG create_empty_bracket] Deleted {deleted_slots} existing slots, {deleted_matches} existing matches")
+
+    slots_created = 0
+
+    # Create slots for first round
+    for slot_num in range(1, bracket_size + 1):
+        slot = BracketSlot(
+            slot_number=slot_num,
+            round_type=first_round,
+            player_id=None,  # Empty - will be filled when bracket is generated
+            is_bye=slot_num in bye_positions,
+        )
+        bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+        slots_created += 1
+
+    # Create slots for subsequent rounds
+    round_progression = {
+        RoundType.ROUND_OF_32: RoundType.ROUND_OF_16,
+        RoundType.ROUND_OF_16: RoundType.QUARTERFINAL,
+        RoundType.QUARTERFINAL: RoundType.SEMIFINAL,
+        RoundType.SEMIFINAL: RoundType.FINAL,
+    }
+
+    current_round = first_round
+    current_size = bracket_size
+
+    while current_round in round_progression:
+        next_round = round_progression[current_round]
+        next_size = current_size // 2
+
+        # Create empty slots for next round
+        for slot_num in range(1, next_size + 1):
+            slot = BracketSlot(
+                slot_number=slot_num,
+                round_type=next_round,
+                player_id=None,
+                is_bye=False,
+            )
+            bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+            slots_created += 1
+
+        current_round = next_round
+        current_size = next_size
+
+    print(f"[DEBUG create_empty_bracket] Created {slots_created} slots")
+
+    # Now create the matches using existing function
+    matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id)
+
+    print(f"[DEBUG create_empty_bracket] Created {matches_created} matches")
+
+    return slots_created, matches_created
+
+
 def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, session, tournament_id: int = None):
     """
     Synchronize bracket matches with their corresponding slots.
@@ -3543,8 +3709,8 @@ def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, ses
             slots_by_round[round_type] = []
         slots_by_round[round_type].append(slot_orm)
 
-    # Get all bracket matches
-    all_matches = [m for m in match_repo.get_all() if m.group_id is None]
+    # Get bracket matches for THIS category only
+    all_matches = match_repo.get_bracket_matches_by_category(category)
 
     # For each round, update matches with players from slots
     for round_type in [RoundType.ROUND_OF_32, RoundType.ROUND_OF_16,
@@ -3871,9 +4037,14 @@ async def admin_manual_bracket_form(request: Request, category: str):
         player_repo = PlayerRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
 
-        # First, validate that groups exist for this category
-        all_groups = group_repo.get_all()
+        # Get current tournament
+        tournament = tournament_repo.get_current()
+        tournament_id = tournament.id if tournament else None
+
+        # First, validate that groups exist for this category in current tournament
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
         category_groups = [g for g in all_groups if g.category == category]
 
         if not category_groups:
@@ -4001,10 +4172,28 @@ async def admin_manual_bracket_save(request: Request, category: str):
         bracket_repo = BracketRepository(session)
         standing_repo = StandingRepository(session)
         tournament_repo = TournamentRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
 
         # Get current tournament
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
+
+        # VALIDATION: Check that all group matches are completed
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
+        pending_count = 0
+        groups_with_pending = []
+        for group in groups:
+            matches = match_repo.get_by_group(group.id)
+            group_pending = sum(1 for m in matches if m.status == MatchStatus.PENDING.value or m.status == MatchStatus.PENDING)
+            if group_pending > 0:
+                pending_count += group_pending
+                groups_with_pending.append(str(group.name))
+
+        if pending_count > 0:
+            request.session["flash_message"] = f"No se puede guardar bracket: hay {pending_count} partidos pendientes en los grupos: {', '.join(sorted(groups_with_pending))}. Completa todos los partidos primero."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/admin/manual-bracket/{category}", status_code=303)
 
         # Get form data
         form_data = await request.form()
@@ -4596,7 +4785,7 @@ async def print_all_category_match_sheets(category: str):
 
         # Build all matches data
         matches_data = []
-        for group in sorted(groups, key=lambda g: g.name):
+        for group in sorted(groups, key=lambda g: int(g.name) if g.name.isdigit() else g.name):
             matches_orm = match_repo.get_by_group(group.id)
             matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
@@ -4968,8 +5157,18 @@ async def admin_print_center(request: Request):
             categories_groups[cat] = sorted(categories_groups[cat], key=lambda g: g["name"])
 
         # Get bracket matches by category, grouped by round
+        # Only include bracket matches for categories that have brackets in current tournament
         categories_brackets = {}
-        all_bracket_matches = [m for m in match_repo.get_all() if m.group_id is None]
+        bracket_categories = set()
+        for cat in categories_groups.keys():
+            bracket_slots = bracket_repo.get_by_category(cat, tournament_id=tournament_id)
+            if bracket_slots:
+                bracket_categories.add(cat)
+
+        all_bracket_matches = []
+        for m in match_repo.get_all():
+            if m.group_id is None and m.category in bracket_categories:
+                all_bracket_matches.append(m)
 
         # Round display names
         round_names = {
@@ -5233,11 +5432,17 @@ async def preview_all_group_sheets(request: Request, category: str):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
 
-        # Get all groups for the category
-        all_groups = group_repo.get_all()
+        # Get current tournament
+        tournament = tournament_repo.get_current()
+        tournament_id = tournament.id if tournament else None
+        # Get all groups for the category in current tournament
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
         groups_in_category = [g for g in all_groups if g.category == category]
-        groups_in_category = sorted(groups_in_category, key=lambda g: g.name)
+        # Sort numerically (group names are "1", "2", ... "18")
+        groups_in_category = sorted(groups_in_category, key=lambda g: int(g.name) if g.name.isdigit() else g.name)
 
         if not groups_in_category:
             return Response(content="No hay grupos en esta categoría", status_code=404)
@@ -5303,11 +5508,18 @@ async def preview_all_group_sheets(request: Request, category: str):
                             if m.status != "WALKOVER":
                                 player_stats[loser_id]["points"] += 1
 
+                # Get schedule info for this match
+                schedule_slot = schedule_repo.get_by_match(m.id)
+                table_number = schedule_slot.table_number if schedule_slot else None
+                scheduled_time = schedule_slot.start_time if schedule_slot else None
+
                 matches.append({
                     "match_order": m.match_number,
                     "result": result,
                     "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
                     "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+                    "table_number": table_number,
+                    "scheduled_time": scheduled_time,
                 })
 
             # Build player dicts with stats
@@ -5539,7 +5751,7 @@ async def preview_all_category_match_sheets(request: Request, category: str):
 
         # Build all matches data
         matches_data = []
-        for group in sorted(groups, key=lambda g: g.name):
+        for group in sorted(groups, key=lambda g: int(g.name) if g.name.isdigit() else g.name):
             matches_orm = match_repo.get_by_group(group.id)
             matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
@@ -6002,9 +6214,37 @@ async def admin_scheduler(request: Request):
         session_repo = SessionRepository(session)
         sessions = session_repo.get_by_tournament(tournament.id)
 
-        # Get match counts
+        # Get match counts - only for current tournament
         match_repo = MatchRepository(session)
+        group_repo = GroupRepository(session)
+        bracket_repo = BracketRepository(session)
+
+        # Get categories that belong to current tournament
+        tournament_categories = set()
+        all_groups = group_repo.get_all()
+        for g in all_groups:
+            if g.tournament_id == tournament.id:
+                tournament_categories.add(g.category)
+
+        # Get categories with brackets in current tournament
+        bracket_categories = set()
+        for cat in tournament_categories:
+            bracket_slots = bracket_repo.get_by_category(cat, tournament_id=tournament.id)
+            if bracket_slots:
+                bracket_categories.add(cat)
+
+        # Count matches for current tournament only
         all_matches = match_repo.get_all()
+        tournament_matches = []
+        for m in all_matches:
+            if m.group_id:
+                group = group_repo.get_by_id(m.group_id)
+                if group and group.tournament_id == tournament.id:
+                    tournament_matches.append(m)
+            else:
+                # Bracket match - only include if bracket exists for this category in current tournament
+                if m.category in bracket_categories:
+                    tournament_matches.append(m)
 
         # Count scheduled vs unscheduled
         from ettem.storage import ScheduleSlotRepository
@@ -6014,9 +6254,13 @@ async def admin_scheduler(request: Request):
             for slot in schedule_repo.get_by_session(sess.id):
                 scheduled_match_ids.add(slot.match_id)
 
-        total_matches = len(all_matches)
-        scheduled_count = len(scheduled_match_ids)
+        total_matches = len(tournament_matches)
+        scheduled_count = len([m for m in tournament_matches if m.id in scheduled_match_ids])
         unscheduled_count = total_matches - scheduled_count
+
+        # Config is locked if there are sessions created
+        config_locked = len(sessions) > 0
+        print(f"[DEBUG] Sessions count: {len(sessions)}, config_locked: {config_locked}")
 
         context = {
             "request": request,
@@ -6025,6 +6269,7 @@ async def admin_scheduler(request: Request):
             "total_matches": total_matches,
             "scheduled_count": scheduled_count,
             "unscheduled_count": unscheduled_count,
+            "config_locked": config_locked,
         }
 
         flash_message = request.session.pop("flash_message", None)
@@ -6093,9 +6338,29 @@ async def create_session(
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
-        # Get next order number
+        # Get existing sessions and check for overlaps
         existing_sessions = session_repo.get_by_tournament(tournament.id)
         next_order = len(existing_sessions)
+
+        # Check for overlapping sessions on the same date
+        def time_to_minutes(t: str) -> int:
+            h, m = map(int, t.split(':'))
+            return h * 60 + m
+
+        new_start = time_to_minutes(start_time)
+        new_end = time_to_minutes(end_time)
+
+        for existing in existing_sessions:
+            # Check if same date
+            if existing.date.date() == session_date.date():
+                existing_start = time_to_minutes(existing.start_time)
+                existing_end = time_to_minutes(existing.end_time)
+
+                # Check for overlap: start1 < end2 AND start2 < end1
+                if new_start < existing_end and existing_start < new_end:
+                    request.session["flash_message"] = f"La jornada se traslapa con '{existing.name}' ({existing.start_time}-{existing.end_time})"
+                    request.session["flash_type"] = "error"
+                    return RedirectResponse(url="/admin/scheduler", status_code=303)
 
         session_repo.create(
             tournament_id=tournament.id,
@@ -6246,6 +6511,15 @@ async def scheduler_grid(request: Request, session_id: int):
 
         print(f"[DEBUG] Tournament {tournament.id} categories: {tournament_categories}")
 
+        # Build set of categories that have brackets in current tournament
+        bracket_repo = BracketRepository(session)
+        bracket_categories = set()
+        for cat in tournament_categories:
+            bracket_slots = bracket_repo.get_by_category(cat, tournament_id=tournament.id)
+            if bracket_slots:
+                bracket_categories.add(cat)
+        print(f"[DEBUG] Categories with brackets in tournament {tournament.id}: {bracket_categories}")
+
         all_matches = match_repo.get_all()
         print(f"[DEBUG] Total matches in DB: {len(all_matches)}")
 
@@ -6274,13 +6548,13 @@ async def scheduler_grid(request: Request, session_id: int):
                 group_round = (match_index // matches_per_round) + 1
                 round_type = f"R{group_round}"  # R1, R2, R3...
             else:
-                # Bracket match - must have a category that belongs to current tournament
+                # Bracket match - must have a bracket created for this category in current tournament
                 if not m.category:
                     print(f"[DEBUG] Skipping bracket match {m.id} - no category")
                     continue  # Skip bracket matches without category
-                if m.category not in tournament_categories:
-                    print(f"[DEBUG] Skipping bracket match {m.id} - category {m.category} not in tournament")
-                    continue  # Skip matches from other tournaments
+                if m.category not in bracket_categories:
+                    print(f"[DEBUG] Skipping bracket match {m.id} - no bracket for category {m.category} in tournament {tournament.id}")
+                    continue  # Skip bracket matches from other tournaments
                 match_label = m.round_type or "Bracket"
                 category = m.category
                 round_type = m.round_type or "Bracket"
@@ -6625,6 +6899,170 @@ async def remove_slot_assignment(request: Request, slot_id: int):
         schedule_repo.delete(slot_id)
 
         return {"status": "ok"}
+
+
+# ============================================================================
+# Live Results Entry (Panel de Operación)
+# ============================================================================
+
+
+@app.get("/admin/live-results", response_class=HTMLResponse)
+async def admin_live_results(request: Request, category: Optional[str] = None):
+    """Live results entry panel - shows matches grouped by scheduled time."""
+    from ettem.storage import SessionRepository, ScheduleSlotRepository
+
+    session = get_db_session()
+    try:
+        tournament_repo = TournamentRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+        session_repo = SessionRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        if not current_tournament:
+            return render_template("admin_live_results.html", {
+                "request": request,
+                "error": "No hay torneo activo",
+                "time_slots": [],
+                "categories": [],
+                "selected_category": None,
+            })
+
+        tournament_id = current_tournament.id
+
+        # Get categories
+        all_players = player_repo.get_all(tournament_id=tournament_id)
+        categories = sorted(set(p.categoria for p in all_players))
+
+        # Get all scheduled slots
+        all_slots = schedule_repo.get_all()
+
+        # Build a lookup of match_id -> schedule info
+        schedule_lookup = {}
+        for slot in all_slots:
+            schedule_lookup[slot.match_id] = {
+                "table_number": slot.table_number,
+                "start_time": slot.start_time,
+                "session_id": slot.session_id,
+            }
+
+        # Get all group matches for the tournament (filtered by category if provided)
+        groups = group_repo.get_all(tournament_id=tournament_id)
+        if category:
+            groups = [g for g in groups if g.category == category]
+
+        group_ids = {g.id for g in groups}
+        group_lookup = {g.id: g for g in groups}
+
+        # Get all matches for these groups
+        matches_data = []
+        for group in groups:
+            group_matches = match_repo.get_by_group(group.id)
+            for match in group_matches:
+                player1 = player_repo.get_by_id(match.player1_id)
+                player2 = player_repo.get_by_id(match.player2_id)
+
+                schedule_info = schedule_lookup.get(match.id)
+
+                matches_data.append({
+                    "match": match,
+                    "player1": player1,
+                    "player2": player2,
+                    "group": group,
+                    "schedule": schedule_info,
+                    "is_scheduled": schedule_info is not None,
+                })
+
+        # Group matches by time slot
+        time_slots = {}
+        unscheduled = []
+
+        for md in matches_data:
+            if md["is_scheduled"]:
+                time_key = md["schedule"]["start_time"]
+                if time_key not in time_slots:
+                    time_slots[time_key] = []
+                time_slots[time_key].append(md)
+            else:
+                unscheduled.append(md)
+
+        # Sort each time slot by table number
+        for time_key in time_slots:
+            time_slots[time_key].sort(key=lambda x: x["schedule"]["table_number"])
+
+        # Convert to sorted list of (time, matches)
+        sorted_time_slots = sorted(time_slots.items(), key=lambda x: x[0])
+
+        # Build initial data structure
+        time_slots_data = []
+        for time_str, matches in sorted_time_slots:
+            completed_count = sum(1 for m in matches if m["match"].status != MatchStatus.PENDING.value and m["match"].status != MatchStatus.PENDING)
+            total_count = len(matches)
+            time_slots_data.append({
+                "time": time_str,
+                "matches": matches,
+                "completed": completed_count,
+                "total": total_count,
+                "status": "pending",  # Will be updated below
+            })
+
+        # Determine status based on completion pattern (not system time)
+        # Logic: If a later slot has completions but an earlier slot has pending matches,
+        #        the earlier slot is "delayed"
+
+        # Find the latest slot index that has any completions
+        latest_with_completion = -1
+        for i, slot in enumerate(time_slots_data):
+            if slot["completed"] > 0:
+                latest_with_completion = i
+
+        # Find the first slot that has pending matches
+        first_with_pending = -1
+        for i, slot in enumerate(time_slots_data):
+            if slot["completed"] < slot["total"]:
+                first_with_pending = i
+                break
+
+        # Assign statuses
+        for i, slot in enumerate(time_slots_data):
+            if slot["completed"] == slot["total"]:
+                # Fully completed
+                slot["status"] = "completed"
+            elif i < latest_with_completion:
+                # Has pending matches but a later slot already has completions = delayed
+                slot["status"] = "delayed"
+            elif i == first_with_pending:
+                # First slot with pending matches = current
+                slot["status"] = "current"
+            else:
+                # Future slots
+                slot["status"] = "future"
+
+        # Find current slot index for display focus
+        current_slot_index = 0
+        for i, slot in enumerate(time_slots_data):
+            if slot["status"] == "current":
+                current_slot_index = i
+                break
+            elif slot["completed"] < slot["total"]:
+                current_slot_index = i
+                break
+
+        return render_template("admin_live_results.html", {
+            "request": request,
+            "time_slots": time_slots_data,
+            "unscheduled": unscheduled,
+            "categories": categories,
+            "selected_category": category,
+            "current_slot_index": current_slot_index,
+            "tournament": current_tournament,
+        })
+
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

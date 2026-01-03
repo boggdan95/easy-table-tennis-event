@@ -41,8 +41,8 @@ def break_ties(
     tied_standings: list[GroupStanding],
     player_repo: PlayerRepository,
     matches: list[Match],
-) -> list[GroupStanding]:
-    """Break ties among 3+ players using head-to-head ratios.
+) -> tuple[list[GroupStanding], dict]:
+    """Break ties among 2+ players using head-to-head ratios.
 
     Tie-breaking criteria (applied ONLY among the tied players):
     1. Sets ratio (sets_w / sets_l)
@@ -55,10 +55,12 @@ def break_ties(
         matches: List of matches to recalculate head-to-head stats
 
     Returns:
-        Sorted list of GroupStanding objects (best first)
+        Tuple of (sorted list of GroupStanding objects, tiebreaker_info dict)
     """
+    tiebreaker_info = {}
+
     if len(tied_standings) <= 1:
-        return tied_standings
+        return tied_standings, tiebreaker_info
 
     # Get player IDs of tied players
     tied_player_ids = {s.player_id for s in tied_standings}
@@ -90,6 +92,22 @@ def break_ties(
         player = player_repo.get_by_id(standing.player_id)
         player_seeds[standing.player_id] = player.seed if player and player.seed else 999
 
+    # Determine which criteria broke the tie
+    all_sets_ratios = []
+    all_points_ratios = []
+    for standing in tied_standings:
+        stats = head_to_head_stats[standing.player_id]
+        all_sets_ratios.append(compute_sets_ratio(stats["sets_w"], stats["sets_l"]))
+        all_points_ratios.append(compute_points_ratio(stats["points_w"], stats["points_l"]))
+
+    # Check what broke the tie
+    if len(set(all_sets_ratios)) > 1:
+        tie_broken_by = "sets_ratio"
+    elif len(set(all_points_ratios)) > 1:
+        tie_broken_by = "points_ratio"
+    else:
+        tie_broken_by = "seed"
+
     # Sort by: 1) sets_ratio DESC, 2) points_ratio DESC, 3) seed ASC
     def sort_key(standing: GroupStanding):
         stats = head_to_head_stats[standing.player_id]
@@ -97,22 +115,38 @@ def break_ties(
         points_ratio = compute_points_ratio(stats["points_w"], stats["points_l"])
         seed = player_seeds[standing.player_id]
 
-        # DEBUG: Print tie-breaking stats
-        player = player_repo.get_by_id(standing.player_id)
-        player_name = f"{player.nombre} {player.apellido}" if player else "Unknown"
-        print(f"[TIE-BREAK] {player_name}: sets={stats['sets_w']}-{stats['sets_l']} (ratio={sets_ratio:.2f}), points={stats['points_w']}-{stats['points_l']} (ratio={points_ratio:.2f}), seed={seed}")
-
         # Return tuple for sorting (negatives for DESC, positive for ASC)
         return (-sets_ratio, -points_ratio, seed)
 
-    return sorted(tied_standings, key=sort_key)
+    sorted_standings = sorted(tied_standings, key=sort_key)
+
+    # Build tiebreaker info for each player
+    for standing in sorted_standings:
+        stats = head_to_head_stats[standing.player_id]
+        sets_ratio = compute_sets_ratio(stats["sets_w"], stats["sets_l"])
+        points_ratio = compute_points_ratio(stats["points_w"], stats["points_l"])
+        seed = player_seeds[standing.player_id]
+
+        tiebreaker_info[standing.player_id] = {
+            "h2h_sets_w": stats["sets_w"],
+            "h2h_sets_l": stats["sets_l"],
+            "h2h_sets_ratio": sets_ratio,
+            "h2h_points_w": stats["points_w"],
+            "h2h_points_l": stats["points_l"],
+            "h2h_points_ratio": points_ratio,
+            "seed": seed,
+            "tied_with": [s.player_id for s in tied_standings if s.player_id != standing.player_id],
+            "tie_broken_by": tie_broken_by,
+        }
+
+    return sorted_standings, tiebreaker_info
 
 
 def calculate_standings(
     matches: list[Match],
     group_id: int,
     player_repo: PlayerRepository,
-) -> list[GroupStanding]:
+) -> tuple[list[GroupStanding], dict]:
     """Calculate standings for a group based on match results.
 
     Scoring:
@@ -126,7 +160,7 @@ def calculate_standings(
         player_repo: PlayerRepository for tie-breaking
 
     Returns:
-        List of GroupStanding objects sorted by position (1 = best)
+        Tuple of (List of GroupStanding objects sorted by position, tiebreaker_info dict)
     """
     # Initialize standings dictionary
     standings_dict = defaultdict(
@@ -223,11 +257,13 @@ def calculate_standings(
 
     # Break ties for groups with 2+ players
     final_standings = []
+    all_tiebreaker_info = {}
     for points, group in sorted(points_groups.items(), reverse=True):
         if len(group) >= 2:
             # Apply tie-breaking rules using head-to-head for 2+ players
-            sorted_group = break_ties(group, player_repo, matches)
+            sorted_group, tiebreaker_info = break_ties(group, player_repo, matches)
             final_standings.extend(sorted_group)
+            all_tiebreaker_info.update(tiebreaker_info)
         else:
             # No tie
             final_standings.extend(group)
@@ -236,4 +272,4 @@ def calculate_standings(
     for position, standing in enumerate(final_standings, start=1):
         standing.position = position
 
-    return final_standings
+    return final_standings, all_tiebreaker_info
