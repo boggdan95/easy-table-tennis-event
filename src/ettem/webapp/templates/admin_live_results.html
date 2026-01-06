@@ -67,6 +67,7 @@
 <div class="time-slots-container">
     {% set current_session = namespace(id=None) %}
     {% for slot in time_slots %}
+    {% if slot.status != 'completed' %}
 
     <!-- Session separator when session changes -->
     {% if slot.session_id != current_session.id %}
@@ -80,8 +81,8 @@
     </div>
     {% endif %}
 
-    <div class="card mb-2 time-slot-card {% if slot.status == 'current' %}current-slot{% endif %}" id="slot-{{ loop.index0 }}" style="overflow: hidden; {% if slot.status == 'current' %}border-left: 4px solid #2196F3;{% elif slot.status == 'delayed' %}border-left: 4px solid #f44336;{% elif slot.status == 'completed' %}border-left: 4px solid #4caf50;{% endif %}">
-        <div class="card-header" style="cursor: pointer; {% if slot.status == 'current' %}background: linear-gradient(135deg, #e3f2fd, #bbdefb);{% elif slot.status == 'delayed' %}background: #ffebee;{% elif slot.status == 'completed' %}background: #e8f5e9;{% endif %}" onclick="toggleSlot(this)">
+    <div class="card mb-2 time-slot-card {% if slot.status == 'current' %}current-slot slot-open{% elif loop.index0 == current_slot_index %}slot-open{% endif %}" id="slot-{{ loop.index0 }}" style="overflow: hidden; {% if slot.status == 'current' %}border-left: 4px solid #2196F3;{% elif slot.status == 'delayed' %}border-left: 4px solid #f44336;{% endif %}">
+        <div class="card-header" style="cursor: pointer; {% if slot.status == 'current' %}background: linear-gradient(135deg, #e3f2fd, #bbdefb);{% elif slot.status == 'delayed' %}background: #ffebee;{% endif %}" onclick="toggleSlot(this)">
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                     <span class="slot-arrow">▶</span>
@@ -124,7 +125,7 @@
                         {% set p2 = md.player2 %}
                         {% set group = md.group %}
                         {% set is_completed = match.status != 'pending' %}
-                        <tr style="{% if is_completed %}background: #f5f5f5;{% elif slot.status == 'delayed' %}background: #fff3e0;{% endif %}">
+                        <tr style="{% if is_completed %}background: #f5f5f5;{% elif not p1 or not p2 %}background: #f0f0f0; opacity: 0.7;{% elif slot.status == 'delayed' %}background: #fff3e0;{% endif %}">
                             <td style="text-align: center;">
                                 <span class="badge badge-secondary" style="font-size: 1rem;">
                                     {{ md.schedule.table_number }}
@@ -132,17 +133,26 @@
                             </td>
                             <td style="text-align: center;">
                                 <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                    {% if md.is_bracket %}
+                                    <span class="badge badge-info" style="font-size: 0.65rem;">{{ md.bracket_category }}</span>
+                                    <span class="badge badge-success" style="font-size: 0.75rem;">🏆 {{ md.bracket_round }}</span>
+                                    {% else %}
                                     <span class="badge badge-warning" style="font-size: 0.65rem;">{{ group.category }}</span>
                                     <a href="/group/{{ group.id }}/matches" class="badge badge-primary" style="text-decoration: none;">
                                         G{{ group.name }}
                                     </a>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     {% if match.winner_id == p1.id %}<span style="color: #4caf50;">🏆</span>{% endif %}
+                                    {% if p1 %}
                                     <strong>{{ p1.nombre }} {{ p1.apellido }}</strong>
                                     <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p1.pais_cd }}</span>
+                                    {% else %}
+                                    <span style="color: var(--text-muted);">TBD</span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td style="text-align: center;">
@@ -160,14 +170,20 @@
                             </td>
                             <td>
                                 <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end;">
+                                    {% if p2 %}
                                     <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p2.pais_cd }}</span>
                                     <strong>{{ p2.nombre }} {{ p2.apellido }}</strong>
                                     {% if match.winner_id == p2.id %}<span style="color: #4caf50;">🏆</span>{% endif %}
+                                    {% else %}
+                                    <span style="color: var(--text-muted);">TBD</span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td style="text-align: center;">
                                 {% if is_completed %}
                                 <span class="badge badge-success">✅ Jugado</span>
+                                {% elif not p1 or not p2 %}
+                                <span class="badge badge-secondary">⏸️ Esperando</span>
                                 {% elif slot.status == 'delayed' %}
                                 <span class="badge badge-danger">🔴 Retrasado</span>
                                 {% elif slot.status == 'current' %}
@@ -181,6 +197,10 @@
                                 <a href="/match/{{ match.id }}/enter-result?return_to=live" class="btn btn-secondary btn-sm" title="Editar resultado">
                                     <span>✏️</span>
                                 </a>
+                                {% elif not p1 or not p2 %}
+                                <span class="btn btn-secondary btn-sm" style="opacity: 0.5; cursor: not-allowed;" title="Esperando jugadores">
+                                    <span>⏸️</span>
+                                </span>
                                 {% else %}
                                 <a href="/match/{{ match.id }}/enter-result?return_to=live" class="btn btn-primary btn-sm">
                                     <span>📝</span>
@@ -195,6 +215,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
     {% endfor %}
 </div>
 {% else %}

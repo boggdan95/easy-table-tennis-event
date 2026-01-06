@@ -159,6 +159,45 @@ details summary::-webkit-details-marker { display: none; }
 details summary { user-select: none; }
 </style>
 
+<script>
+// Details state persistence (for all details elements on page)
+(function() {
+    function saveDetailsState() {
+        const detailsElements = document.querySelectorAll('details');
+        const state = {};
+        detailsElements.forEach((el, index) => {
+            const summary = el.querySelector('summary');
+            const key = summary ? summary.textContent.trim().substring(0, 50) : 'details-' + index;
+            state[key] = el.open;
+        });
+        localStorage.setItem('printCenterDetailsState', JSON.stringify(state));
+    }
+
+    function restoreDetailsState() {
+        const saved = localStorage.getItem('printCenterDetailsState');
+        if (!saved) return;
+        try {
+            const state = JSON.parse(saved);
+            const detailsElements = document.querySelectorAll('details');
+            detailsElements.forEach((el, index) => {
+                const summary = el.querySelector('summary');
+                const key = summary ? summary.textContent.trim().substring(0, 50) : 'details-' + index;
+                if (key in state) {
+                    el.open = state[key];
+                }
+            });
+        } catch (e) { console.error('Error restoring details state:', e); }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('details').forEach(el => {
+            el.addEventListener('toggle', saveDetailsState);
+        });
+        restoreDetailsState();
+    });
+})();
+</script>
+
 <!-- Bracket Section -->
 {% if categories_brackets %}
 <div class="card mb-3">
@@ -298,7 +337,7 @@ function updateRoundCheckboxes(category) {
     });
 }
 
-// Initialize round checkboxes on load
+// Initialize on load
 document.addEventListener('DOMContentLoaded', function() {
     {% for category in categories_brackets.keys() %}
     updateRoundCheckboxes('{{ category }}');

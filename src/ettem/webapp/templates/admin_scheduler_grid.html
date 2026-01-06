@@ -243,6 +243,32 @@
     opacity: 1;
 }
 
+/* Assign to row button */
+.btn-assign-row {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+    margin-top: 4px;
+}
+
+.btn-assign-row:hover {
+    background: #218838;
+    transform: scale(1.05);
+}
+
+.btn-assign-row:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: var(--secondary-color);
+}
+
 /* Duration Edit Modal */
 .duration-modal {
     display: none;
@@ -825,6 +851,11 @@
                         {{ slot_info.duration }} min
                         <span class="edit-icon">✏️</span>
                     </span>
+                    {% if not session.is_finalized %}
+                    <button type="button" class="btn-assign-row" onclick="assignFilteredToRow('{{ time_slot }}')" title="Asignar filtrados a este horario">
+                        + Aquí
+                    </button>
+                    {% endif %}
                 </div>
                 {% for table in range(1, num_tables + 1) %}
                 <div class="grid-cell"
@@ -1151,6 +1182,89 @@ async function assignFilteredMatches() {
     setTimeout(() => {
         reloadWithFilters();
     }, 1000);
+}
+
+// Assign filtered matches to a specific time slot row
+async function assignFilteredToRow(timeSlot) {
+    const visibleMatches = Array.from(document.querySelectorAll('.match-item'))
+        .filter(item => item.style.display !== 'none');
+
+    if (visibleMatches.length === 0) {
+        showToast('No hay partidos filtrados para asignar', 'warning');
+        return;
+    }
+
+    // Find empty cells in this specific time slot
+    const emptyCells = Array.from(document.querySelectorAll(`.grid-cell[data-time="${timeSlot}"]`))
+        .filter(cell => !cell.querySelector('.scheduled-match'));
+
+    if (emptyCells.length === 0) {
+        showToast(`No hay espacios disponibles en ${timeSlot}`, 'warning');
+        return;
+    }
+
+    const toAssign = Math.min(visibleMatches.length, emptyCells.length);
+    const remaining = visibleMatches.length - toAssign;
+
+    let confirmMsg = `¿Asignar ${toAssign} partido(s) a las ${timeSlot}?`;
+    if (remaining > 0) {
+        confirmMsg += `\n(Quedarán ${remaining} sin asignar por falta de mesas)`;
+    }
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    showSaveStatus('saving', `Asignando a ${timeSlot}...`);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < toAssign; i++) {
+        const match = visibleMatches[i];
+        const cell = emptyCells[i];
+
+        const matchId = match.dataset.matchId;
+        const tableNumber = cell.dataset.table;
+
+        if (!matchId || matchId === 'null' || matchId === 'undefined' || matchId === 'None') {
+            console.error('Invalid match ID:', matchId);
+            errorCount++;
+            continue;
+        }
+
+        const formData = new FormData();
+        formData.append('session_id', String(SESSION_ID));
+        formData.append('match_id', String(matchId));
+        formData.append('table_number', String(tableNumber));
+        formData.append('start_time', timeSlot);
+
+        try {
+            const response = await fetch('/admin/scheduler/slot/assign', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.ok) {
+                successCount++;
+            } else {
+                const err = await response.text();
+                console.error('Assign error:', err);
+                errorCount++;
+            }
+        } catch (err) {
+            console.error('Error assigning match', matchId, err);
+            errorCount++;
+        }
+    }
+
+    if (errorCount > 0) {
+        showSaveStatus('error', `${successCount} asignados, ${errorCount} errores`);
+    } else {
+        showSaveStatus('saved', `${successCount} asignados a ${timeSlot}`);
+    }
+
+    setTimeout(() => {
+        reloadWithFilters();
+    }, 800);
 }
 
 // Drag from unscheduled list
