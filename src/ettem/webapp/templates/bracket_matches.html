@@ -13,6 +13,12 @@
     <span>👥</span>
     <span>Grupos</span>
 </a>
+{% if pending_byes is defined and pending_byes > 0 %}
+<button onclick="confirmProcessByes('{{ category }}', {{ pending_byes }})" class="btn btn-primary btn-sm" title="Procesar BYEs pendientes">
+    <span>⏩</span>
+    <span>Procesar BYEs ({{ pending_byes }})</span>
+</button>
+{% endif %}
 <a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
     <span>🏆</span>
     <span>Resultados</span>
@@ -48,6 +54,8 @@
 
 <!-- Round Display Names Mapping -->
 {% set round_names = {
+    'R128': 'Ronda de 128',
+    'R64': 'Ronda de 64',
     'R32': 'Ronda de 32',
     'R16': 'Ronda de 16',
     'QF': 'Cuartos de Final',
@@ -298,6 +306,22 @@ function switchTab(roundType) {
 
     if (selectedButton) selectedButton.classList.add('active');
     if (selectedContent) selectedContent.classList.add('active');
+}
+
+// Process BYEs confirmation
+function confirmProcessByes(category, pendingCount) {
+    let message = '¿Procesar ' + pendingCount + ' BYEs pendientes?\n\n';
+    message += 'Los jugadores que enfrentan BYE avanzarán automáticamente a la siguiente ronda.\n\n';
+    message += '¿Desea continuar?';
+
+    if (confirm(message)) {
+        // Create and submit form
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/bracket/' + category + '/process-byes';
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 // Reset bracket confirmation

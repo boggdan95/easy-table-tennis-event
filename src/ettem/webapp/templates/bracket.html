@@ -53,9 +53,10 @@
 
 <div class="bracket-wrapper">
     <div class="bracket-container" id="bracket-container">
+        {% set round_names = {'R128': 'Ronda de 128', 'R64': 'Ronda de 64', 'R32': 'Ronda de 32', 'R16': 'Ronda de 16', 'QF': 'Cuartos de Final', 'SF': 'Semifinal', 'F': 'Final'} %}
         {% for round_type, slots in slots_by_round.items() %}
         <div class="bracket-column">
-            <h3 class="round-header">{{ round_type }}</h3>
+            <h3 class="round-header">{{ round_names.get(round_type, round_type) }}</h3>
             <div class="matches-container">
                 {% for i in range(0, slots|length, 2) %}
                 {% set slot1 = slots[i] %}

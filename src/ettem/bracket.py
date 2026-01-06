@@ -28,7 +28,7 @@ def get_round_type_for_size(bracket_size: int) -> RoundType:
     """Get the RoundType for a given bracket size.
 
     Args:
-        bracket_size: Power of 2 (8, 16, 32, etc.)
+        bracket_size: Power of 2 (8, 16, 32, 64, etc.)
 
     Returns:
         RoundType for the first round
@@ -43,58 +43,80 @@ def get_round_type_for_size(bracket_size: int) -> RoundType:
         return RoundType.ROUND_OF_16
     elif bracket_size == 32:
         return RoundType.ROUND_OF_32
+    elif bracket_size == 64:
+        return RoundType.ROUND_OF_64
+    elif bracket_size == 128:
+        return RoundType.ROUND_OF_128
     else:
-        # For larger brackets, default to R32
-        return RoundType.ROUND_OF_32
+        # For larger brackets (256+), default to R128
+        return RoundType.ROUND_OF_128
 
 
 def get_bye_positions_for_bracket(num_qualifiers: int, bracket_size: int) -> set[int]:
-    """Get the correct BYE positions for a bracket.
+    """Get the correct BYE positions for a bracket according to ITTF HTR 2021 Figure 3.1.
 
-    BYE positions must be placed such that:
-    1. BYEs never face each other (no BYE vs BYE matches)
-    2. Each BYE faces a player who gets automatic advancement
+    BYE positions are placed in a specific order that:
+    1. Gives priority to seeded entries (seeds get byes first)
+    2. Distributes BYEs evenly throughout the draw
+    3. Ensures BYEs never face each other
 
-    In a bracket, matches are formed by pairing slots: (1,2), (3,4), (5,6), etc.
-    So BYEs should be in positions that pair with players, not other BYEs.
-
-    Standard ITTF BYE placement: BYEs go in even positions first, spread across bracket.
+    The bye_order lists are from ITTF Handbook for Tournament Referees (HTR) 2021.
     """
     num_byes = bracket_size - num_qualifiers
     if num_byes <= 0:
         return set()
 
-    # BYE positions for different bracket sizes
-    # Key insight: BYEs should be in positions 2, 4, 6, 8... (even) to pair with 1, 3, 5, 7... (odd)
-    # But distributed across the bracket, not clustered
-
     bye_positions = set()
 
     if bracket_size == 8:
-        # 8-slot bracket: matches (1,2), (3,4), (5,6), (7,8)
-        # BYEs in positions: 2, 4, 6, 8 (even positions)
-        bye_order = [2, 7, 4, 5]  # Spread across bracket
+        # ITTF HTR 2021 - Draw of 8
+        bye_order = [2, 7, 4, 5]
         for i in range(min(num_byes, len(bye_order))):
             bye_positions.add(bye_order[i])
 
     elif bracket_size == 16:
-        # 16-slot bracket: matches (1,2), (3,4), ..., (15,16)
-        # BYEs should pair players with BYEs, not BYE with BYE
-        # Even positions that spread across: 2, 15, 7, 10, 4, 13, 6, 11
+        # ITTF HTR 2021 - Draw of 16
         bye_order = [2, 15, 7, 10, 4, 13, 6, 11]
         for i in range(min(num_byes, len(bye_order))):
             bye_positions.add(bye_order[i])
 
     elif bracket_size == 32:
-        # 32-slot bracket
-        bye_order = [2, 31, 7, 26, 10, 23, 15, 18, 4, 29, 6, 27, 11, 22, 14, 19]
+        # ITTF HTR 2021 - Draw of 32
+        bye_order = [2, 31, 15, 18, 7, 26, 10, 23, 4, 29, 14, 19, 6, 27, 11, 22]
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    elif bracket_size == 64:
+        # ITTF HTR 2021 - Draw of 64 (Figure 3.1)
+        # Official ITTF bye placement order
+        bye_order = [
+            2, 63, 31, 34, 15, 50, 18, 47,   # Byes 1-8
+            7, 58, 26, 39, 10, 55, 23, 42,   # Byes 9-16
+            3, 62, 30, 35, 14, 51, 19, 46,   # Byes 17-24
+            6, 59, 27, 38, 11, 54, 22, 43    # Byes 25-32
+        ]
+        for i in range(min(num_byes, len(bye_order))):
+            bye_positions.add(bye_order[i])
+
+    elif bracket_size == 128:
+        # Extended from ITTF pattern for 128-draw
+        # Following same distribution logic: spread across bracket, seeds get priority
+        bye_order = [
+            2, 127, 63, 66, 31, 98, 34, 95,    # Byes 1-8
+            15, 114, 50, 79, 18, 111, 47, 82,  # Byes 9-16
+            7, 122, 58, 71, 26, 103, 39, 90,   # Byes 17-24
+            10, 119, 55, 74, 23, 106, 42, 87,  # Byes 25-32
+            3, 126, 62, 67, 30, 99, 35, 94,    # Byes 33-40
+            14, 115, 51, 78, 19, 110, 46, 83,  # Byes 41-48
+            6, 123, 59, 70, 27, 102, 38, 91,   # Byes 49-56
+            11, 118, 54, 75, 22, 107, 43, 86   # Byes 57-64
+        ]
         for i in range(min(num_byes, len(bye_order))):
             bye_positions.add(bye_order[i])
 
     else:
-        # Fallback: use even positions spread across bracket
+        # Fallback for other sizes: distribute evenly
         all_even = [i for i in range(2, bracket_size + 1, 2)]
-        # Interleave from ends
         bye_order = []
         left, right = 0, len(all_even) - 1
         while left <= right:
@@ -285,6 +307,8 @@ def build_bracket(
     # Create subsequent rounds (empty slots for winners to advance into)
     # This is needed for process_bye_advancements to work
     round_progression = {
+        RoundType.ROUND_OF_128: RoundType.ROUND_OF_64,
+        RoundType.ROUND_OF_64: RoundType.ROUND_OF_32,
         RoundType.ROUND_OF_32: RoundType.ROUND_OF_16,
         RoundType.ROUND_OF_16: RoundType.QUARTERFINAL,
         RoundType.QUARTERFINAL: RoundType.SEMIFINAL,

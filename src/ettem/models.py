@@ -34,6 +34,8 @@ class RoundType(str, Enum):
     """Tournament round types."""
 
     ROUND_ROBIN = "RR"  # Group stage
+    ROUND_OF_128 = "R128"
+    ROUND_OF_64 = "R64"
     ROUND_OF_32 = "R32"
     ROUND_OF_16 = "R16"
     QUARTERFINAL = "QF"
