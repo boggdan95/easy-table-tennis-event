@@ -171,6 +171,9 @@ def migrate_scheduler_tables():
         ("num_tables", "INTEGER DEFAULT 4"),
         ("default_match_duration", "INTEGER DEFAULT 20"),
         ("min_rest_time", "INTEGER DEFAULT 10"),
+        # Match format configuration
+        ("group_best_of", "INTEGER NOT NULL DEFAULT 5"),
+        ("bracket_best_of", "INTEGER NOT NULL DEFAULT 5"),
     ]
 
     for col_name, col_type in columns_to_add:
@@ -416,7 +419,9 @@ async def create_tournament(
     request: Request,
     name: str = Form(...),
     date: str = Form(None),
-    location: str = Form(None)
+    location: str = Form(None),
+    group_best_of: int = Form(5),
+    bracket_best_of: int = Form(5)
 ):
     """Create a new tournament."""
     from datetime import datetime as dt
@@ -432,11 +437,19 @@ async def create_tournament(
         except ValueError:
             pass
 
+    # Validate best_of values (must be 3, 5, or 7)
+    if group_best_of not in (3, 5, 7):
+        group_best_of = 5
+    if bracket_best_of not in (3, 5, 7):
+        bracket_best_of = 5
+
     # Create tournament
     tournament = tournament_repo.create(
         name=name,
         date=parsed_date,
-        location=location if location else None
+        location=location if location else None,
+        group_best_of=group_best_of,
+        bracket_best_of=bracket_best_of
     )
 
     # If this is the first tournament, set it as current
@@ -677,6 +690,7 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
+    tournament_repo = TournamentRepository(session)
 
     # Get match
     match_orm = match_repo.get_by_id(match_id)
@@ -685,6 +699,17 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
 
     player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
     player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+    # Get tournament for match format configuration
+    current_tournament = tournament_repo.get_current()
+
+    # Determine best_of based on match type (group vs bracket)
+    if match_orm.group_id is not None:
+        # Group stage match
+        best_of = current_tournament.group_best_of if current_tournament and hasattr(current_tournament, 'group_best_of') else 5
+    else:
+        # Bracket match
+        best_of = current_tournament.bracket_best_of if current_tournament and hasattr(current_tournament, 'bracket_best_of') else 5
 
     # Get schedule info
     schedule_slot = schedule_repo.get_by_match(match_id)
@@ -723,6 +748,7 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
             "table_number": table_number,
             "scheduled_time": scheduled_time,
             "return_to": return_to,
+            "best_of": best_of,
         }
     )
 
@@ -743,6 +769,10 @@ async def save_result(
     set4_p2: Optional[str] = Form(None),
     set5_p1: Optional[str] = Form(None),
     set5_p2: Optional[str] = Form(None),
+    set6_p1: Optional[str] = Form(None),
+    set6_p2: Optional[str] = Form(None),
+    set7_p1: Optional[str] = Form(None),
+    set7_p2: Optional[str] = Form(None),
     return_to: Optional[str] = Form(None),
 ):
     """Save match result."""
@@ -762,6 +792,18 @@ async def save_result(
         request.session["flash_message"] = "Partido no encontrado"
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/", status_code=303)
+
+    # Get tournament for match format configuration
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+
+    # Determine best_of based on match type (group vs bracket)
+    if match_orm.group_id is not None:
+        # Group stage match
+        best_of = current_tournament.group_best_of if current_tournament and hasattr(current_tournament, 'group_best_of') else 5
+    else:
+        # Bracket match
+        best_of = current_tournament.bracket_best_of if current_tournament and hasattr(current_tournament, 'bracket_best_of') else 5
 
     # Validate that both players are defined (not TBD)
     if not match_orm.player1_id or not match_orm.player2_id:
@@ -834,6 +876,8 @@ async def save_result(
             (parse_int(set3_p1), parse_int(set3_p2)),
             (parse_int(set4_p1), parse_int(set4_p2)),
             (parse_int(set5_p1), parse_int(set5_p2)),
+            (parse_int(set6_p1), parse_int(set6_p2)),
+            (parse_int(set7_p1), parse_int(set7_p2)),
         ]
 
         # Collect valid sets and validate each one
@@ -851,6 +895,8 @@ async def save_result(
                         "set3_p1": set3_p1, "set3_p2": set3_p2,
                         "set4_p1": set4_p1, "set4_p2": set4_p2,
                         "set5_p1": set5_p1, "set5_p2": set5_p2,
+                        "set6_p1": set6_p1, "set6_p2": set6_p2,
+                        "set7_p1": set7_p1, "set7_p2": set7_p2,
                     }
                     request.session["form_values"] = form_vals
                     print(f"[DEBUG] Set error - saved form values: {form_vals}")
@@ -867,9 +913,9 @@ async def save_result(
             request.session["flash_message"] = "Error: Debe ingresar al menos un set"
             request.session["flash_type"] = "error"
             # Save form values even when no sets were entered
-            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2]
+            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2, set6_p1, set6_p2, set7_p1, set7_p2]
             form_vals = {}
-            for i in range(1, 6):
+            for i in range(1, 8):
                 form_vals[f"set{i}_p1"] = raw_inputs[(i-1)*2] or ""
                 form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals
@@ -877,16 +923,16 @@ async def save_result(
 
         # Validate the complete match
         sets_tuples = [(s["player1_points"], s["player2_points"]) for s in sets_data]
-        is_valid, error_msg = validate_match_sets(sets_tuples, best_of=5)
+        is_valid, error_msg = validate_match_sets(sets_tuples, best_of=best_of)
         if not is_valid:
             error_text = f"Error en el partido: {error_msg}"
             print(f"[DEBUG] Saving flash message to session: {error_text}")
             request.session["flash_message"] = error_text
             request.session["flash_type"] = "error"
             # Save RAW form values (as submitted by user) to preserve them on error
-            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2]
+            raw_inputs = [set1_p1, set1_p2, set2_p1, set2_p2, set3_p1, set3_p2, set4_p1, set4_p2, set5_p1, set5_p2, set6_p1, set6_p2, set7_p1, set7_p2]
             form_vals = {}
-            for i in range(1, 6):
+            for i in range(1, 8):
                 form_vals[f"set{i}_p1"] = raw_inputs[(i-1)*2] or ""
                 form_vals[f"set{i}_p2"] = raw_inputs[(i-1)*2 + 1] or ""
             request.session["form_values"] = form_vals

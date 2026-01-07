@@ -80,17 +80,15 @@
                         <thead>
                             <tr>
                                 <th style="width: 180px;">Jugador</th>
-                                <th style="width: 100px; text-align: center;">Set 1</th>
-                                <th style="width: 100px; text-align: center;">Set 2</th>
-                                <th style="width: 100px; text-align: center;">Set 3</th>
-                                <th style="width: 100px; text-align: center;">Set 4</th>
-                                <th style="width: 100px; text-align: center;">Set 5</th>
+                                {% for i in range(1, best_of + 1) %}
+                                <th style="width: 100px; text-align: center;">Set {{ i }}</th>
+                                {% endfor %}
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td><strong>{{ player1.nombre[0] }}. {{ player1.apellido }}</strong></td>
-                                {% for i in range(1, 6) %}
+                                {% for i in range(1, best_of + 1) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
                                 {% if form_values %}
@@ -113,7 +111,7 @@
                             </tr>
                             <tr>
                                 <td><strong>{{ player2.nombre[0] }}. {{ player2.apellido }}</strong></td>
-                                {% for i in range(1, 6) %}
+                                {% for i in range(1, best_of + 1) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
                                 {% if form_values %}
@@ -184,7 +182,7 @@
                 <ul style="margin: 0; padding: 0.5rem 1rem 1rem 2.5rem; color: #555;">
                     <li>Ingresa los puntos de cada set jugado</li>
                     <li>Deja vacíos los sets no jugados</li>
-                    <li>El ganador se determina automáticamente (mejor de 5)</li>
+                    <li>El ganador se determina automáticamente (mejor de {{ best_of }})</li>
                     <li>Regla deuce: a partir de 10-10, se necesitan 2 puntos de diferencia</li>
                 </ul>
             </details>

@@ -55,6 +55,10 @@ class TournamentORM(Base):
     default_match_duration = Column(Integer, nullable=True, default=20)  # Minutes per match
     min_rest_time = Column(Integer, nullable=True, default=10)  # Minimum rest between matches (minutes)
 
+    # Match format configuration
+    group_best_of = Column(Integer, nullable=False, default=5)  # Best of 3, 5, or 7 for groups
+    bracket_best_of = Column(Integer, nullable=False, default=5)  # Best of 3, 5, or 7 for bracket
+
     # Relationships
     players = relationship("PlayerORM", back_populates="tournament")
     groups = relationship("GroupORM", back_populates="tournament")
@@ -345,14 +349,25 @@ class TournamentRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, name: str, date=None, location: str = None) -> TournamentORM:
-        """Create a new tournament."""
+    def create(self, name: str, date=None, location: str = None,
+               group_best_of: int = 5, bracket_best_of: int = 5) -> TournamentORM:
+        """Create a new tournament.
+
+        Args:
+            name: Tournament name
+            date: Tournament date
+            location: Tournament location
+            group_best_of: Match format for group stage (3, 5, or 7)
+            bracket_best_of: Match format for knockout stage (3, 5, or 7)
+        """
         tournament = TournamentORM(
             name=name,
             date=date,
             location=location,
             status="active",
-            is_current=False
+            is_current=False,
+            group_best_of=group_best_of,
+            bracket_best_of=bracket_best_of
         )
         self.session.add(tournament)
         self.session.commit()
