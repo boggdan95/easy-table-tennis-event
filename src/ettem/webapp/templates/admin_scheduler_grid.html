@@ -783,6 +783,9 @@
                     <option value="R3">Grupos - Ronda 3</option>
                 </optgroup>
                 <optgroup label="Eliminatorias">
+                    <option value="R128">Ronda de 128</option>
+                    <option value="R64">Ronda de 64</option>
+                    <option value="R32">Ronda de 32</option>
                     <option value="R16">Ronda de 16</option>
                     <option value="QF">Cuartos de Final</option>
                     <option value="SF">Semifinales</option>
@@ -1029,8 +1032,39 @@ function reloadWithFilters() {
     window.location.href = url.toString();
 }
 
+// Hide round filter options that have no matches
+function updateRoundFilterOptions() {
+    const matches = document.querySelectorAll('.match-item');
+    const existingRounds = new Set();
+
+    matches.forEach(match => {
+        const round = match.dataset.round;
+        if (round) existingRounds.add(round);
+    });
+
+    // Hide/show individual round options based on existing matches
+    const roundSelect = document.getElementById('filter-round');
+    const roundOptions = roundSelect.querySelectorAll('option');
+
+    roundOptions.forEach(option => {
+        const value = option.value;
+        // Keep general options always visible
+        if (value === '' || value === 'GRUPOS' || value === 'BRACKET') return;
+
+        // For specific rounds, hide if no matches exist
+        if (!existingRounds.has(value)) {
+            option.style.display = 'none';
+        } else {
+            option.style.display = '';
+        }
+    });
+}
+
 // Restore filters from URL on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Update round filter options based on existing matches
+    updateRoundFilterOptions();
+
     const params = new URLSearchParams(window.location.search);
     const savedCategory = params.get('category');
     const savedRound = params.get('round');
@@ -1069,7 +1103,7 @@ function filterMatches() {
 
     // Define round groups
     const groupRounds = ['R1', 'R2', 'R3'];
-    const bracketRounds = ['R16', 'QF', 'SF', 'F'];
+    const bracketRounds = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F'];
 
     items.forEach(item => {
         const category = item.dataset.category;

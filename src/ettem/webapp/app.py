@@ -169,11 +169,8 @@ def migrate_scheduler_tables():
     # Add scheduler columns to tournaments table
     columns_to_add = [
         ("num_tables", "INTEGER DEFAULT 4"),
-        ("default_match_duration", "INTEGER DEFAULT 20"),
+        ("default_match_duration", "INTEGER DEFAULT 30"),
         ("min_rest_time", "INTEGER DEFAULT 10"),
-        # Match format configuration
-        ("group_best_of", "INTEGER NOT NULL DEFAULT 5"),
-        ("bracket_best_of", "INTEGER NOT NULL DEFAULT 5"),
     ]
 
     for col_name, col_type in columns_to_add:
@@ -298,9 +295,32 @@ def migrate_matches_add_tournament_id():
     session.close()
 
 
+def migrate_matches_add_best_of():
+    """
+    Migration: Add 'best_of' column to matches table if it doesn't exist.
+    Default value is 5 (best of 5 sets).
+    """
+    from sqlalchemy import text
+    session = db_manager.get_session()
+
+    try:
+        # Check if column exists by trying to query it
+        session.execute(text("SELECT best_of FROM matches LIMIT 1"))
+        print("[MIGRATION] Column 'best_of' already exists in matches table")
+    except Exception:
+        # Column doesn't exist, add it
+        print("[MIGRATION] Adding 'best_of' column to matches table...")
+        session.execute(text("ALTER TABLE matches ADD COLUMN best_of INTEGER NOT NULL DEFAULT 5"))
+        session.commit()
+        print("[MIGRATION] Column 'best_of' added successfully")
+
+    session.close()
+
+
 # Run migrations on startup (order matters!)
 migrate_matches_add_category()
 migrate_matches_add_tournament_id()  # Add tournament_id to matches
+migrate_matches_add_best_of()  # Add best_of format to matches
 migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
 migrate_bracket_slots_add_tournament_id()
 
@@ -419,9 +439,7 @@ async def create_tournament(
     request: Request,
     name: str = Form(...),
     date: str = Form(None),
-    location: str = Form(None),
-    group_best_of: int = Form(5),
-    bracket_best_of: int = Form(5)
+    location: str = Form(None)
 ):
     """Create a new tournament."""
     from datetime import datetime as dt
@@ -437,19 +455,11 @@ async def create_tournament(
         except ValueError:
             pass
 
-    # Validate best_of values (must be 3, 5, or 7)
-    if group_best_of not in (3, 5, 7):
-        group_best_of = 5
-    if bracket_best_of not in (3, 5, 7):
-        bracket_best_of = 5
-
     # Create tournament
     tournament = tournament_repo.create(
         name=name,
         date=parsed_date,
-        location=location if location else None,
-        group_best_of=group_best_of,
-        bracket_best_of=bracket_best_of
+        location=location if location else None
     )
 
     # If this is the first tournament, set it as current
@@ -550,9 +560,12 @@ async def index(request: Request):
     player_repo = PlayerRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament
+    # Get current tournament - redirect to tournaments page if none exists
     current_tournament = tournament_repo.get_current()
-    tournament_id = current_tournament.id if current_tournament else None
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
 
     # Get all unique categories for current tournament
     all_players = player_repo.get_all(tournament_id=tournament_id)
@@ -690,7 +703,6 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
-    tournament_repo = TournamentRepository(session)
 
     # Get match
     match_orm = match_repo.get_by_id(match_id)
@@ -700,16 +712,8 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
     player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
     player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
 
-    # Get tournament for match format configuration
-    current_tournament = tournament_repo.get_current()
-
-    # Determine best_of based on match type (group vs bracket)
-    if match_orm.group_id is not None:
-        # Group stage match
-        best_of = current_tournament.group_best_of if current_tournament and hasattr(current_tournament, 'group_best_of') else 5
-    else:
-        # Bracket match
-        best_of = current_tournament.bracket_best_of if current_tournament and hasattr(current_tournament, 'bracket_best_of') else 5
+    # Get match format (best_of) - stored directly on the match
+    best_of = match_orm.best_of if hasattr(match_orm, 'best_of') and match_orm.best_of else 5
 
     # Get schedule info
     schedule_slot = schedule_repo.get_by_match(match_id)
@@ -793,17 +797,8 @@ async def save_result(
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/", status_code=303)
 
-    # Get tournament for match format configuration
-    tournament_repo = TournamentRepository(session)
-    current_tournament = tournament_repo.get_current()
-
-    # Determine best_of based on match type (group vs bracket)
-    if match_orm.group_id is not None:
-        # Group stage match
-        best_of = current_tournament.group_best_of if current_tournament and hasattr(current_tournament, 'group_best_of') else 5
-    else:
-        # Bracket match
-        best_of = current_tournament.bracket_best_of if current_tournament and hasattr(current_tournament, 'bracket_best_of') else 5
+    # Get match format (best_of) - stored directly on the match
+    best_of = match_orm.best_of if hasattr(match_orm, 'best_of') and match_orm.best_of else 5
 
     # Validate that both players are defined (not TBD)
     if not match_orm.player1_id or not match_orm.player2_id:
@@ -1272,8 +1267,8 @@ async def view_category_standings(request: Request, category: str):
         # Calculate standings
         standings, tiebreakers = calculate_standings(matches, group.id, player_repo)
 
-        # Build tiebreaker lookup by player_id
-        tiebreaker_lookup = {tb.player_id: tb for tb in tiebreakers} if tiebreakers else {}
+        # tiebreakers is already a dict with player_id as key
+        tiebreaker_lookup = tiebreakers if tiebreakers else {}
 
         # Get player details
         standings_data = []
@@ -1648,6 +1643,8 @@ async def view_bracket(request: Request, category: str):
 
         # Filter matches for this category and build matches dict
         matches_by_round = {}
+        bracket_best_of = 5  # default
+        has_played_matches = False
         for match in all_bracket_matches:
             p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
             if p1 and p1.categoria == category:
@@ -1661,6 +1658,11 @@ async def view_bracket(request: Request, category: str):
                     "player2": p2,
                 })
 
+                # Track best_of and if any matches have been played
+                bracket_best_of = match.best_of or 5
+                if match.winner_id is not None:
+                    has_played_matches = True
+
         sys.stderr.write("[DEBUG] About to render template\n")
         sys.stderr.flush()
         return render_template("bracket.html", {
@@ -1671,6 +1673,8 @@ async def view_bracket(request: Request, category: str):
             "groups_dict": groups_dict,
             "standings_dict": standings_dict,
             "matches_by_round": matches_by_round,
+            "bracket_best_of": bracket_best_of,
+            "has_played_matches": has_played_matches,
         })
     except Exception as e:
         sys.stderr.write(f"[ERROR] Exception in view_bracket: {e}\n")
@@ -2038,9 +2042,12 @@ async def admin_import_players_form(request: Request):
     player_repo = PlayerRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament
+    # Get current tournament - redirect if none exists
     current_tournament = tournament_repo.get_current()
-    tournament_id = current_tournament.id if current_tournament else None
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
 
     # Get all players for current tournament
     players = player_repo.get_all(tournament_id=tournament_id)
@@ -2399,9 +2406,12 @@ async def admin_create_groups_form(request: Request):
     match_repo = MatchRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament
+    # Get current tournament - redirect if none exists
     current_tournament = tournament_repo.get_current()
-    tournament_id = current_tournament.id if current_tournament else None
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
 
     # Get all players grouped by category for current tournament
     all_players = player_repo.get_all(tournament_id=tournament_id)
@@ -2548,7 +2558,8 @@ async def admin_create_groups_execute(
     category: str = Form(...),
     group_size_preference: int = Form(...),
     random_seed: Optional[int] = Form(None),
-    manual_assignments: Optional[str] = Form(None)
+    manual_assignments: Optional[str] = Form(None),
+    best_of: int = Form(5)
 ):
     """Execute group creation."""
     from ettem.group_builder import create_groups
@@ -2640,11 +2651,11 @@ async def admin_create_groups_execute(
                             break
             player_repo.session.commit()
 
-            # Save matches for this group
+            # Save matches for this group with best_of format
             for match in matches:
                 if match.player1_id in group.player_ids and match.player2_id in group.player_ids:
                     match.group_id = group_orm.id
-                    match_repo.create(match)
+                    match_repo.create(match, best_of=best_of)
 
         # Create empty bracket structure for scheduling
         # Default: 2 players advance per group (1st and 2nd place)
@@ -2680,9 +2691,12 @@ async def admin_calculate_standings_form(request: Request):
     player_repo = PlayerRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament
+    # Get current tournament - redirect if none exists
     current_tournament = tournament_repo.get_current()
-    tournament_id = current_tournament.id if current_tournament else None
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
 
     # Get all groups grouped by category for current tournament
     all_groups = group_repo.get_all(tournament_id=tournament_id)
@@ -2903,9 +2917,12 @@ async def admin_generate_bracket_form(request: Request):
     bracket_repo = BracketRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament
+    # Get current tournament - redirect if none exists
     current_tournament = tournament_repo.get_current()
-    tournament_id = current_tournament.id if current_tournament else None
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
 
     # Get all groups grouped by category with standings count for current tournament
     all_groups = group_repo.get_all(tournament_id=tournament_id)
@@ -2998,7 +3015,8 @@ async def admin_generate_bracket_execute(
     request: Request,
     category: str = Form(...),
     advance_per_group: int = Form(...),
-    random_seed: Optional[int] = Form(None)
+    random_seed: Optional[int] = Form(None),
+    best_of: int = Form(5)
 ):
     """Execute bracket generation."""
     from ettem.bracket import build_bracket
@@ -3131,6 +3149,13 @@ async def admin_generate_bracket_execute(
 
             session.commit()
 
+            # Update best_of on existing bracket matches
+            bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
+            for match_orm in bracket_matches:
+                if match_orm.best_of != best_of:
+                    match_orm.best_of = best_of
+            session.commit()
+
             # Sync matches with updated slots (updates player IDs in existing matches)
             sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
 
@@ -3152,7 +3177,7 @@ async def admin_generate_bracket_execute(
                     total_slots += 1
 
             # Create matches from bracket slots
-            matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id)
+            matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of)
 
             # Process BYE advancements (and delete BYE matches)
             process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
@@ -3191,6 +3216,12 @@ async def regenerate_bracket_matches(request: Request, category: str):
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/", status_code=303)
 
+        # Get best_of from existing bracket matches before deleting
+        existing_bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
+        best_of = 5  # Default
+        if existing_bracket_matches:
+            best_of = existing_bracket_matches[0].best_of or 5
+
         # Delete existing bracket matches for this category
         all_matches = match_repo.get_all()
         for match_orm in all_matches:
@@ -3203,8 +3234,8 @@ async def regenerate_bracket_matches(request: Request, category: str):
                     session.delete(match_orm)
         session.commit()
 
-        # Create matches from bracket slots
-        matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id)
+        # Create matches from bracket slots with preserved best_of format
+        matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of)
 
         # Process BYE advancements (and delete BYE matches)
         process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
@@ -3465,6 +3496,65 @@ async def admin_reset_bracket(request: Request, category: str):
         request.session["flash_message"] = f"Error al resetear bracket: {str(e)}"
         request.session["flash_type"] = "error"
         return RedirectResponse(url=f"/category/{category}", status_code=303)
+
+
+@app.post("/admin/bracket/{category}/update-format")
+async def admin_update_bracket_format(request: Request, category: str):
+    """Update the best_of format for all bracket matches in a category (only if no matches played)."""
+    session = get_db_session()
+    try:
+        form = await request.form()
+        new_best_of = int(form.get("best_of", 5))
+
+        if new_best_of not in [3, 5, 7]:
+            request.session["flash_message"] = "Formato inválido. Debe ser 3, 5 o 7."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/category/{category}/bracket", status_code=303)
+
+        tournament_repo = TournamentRepository(session)
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        # Get all bracket matches for this category
+        all_matches = match_repo.get_all()
+        bracket_matches = []
+        has_played_matches = False
+
+        for match_orm in all_matches:
+            if match_orm.group_id is None:  # Bracket match
+                if match_orm.player1_id:
+                    player = player_repo.get_by_id(match_orm.player1_id)
+                    if player and player.categoria == category:
+                        bracket_matches.append(match_orm)
+                        if match_orm.winner_id is not None:
+                            has_played_matches = True
+
+        if has_played_matches:
+            request.session["flash_message"] = "No se puede cambiar el formato: ya hay partidos jugados en la llave."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/category/{category}/bracket", status_code=303)
+
+        # Update all bracket matches
+        updated_count = 0
+        for match_orm in bracket_matches:
+            match_orm.best_of = new_best_of
+            updated_count += 1
+
+        session.commit()
+
+        format_names = {3: "Mejor de 3", 5: "Mejor de 5", 7: "Mejor de 7"}
+        request.session["flash_message"] = f"Formato actualizado a {format_names[new_best_of]} para {updated_count} partidos de llave."
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/category/{category}/bracket", status_code=303)
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al actualizar formato: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url=f"/category/{category}/bracket", status_code=303)
 
 
 def get_bye_positions(num_qualifiers: int, bracket_size: int) -> list[int]:
@@ -3826,7 +3916,7 @@ def rollback_bracket_advancement(match_orm, winner_id, category, session, tourna
     return False
 
 
-def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_id: int = None):
+def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_id: int = None, best_of: int = 5):
     """
     Create Match objects for all bracket rounds based on bracket slots.
 
@@ -3838,6 +3928,7 @@ def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_i
         bracket_repo: BracketRepository instance
         match_repo: MatchRepository instance
         tournament_id: Optional tournament ID to filter by
+        best_of: Match format (3, 5, or 7 sets)
 
     Returns:
         Number of matches created
@@ -3928,14 +4019,14 @@ def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_i
                 match_number=match_number,
                 status=MatchStatus.PENDING,
             )
-            match_repo.create(match, category=category, tournament_id=tournament_id)
+            match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of)
             matches_created += 1
 
     return matches_created
 
 
 def create_empty_bracket_structure(category: str, num_groups: int, advance_per_group: int,
-                                    bracket_repo, match_repo, tournament_id: int = None):
+                                    bracket_repo, match_repo, tournament_id: int = None, best_of: int = 5):
     """
     Create empty bracket structure (slots and matches) when groups are created.
 
@@ -3949,6 +4040,7 @@ def create_empty_bracket_structure(category: str, num_groups: int, advance_per_g
         bracket_repo: BracketRepository instance
         match_repo: MatchRepository instance
         tournament_id: Tournament ID
+        best_of: Match format (3, 5, or 7 sets)
 
     Returns:
         Tuple of (slots_created, matches_created)
@@ -4022,7 +4114,7 @@ def create_empty_bracket_structure(category: str, num_groups: int, advance_per_g
     print(f"[DEBUG create_empty_bracket] Created {slots_created} slots")
 
     # Now create the matches using existing function
-    matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id)
+    matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of)
 
     print(f"[DEBUG create_empty_bracket] Created {matches_created} matches")
 
@@ -6821,7 +6913,7 @@ async def scheduler_grid(request: Request, session_id: int):
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
         num_tables = tournament.num_tables or 4
-        match_duration = tournament.default_match_duration or 20
+        match_duration = tournament.default_match_duration or 30
 
         # Get or initialize time slots for this session
         db_time_slots = time_slot_repo.get_by_session(session_id)
@@ -7034,7 +7126,7 @@ async def scheduler_grid_print(request: Request, session_id: int):
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
         num_tables = tournament.num_tables or 4
-        match_duration = tournament.default_match_duration or 20
+        match_duration = tournament.default_match_duration or 30
 
         # Get or initialize time slots for this session
         db_time_slots = time_slot_repo.get_by_session(session_id)
@@ -7216,7 +7308,7 @@ async def add_timeslot(request: Request, session_id: int):
             return RedirectResponse(url="/admin/scheduler", status_code=303)
 
         tournament = tournament_repo.get_current()
-        default_duration = tournament.default_match_duration or 20 if tournament else 20
+        default_duration = tournament.default_match_duration or 30 if tournament else 30
 
         # Get existing time slots
         existing_slots = time_slot_repo.get_by_session(session_id)

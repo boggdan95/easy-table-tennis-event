@@ -31,10 +31,66 @@
 {% endblock %}
 
 {% block content %}
+{# Check if bracket has players assigned (look at first round - the one with most slots) #}
+{% set ns = namespace(has_players=false, max_slots=0, first_round=[]) %}
+{% for round_type, slots in slots_by_round.items() %}
+    {% if slots|length > ns.max_slots %}
+        {% set ns.max_slots = slots|length %}
+        {% set ns.first_round = slots %}
+    {% endif %}
+{% endfor %}
+{% for slot_data in ns.first_round %}
+    {% if slot_data.player or slot_data.slot.is_bye %}
+        {% set ns.has_players = true %}
+    {% endif %}
+{% endfor %}
+
+{% if not ns.has_players and ns.first_round %}
+<!-- No players assigned - show draw prompt -->
+<div class="card mb-3">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🎲</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">Bracket Pendiente de Sorteo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+            El bracket está creado pero aún no se han asignado los jugadores clasificados.
+            Realiza el sorteo para definir las posiciones de cada jugador en la llave.
+        </p>
+        <div class="d-flex gap-2" style="justify-content: center;">
+            <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                <span>🎲</span>
+                <span>Realizar Sorteo Automático</span>
+            </a>
+            <a href="/admin/manual-bracket/{{ category }}" class="btn btn-secondary" style="font-size: 1.1rem; padding: 1rem 2rem;">
+                <span>✋</span>
+                <span>Sorteo Manual</span>
+            </a>
+        </div>
+        <p style="color: var(--text-muted); margin-top: 1.5rem; font-size: 0.9rem;">
+            <strong>Nota:</strong> El sorteo automático asigna posiciones según las reglas ITTF.<br>
+            El sorteo manual permite arrastrar y soltar jugadores a las posiciones deseadas.
+        </p>
+    </div>
+</div>
+{% else %}
 <!-- Bracket Info Card -->
 <div class="card mb-3">
-    <div class="card-header">
-        <h2 class="card-title">🏅 Llave de Eliminación Directa</h2>
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <h2 class="card-title" style="margin: 0;">🏅 Llave de Eliminación Directa</h2>
+        {% if not has_played_matches and not champion_id %}
+        <!-- Format selector - only visible if no matches played -->
+        <form action="/admin/bracket/{{ category }}/update-format" method="POST" class="d-flex gap-2" style="align-items: center;">
+            <span class="badge badge-secondary">Formato:</span>
+            <select name="best_of" class="form-control" style="width: auto;" onchange="this.form.submit()">
+                <option value="3" {% if bracket_best_of == 3 %}selected{% endif %}>Mejor de 3 sets</option>
+                <option value="5" {% if bracket_best_of == 5 %}selected{% endif %}>Mejor de 5 sets</option>
+                <option value="7" {% if bracket_best_of == 7 %}selected{% endif %}>Mejor de 7 sets</option>
+            </select>
+        </form>
+        {% else %}
+        <span class="badge badge-secondary">
+            Mejor de {{ bracket_best_of }} sets
+        </span>
+        {% endif %}
     </div>
     <div class="card-body">
         {% if champion_id %}
@@ -549,4 +605,5 @@ function confirmResetBracket(category) {
 // Clear any saved bracket draft for this category (we're viewing the saved bracket)
 localStorage.removeItem('ettem_bracket_draft_{{ category }}');
 </script>
+{% endif %}
 {% endblock %}

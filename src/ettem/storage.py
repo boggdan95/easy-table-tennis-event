@@ -52,12 +52,8 @@ class TournamentORM(Base):
 
     # Scheduler configuration
     num_tables = Column(Integer, nullable=True, default=4)  # Number of tables available
-    default_match_duration = Column(Integer, nullable=True, default=20)  # Minutes per match
+    default_match_duration = Column(Integer, nullable=True, default=30)  # Minutes per match
     min_rest_time = Column(Integer, nullable=True, default=10)  # Minimum rest between matches (minutes)
-
-    # Match format configuration
-    group_best_of = Column(Integer, nullable=False, default=5)  # Best of 3, 5, or 7 for groups
-    bracket_best_of = Column(Integer, nullable=False, default=5)  # Best of 3, 5, or 7 for bracket
 
     # Relationships
     players = relationship("PlayerORM", back_populates="tournament")
@@ -159,6 +155,7 @@ class MatchORM(Base):
     match_number = Column(Integer, nullable=True)
     status = Column(String(20), nullable=False, default="pending")
     winner_id = Column(Integer, nullable=True)
+    best_of = Column(Integer, nullable=False, default=5)  # Match format: 3, 5, or 7 sets
     # Store sets as JSON: [{"set_number": 1, "player1_points": 11, "player2_points": 9}, ...]
     sets_json = Column(Text, nullable=False, default="[]")
     scheduled_time = Column(DateTime, nullable=True)
@@ -349,25 +346,20 @@ class TournamentRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, name: str, date=None, location: str = None,
-               group_best_of: int = 5, bracket_best_of: int = 5) -> TournamentORM:
+    def create(self, name: str, date=None, location: str = None) -> TournamentORM:
         """Create a new tournament.
 
         Args:
             name: Tournament name
             date: Tournament date
             location: Tournament location
-            group_best_of: Match format for group stage (3, 5, or 7)
-            bracket_best_of: Match format for knockout stage (3, 5, or 7)
         """
         tournament = TournamentORM(
             name=name,
             date=date,
             location=location,
             status="active",
-            is_current=False,
-            group_best_of=group_best_of,
-            bracket_best_of=bracket_best_of
+            is_current=False
         )
         self.session.add(tournament)
         self.session.commit()
@@ -713,13 +705,14 @@ class MatchRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, match: "Match", category: str = None, tournament_id: int = None) -> MatchORM:
+    def create(self, match: "Match", category: str = None, tournament_id: int = None, best_of: int = 5) -> MatchORM:
         """Create a new match in the database.
 
         Args:
             match: Match domain model
             category: Category name for bracket matches (optional)
             tournament_id: Tournament ID for filtering (optional)
+            best_of: Match format (3, 5, or 7 sets). Default is 5.
 
         Returns:
             Created MatchORM instance
@@ -742,6 +735,7 @@ class MatchRepository:
             group_id=match.group_id,
             tournament_id=tournament_id,
             category=category,
+            best_of=best_of,
             round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
             round_name=match.round_name,
             match_number=match.match_number,

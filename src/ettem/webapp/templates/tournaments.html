@@ -29,9 +29,6 @@
                     {% if current_tournament.location %} - {{ current_tournament.location }}{% endif %}
                 </div>
                 {% endif %}
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
-                    Formato: Grupos al mejor de {{ current_tournament.group_best_of|default(5) }} · Llave al mejor de {{ current_tournament.bracket_best_of|default(5) }}
-                </div>
             </div>
             <a href="/" class="btn btn-primary">
                 <span>Ir al Torneo</span>
@@ -64,7 +61,6 @@
                         <th>Nombre</th>
                         <th style="width: 120px;">Fecha</th>
                         <th style="width: 150px;">Ubicación</th>
-                        <th style="width: 120px;">Formato</th>
                         <th style="width: 100px;">Estado</th>
                         <th style="width: 200px; text-align: center;">Acciones</th>
                     </tr>
@@ -80,9 +76,6 @@
                         </td>
                         <td>{{ t.date.strftime('%d/%m/%Y') if t.date else '-' }}</td>
                         <td>{{ t.location or '-' }}</td>
-                        <td style="font-size: 0.85rem;">
-                            G:{{ t.group_best_of|default(5) }} / L:{{ t.bracket_best_of|default(5) }}
-                        </td>
                         <td>
                             <span class="badge badge-success">{{ t.status }}</span>
                         </td>
@@ -185,31 +178,6 @@
                     <input type="text" id="location" name="location" class="form-control"
                            placeholder="Ej: Club Deportivo Central">
                 </div>
-
-                <hr style="margin: 1.5rem 0; border-color: var(--border-color);">
-                <h4 style="margin-bottom: 1rem; font-size: 1rem; color: var(--text-secondary);">Formato de Partidos</h4>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label for="group_best_of" class="form-label">Grupos (Round Robin)</label>
-                        <select id="group_best_of" name="group_best_of" class="form-control">
-                            <option value="3">Mejor de 3 sets</option>
-                            <option value="5" selected>Mejor de 5 sets</option>
-                            <option value="7">Mejor de 7 sets</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="bracket_best_of" class="form-label">Llave (Eliminatoria)</label>
-                        <select id="bracket_best_of" name="bracket_best_of" class="form-control">
-                            <option value="3">Mejor de 3 sets</option>
-                            <option value="5" selected>Mejor de 5 sets</option>
-                            <option value="7">Mejor de 7 sets</option>
-                        </select>
-                    </div>
-                </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
-                    El formato más común es mejor de 5 para todo el torneo.
-                </p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="hideCreateModal()">Cancelar</button>

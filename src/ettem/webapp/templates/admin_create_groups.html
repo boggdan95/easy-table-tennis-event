@@ -38,10 +38,21 @@
                 </div>
             </div>
 
-            <div class="form-section mb-3">
-                <label class="form-label">Semilla Aleatoria (Random Seed)</label>
-                <input type="number" name="random_seed" class="form-control" placeholder="42" value="42" style="max-width: 200px;">
-                <p class="form-help">Para resultados reproducibles. Usa el mismo valor para obtener la misma distribución de grupos.</p>
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Formato de Partidos (Grupos)</label>
+                    <select name="best_of" class="form-control">
+                        <option value="3">Mejor de 3 sets</option>
+                        <option value="5" selected>Mejor de 5 sets</option>
+                        <option value="7">Mejor de 7 sets</option>
+                    </select>
+                    <p class="form-help">Este formato aplica a todos los partidos de grupo de esta categoría.</p>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Semilla Aleatoria (Random Seed)</label>
+                    <input type="number" name="random_seed" class="form-control" placeholder="42" value="42">
+                    <p class="form-help">Para resultados reproducibles.</p>
+                </div>
             </div>
 
             <div class="d-flex gap-2">
@@ -634,11 +645,15 @@ async function confirmGroupCreation() {
     form.method = 'POST';
     form.action = '/admin/create-groups/execute';
 
+    // Get best_of value from the form
+    const bestOf = document.querySelector('[name="best_of"]').value;
+
     const fields = {
         'category': previewGroupsData.category,
         'group_size_preference': previewGroupsData.group_size_preference,
         'random_seed': previewGroupsData.random_seed,
-        'manual_assignments': JSON.stringify(assignments)
+        'manual_assignments': JSON.stringify(assignments),
+        'best_of': bestOf
     };
 
     for (const [key, value] of Object.entries(fields)) {

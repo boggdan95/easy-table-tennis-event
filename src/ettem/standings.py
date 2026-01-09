@@ -136,6 +136,8 @@ def break_ties(
             "h2h_points_ratio": points_ratio,
             "seed": seed,
             "tied_with": [s.player_id for s in tied_standings if s.player_id != standing.player_id],
+            "tied_count": len(tied_standings),  # Total players in this tie (2, 3, etc.)
+            "h2h_won": stats["sets_w"] > stats["sets_l"],  # For 2-way ties: did this player win H2H?
             "tie_broken_by": tie_broken_by,
         }
 

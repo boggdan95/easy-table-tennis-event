@@ -125,6 +125,14 @@
                             </div>
                             {% if s.tiebreaker %}
                             <div style="font-size: 0.7rem; color: #666; margin-top: 2px;">
+                                {% if s.tiebreaker.tied_count == 2 %}
+                                {# Simple H2H for 2 players #}
+                                <span style="background: #f5f5f5; padding: 1px 4px; border-radius: 3px; border: 1px solid #ddd;">
+                                    H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
+                                    {% if s.tiebreaker.h2h_won %}<span style="color: #2e7d32;">✓</span>{% endif %}
+                                </span>
+                                {% else %}
+                                {# Detailed ratios for 3+ players #}
                                 <span style="background: #fff3e0; padding: 1px 4px; border-radius: 3px; border: 1px solid #ffb74d;">
                                     H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
                                     {% if s.tiebreaker.tie_broken_by == 'sets_ratio' %}
@@ -137,6 +145,7 @@
                                         | Seed:{{ s.tiebreaker.seed }} <strong style="color: #e65100;">✓</strong>
                                     {% endif %}
                                 </span>
+                                {% endif %}
                             </div>
                             {% endif %}
                         </td>

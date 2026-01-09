@@ -284,17 +284,34 @@ Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
     * 5 grupos (10 jugadores) → Bracket 16 → BYEs en [2, 6, 7, 10, 11, 15]
     * ... hasta 20 grupos con posiciones predefinidas
 
+**V2.0 - Scheduler (En Desarrollo)**
+- ✅ **Configuración de Formato de Partidos (best_of) por Categoría** 🎾
+  - Formato configurable: Mejor de 3, 5, o 7 sets
+  - **POR CATEGORÍA** (no por torneo) - permite SUB13 con Bo3 y OPEN con Bo5
+  - Campo `best_of` agregado al modelo `MatchORM` (cada partido guarda su formato)
+  - Selector de formato en página "Crear Grupos" (aplica a partidos de grupo)
+  - Selector de formato en página "Generar Bracket" (aplica a partidos de llave)
+  - Formulario de resultados muestra dinámicamente el número correcto de sets
+  - Validación usa el `best_of` del partido específico
+  - Migración automática para partidos existentes (default: 5)
+  - Al regenerar bracket, preserva el formato configurado
+
 ### 🚧 Próxima Sesión (V1.1.1 - Completar MVP)
 
 **OBJETIVO: Correr un evento completo de 1 categoría de principio a fin**
 
-**Estado Actual (2025-10-28):**
+**Estado Actual (2026-01-06):**
 - ✅ Fix aplicado a creación de grupos con preview modal (4366ea4)
 - ✅ Preview modal con drag-and-drop implementado (0d802e0)
 - ✅ Vista de resultados finales y campeón implementada (d3e0456)
 - ✅ MVP Roadmap documentado (127dc4e)
 - ✅ Muestra de 32 jugadores para testing (127dc4e)
+- ✅ **Formato de partidos (best_of) por categoría implementado** (feature/scheduler-v2.0)
+  * Selector en Crear Grupos y Generar Bracket
+  * Cada partido guarda su formato individualmente
+  * Formulario de resultados dinámico según formato
 - ⚠️ **Pendiente:** Probar flujo completo end-to-end de torneo completo
+- ⚠️ **Rama actual:** `feature/scheduler-v2.0` - cambios sin commit
 
 **Tareas Críticas para MVP:**
 1. **Testing End-to-End Completo** (PRÓXIMO - PRIORITARIO)
@@ -373,12 +390,12 @@ ettem export --what standings --format csv --out out/
 - Sesiones: SessionMiddleware para flash messages
 
 **Archivos Principales:**
-- `src/ettem/webapp/app.py` - Rutas y endpoints (~1700 líneas con admin + manual bracket)
+- `src/ettem/webapp/app.py` - Rutas y endpoints (~4200 líneas con admin + scheduler)
 - `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
 - `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
-- `src/ettem/validation.py` - Reglas de validación (en español)
+- `src/ettem/validation.py` - Reglas de validación (en español, usa match.best_of)
 - `src/ettem/i18n.py` - Sistema de traducción
-- `src/ettem/storage.py` - Repositorios SQLite con método update_slot_warning
+- `src/ettem/storage.py` - Repositorios SQLite (MatchORM tiene campo best_of)
 
 **Nuevos Templates Admin (V1.1.0):**
 - `admin_import_players.html` - Upload CSV + formulario manual
