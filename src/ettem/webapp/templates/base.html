@@ -6,6 +6,15 @@
     <title>{% block title %}ETTEM - Event Manager{% endblock %}</title>
     <link rel="stylesheet" href="/static/styles.css">
     {% block extra_css %}{% endblock %}
+    <!-- Load theme before render to prevent flash -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('ettem_theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="app-container">
@@ -14,80 +23,80 @@
             <div class="sidebar-header">
                 <div class="sidebar-title-wrapper">
                     <span class="logo">🏓</span>
-                    <span class="sidebar-text">ETTEM</span>
+                    <span class="sidebar-text">{{ t('app.short_title') }}</span>
                 </div>
-                <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar/Expandir menú">
+                <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" title="{{ t('nav.collapse_menu') }}">
                     <span class="toggle-icon">◀</span>
                 </button>
             </div>
 
             <nav class="sidebar-nav">
                 <div class="nav-section">
-                    <div class="nav-section-title">Principal</div>
-                    <a href="/" class="nav-link" title="Inicio">
+                    <div class="nav-section-title">{{ t('nav.main') }}</div>
+                    <a href="/" class="nav-link" title="{{ t('nav.home') }}">
                         <span class="icon">🏠</span>
-                        <span class="sidebar-text">Inicio</span>
+                        <span class="sidebar-text">{{ t('nav.home') }}</span>
                     </a>
-                    <a href="/tournaments" class="nav-link" title="Gestionar Torneos">
+                    <a href="/tournaments" class="nav-link" title="{{ t('nav.manage_tournaments') }}">
                         <span class="icon">📅</span>
-                        <span class="sidebar-text">Torneos</span>
+                        <span class="sidebar-text">{{ t('nav.tournaments') }}</span>
                     </a>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section-title">Gestión del Torneo</div>
-                    <a href="/tournament-status" class="nav-link" title="Estado del Torneo">
+                    <div class="nav-section-title">{{ t('nav.tournament_management') }}</div>
+                    <a href="/tournament-status" class="nav-link" title="{{ t('nav.tournament_status') }}">
                         <span class="icon">📊</span>
-                        <span class="sidebar-text">Estado General</span>
+                        <span class="sidebar-text">{{ t('nav.general_status') }}</span>
                     </a>
-                    <a href="/admin/import-players" class="nav-link" title="Importar Jugadores">
+                    <a href="/admin/import-players" class="nav-link" title="{{ t('nav.import_players') }}">
                         <span class="icon">📥</span>
-                        <span class="sidebar-text">Importar Jugadores</span>
+                        <span class="sidebar-text">{{ t('nav.import_players') }}</span>
                     </a>
-                    <a href="/admin/create-groups" class="nav-link" title="Crear Grupos">
+                    <a href="/admin/create-groups" class="nav-link" title="{{ t('nav.create_groups') }}">
                         <span class="icon">👥</span>
-                        <span class="sidebar-text">Crear Grupos</span>
+                        <span class="sidebar-text">{{ t('nav.create_groups') }}</span>
                     </a>
-                    <a href="/admin/scheduler" class="nav-link" title="Programación de Horarios">
+                    <a href="/admin/scheduler" class="nav-link" title="{{ t('nav.schedule') }}">
                         <span class="icon">🕐</span>
-                        <span class="sidebar-text">Programar Horarios</span>
+                        <span class="sidebar-text">{{ t('nav.schedule') }}</span>
                     </a>
-                    <a href="/admin/live-results" class="nav-link" title="Resultados en Vivo">
+                    <a href="/admin/live-results" class="nav-link" title="{{ t('nav.live_results') }}">
                         <span class="icon">⚡</span>
-                        <span class="sidebar-text">Resultados en Vivo</span>
+                        <span class="sidebar-text">{{ t('nav.live_results') }}</span>
                     </a>
                 </div>
 
                 {% if categories %}
                 <div class="nav-section">
-                    <div class="nav-section-title">Categorías</div>
+                    <div class="nav-section-title">{{ t('nav.categories') }}</div>
                     {% for cat in categories %}
                     <div class="nav-category">
-                        <button type="button" class="nav-link nav-link-category" onclick="toggleSubmenu(event, '{{ cat }}')" title="Categoría {{ cat }}" data-href="/category/{{ cat }}">
+                        <button type="button" class="nav-link nav-link-category" onclick="toggleSubmenu(event, '{{ cat }}')" title="{{ t('nav.category') }} {{ cat }}" data-href="/category/{{ cat }}">
                             <span class="icon">🏆</span>
                             <span class="sidebar-text">{{ cat }}</span>
                             <span class="submenu-arrow sidebar-text">▼</span>
                         </button>
                         <div class="nav-submenu" id="submenu-{{ cat }}">
-                            <a href="/category/{{ cat }}" class="nav-sublink" title="Grupos de {{ cat }}">
+                            <a href="/category/{{ cat }}" class="nav-sublink" title="{{ t('nav.groups') }} - {{ cat }}">
                                 <span class="icon">📋</span>
-                                <span class="sidebar-text">Grupos</span>
+                                <span class="sidebar-text">{{ t('nav.groups') }}</span>
                             </a>
-                            <a href="/category/{{ cat }}/standings" class="nav-sublink" title="Clasificación de {{ cat }}">
+                            <a href="/category/{{ cat }}/standings" class="nav-sublink" title="{{ t('nav.standings') }} - {{ cat }}">
                                 <span class="icon">📊</span>
-                                <span class="sidebar-text">Clasificación</span>
+                                <span class="sidebar-text">{{ t('nav.standings') }}</span>
                             </a>
-                            <a href="/category/{{ cat }}/bracket" class="nav-sublink" title="Llave de {{ cat }}">
+                            <a href="/category/{{ cat }}/bracket" class="nav-sublink" title="{{ t('nav.bracket') }} - {{ cat }}">
                                 <span class="icon">🗂️</span>
-                                <span class="sidebar-text">Llave</span>
+                                <span class="sidebar-text">{{ t('nav.bracket') }}</span>
                             </a>
-                            <a href="/bracket/{{ cat }}" class="nav-sublink" title="Partidos de {{ cat }}">
+                            <a href="/bracket/{{ cat }}" class="nav-sublink" title="{{ t('nav.matches') }} - {{ cat }}">
                                 <span class="icon">⚔️</span>
-                                <span class="sidebar-text">Partidos</span>
+                                <span class="sidebar-text">{{ t('nav.matches') }}</span>
                             </a>
-                            <a href="/category/{{ cat }}/results" class="nav-sublink" title="Resultados de {{ cat }}">
+                            <a href="/category/{{ cat }}/results" class="nav-sublink" title="{{ t('nav.results') }} - {{ cat }}">
                                 <span class="icon">🏅</span>
-                                <span class="sidebar-text">Resultados</span>
+                                <span class="sidebar-text">{{ t('nav.results') }}</span>
                             </a>
                         </div>
                     </div>
@@ -98,17 +107,17 @@
                 {% block sidebar_nav %}{% endblock %}
 
                 <div class="nav-section">
-                    <div class="nav-section-title">Herramientas</div>
-                    <a href="/admin/print-center" class="nav-link" title="Centro de Impresión">
+                    <div class="nav-section-title">{{ t('nav.tools') }}</div>
+                    <a href="/admin/print-center" class="nav-link" title="{{ t('nav.print_center') }}">
                         <span class="icon">🖨️</span>
-                        <span class="sidebar-text">Imprimir / Exportar</span>
+                        <span class="sidebar-text">{{ t('nav.print_export') }}</span>
                     </a>
                 </div>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="sidebar-text">ETTEM v1.2.0</div>
-                <div class="sidebar-text" style="opacity: 0.6; font-size: 0.75rem;">Easy Table Tennis Event Manager</div>
+                <div class="sidebar-text">{{ t('app.short_title') }} v1.2.0</div>
+                <div class="sidebar-text" style="opacity: 0.6; font-size: 0.75rem;">{{ t('app.full_name') }}</div>
             </div>
         </aside>
 
@@ -117,13 +126,19 @@
             <!-- Top Bar -->
             <header class="topbar">
                 <div class="topbar-title">
-                    {% block page_title %}Dashboard{% endblock %}
+                    {% block page_title %}{{ t('dashboard.title') }}{% endblock %}
                 </div>
                 <div class="topbar-actions">
                     {% block topbar_actions %}
+                    <!-- Theme Toggle -->
+                    <button type="button" class="btn btn-secondary btn-sm theme-toggle" onclick="toggleTheme()" title="{{ t('nav.change_theme') }}">
+                        <span class="theme-icon-light">☀️</span>
+                        <span class="theme-icon-dark">🌙</span>
+                    </button>
+                    <!-- Language Selector -->
                     <select class="form-control" style="width: auto;" onchange="window.location.href='?lang='+this.value">
-                        <option value="es" {{ 'selected' if lang == 'es' }}>🇪🇸 Español</option>
-                        <option value="en" {{ 'selected' if lang == 'en' }}>🇬🇧 English</option>
+                        <option value="es" {{ 'selected' if lang == 'es' }}>🇪🇸 {{ t('lang.spanish') }}</option>
+                        <option value="en" {{ 'selected' if lang == 'en' }}>🇬🇧 {{ t('lang.english') }}</option>
                     </select>
                     {% endblock %}
                 </div>

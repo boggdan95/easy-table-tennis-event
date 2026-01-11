@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - ETTEM{% endblock %}
+{% block title %}{{ t('nav.home') }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}Dashboard{% endblock %}
+{% block page_title %}{{ t('dashboard.title') }}{% endblock %}
 
 {% block content %}
 <!-- Current Tournament Banner -->
@@ -11,7 +11,7 @@
     <div class="card-body" style="padding: 1rem 1.5rem;">
         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
             <div>
-                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Torneo Activo</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">{{ t('dashboard.active_tournament') }}</div>
                 <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
                     {{ current_tournament.name }}
                 </div>
@@ -23,7 +23,7 @@
                 {% endif %}
             </div>
             <a href="/tournaments" class="btn btn-secondary btn-sm">
-                <span>Gestionar Torneos</span>
+                <span>{{ t('dashboard.manage_tournaments') }}</span>
             </a>
         </div>
     </div>
@@ -33,12 +33,12 @@
     <span class="icon">ℹ️</span>
     <div class="alert-content" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; width: 100%;">
         <div>
-            <div class="alert-title">Bienvenido a ETTEM</div>
-            <div>Gestiona torneos de tenis de mesa con grupos round robin y llaves eliminatorias.</div>
+            <div class="alert-title">{{ t('dashboard.welcome') }}</div>
+            <div>{{ t('dashboard.welcome_message') }}</div>
         </div>
         <a href="/tournaments" class="btn btn-primary">
             <span>+</span>
-            <span>Crear Torneo</span>
+            <span>{{ t('dashboard.create_tournament') }}</span>
         </a>
     </div>
 </div>
@@ -49,22 +49,22 @@
     <div class="grid grid-3 mb-3">
         <div class="stat-card">
             <div class="stat-value">{{ categories|length }}</div>
-            <div class="stat-label">Categorías Activas</div>
+            <div class="stat-label">{{ t('dashboard.active_categories') }}</div>
         </div>
         <div class="stat-card secondary">
             <div class="stat-value">0</div>
-            <div class="stat-label">Partidos Pendientes</div>
+            <div class="stat-label">{{ t('dashboard.pending_matches') }}</div>
         </div>
         <div class="stat-card success">
             <div class="stat-value">0</div>
-            <div class="stat-label">Partidos Completados</div>
+            <div class="stat-label">{{ t('dashboard.completed_matches') }}</div>
         </div>
     </div>
 
     <!-- Categories List -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">Categorías Disponibles</h3>
+            <h3 class="card-title">{{ t('dashboard.available_categories') }}</h3>
         </div>
         <div class="card-body">
             <div class="grid grid-2">
@@ -76,7 +76,7 @@
                             <div>
                                 <h4 style="margin: 0; color: var(--text-primary); font-size: 1.25rem;">{{ category }}</h4>
                                 <p style="margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.875rem;">
-                                    Clic para ver detalles
+                                    {{ t('dashboard.click_for_details') }}
                                 </p>
                             </div>
                         </div>
@@ -91,32 +91,32 @@
     <!-- Quick Actions -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">Gestión de Torneo</h3>
+            <h3 class="card-title">{{ t('dashboard.tournament_management') }}</h3>
         </div>
         <div class="card-body">
             <div class="grid grid-2 mb-3">
                 <a href="/admin/import-players" class="btn btn-primary" style="justify-content: flex-start;">
                     <span>📥</span>
-                    <span>Importar Jugadores</span>
+                    <span>{{ t('nav.import_players') }}</span>
                 </a>
                 <a href="/admin/create-groups" class="btn btn-secondary" style="justify-content: flex-start;">
                     <span>👥</span>
-                    <span>Crear Grupos</span>
+                    <span>{{ t('nav.create_groups') }}</span>
                 </a>
                 <a href="/admin/calculate-standings" class="btn btn-success" style="justify-content: flex-start;">
                     <span>📊</span>
-                    <span>Calcular Standings</span>
+                    <span>{{ t('dashboard.calculate_standings') }}</span>
                 </a>
                 <a href="/admin/generate-bracket" class="btn btn-warning" style="justify-content: flex-start;">
                     <span>🏅</span>
-                    <span>Generar Bracket</span>
+                    <span>{{ t('dashboard.generate_bracket') }}</span>
                 </a>
             </div>
             <div class="alert alert-info" style="margin: 0;">
                 <span class="icon">ℹ️</span>
                 <div class="alert-content">
-                    <div class="alert-title">Gestión Completa desde la UI</div>
-                    <div>Todas las operaciones del torneo ahora disponibles directamente desde la interfaz web.</div>
+                    <div class="alert-title">{{ t('dashboard.full_ui_management') }}</div>
+                    <div>{{ t('dashboard.full_ui_management_msg') }}</div>
                 </div>
             </div>
         </div>
@@ -125,27 +125,27 @@
     <div class="alert alert-warning">
         <span class="icon">⚠️</span>
         <div class="alert-content">
-            <div class="alert-title">Sin Categorías</div>
-            <div>No hay jugadores ni categorías registradas. Comienza importando jugadores para crear tu primer torneo.</div>
+            <div class="alert-title">{{ t('dashboard.no_categories') }}</div>
+            <div>{{ t('dashboard.no_categories_msg') }}</div>
         </div>
     </div>
 
     <!-- Getting Started Guide -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">🚀 Guía de Inicio Rápido</h3>
+            <h3 class="card-title">🚀 {{ t('dashboard.quick_start') }}</h3>
         </div>
         <div class="card-body">
-            <p style="margin-bottom: 1.5rem;">Sigue estos pasos para configurar tu torneo:</p>
+            <p style="margin-bottom: 1.5rem;">{{ t('dashboard.follow_steps') }}</p>
             <div class="grid grid-1" style="gap: 1rem;">
                 <div class="alert alert-info" style="margin: 0;">
                     <span class="icon" style="font-size: 2rem;">1️⃣</span>
                     <div class="alert-content">
-                        <div class="alert-title">Importar Jugadores</div>
-                        <div style="margin-bottom: 1rem;">Carga los jugadores desde un archivo CSV o agrégalos manualmente.</div>
+                        <div class="alert-title">{{ t('dashboard.step1_title') }}</div>
+                        <div style="margin-bottom: 1rem;">{{ t('dashboard.step1_desc') }}</div>
                         <a href="/admin/import-players" class="btn btn-primary">
                             <span>📥</span>
-                            <span>Ir a Importar Jugadores</span>
+                            <span>{{ t('dashboard.step1_action') }}</span>
                         </a>
                     </div>
                 </div>
@@ -153,32 +153,32 @@
                 <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
                     <span class="icon" style="font-size: 2rem;">2️⃣</span>
                     <div class="alert-content">
-                        <div class="alert-title">Crear Grupos</div>
-                        <div>Organiza los jugadores en grupos de round robin (disponible después de importar).</div>
+                        <div class="alert-title">{{ t('dashboard.step2_title') }}</div>
+                        <div>{{ t('dashboard.step2_desc') }}</div>
                     </div>
                 </div>
 
                 <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
                     <span class="icon" style="font-size: 2rem;">3️⃣</span>
                     <div class="alert-content">
-                        <div class="alert-title">Registrar Resultados</div>
-                        <div>Ingresa los resultados de los partidos desde la interfaz web.</div>
+                        <div class="alert-title">{{ t('dashboard.step3_title') }}</div>
+                        <div>{{ t('dashboard.step3_desc') }}</div>
                     </div>
                 </div>
 
                 <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
                     <span class="icon" style="font-size: 2rem;">4️⃣</span>
                     <div class="alert-content">
-                        <div class="alert-title">Generar Bracket</div>
-                        <div>Crea la llave eliminatoria con los clasificados de cada grupo.</div>
+                        <div class="alert-title">{{ t('dashboard.step4_title') }}</div>
+                        <div>{{ t('dashboard.step4_desc') }}</div>
                     </div>
                 </div>
 
                 <div class="alert alert-secondary" style="margin: 0; opacity: 0.7;">
                     <span class="icon" style="font-size: 2rem;">5️⃣</span>
                     <div class="alert-content">
-                        <div class="alert-title">Ver Resultados Finales</div>
-                        <div>Consulta el podio y los resultados finales del torneo.</div>
+                        <div class="alert-title">{{ t('dashboard.step5_title') }}</div>
+                        <div>{{ t('dashboard.step5_desc') }}</div>
                     </div>
                 </div>
             </div>
@@ -189,21 +189,21 @@
 <!-- System Info -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">ℹ️ Información del Sistema</h3>
+        <h3 class="card-title">ℹ️ {{ t('dashboard.system_info') }}</h3>
     </div>
     <div class="card-body">
         <div class="grid grid-2">
             <div>
-                <strong>Versión:</strong> 1.1.0
+                <strong>{{ t('dashboard.version_label') }}:</strong> 1.2.0
             </div>
             <div>
-                <strong>Idioma:</strong> {{ 'Español' if lang == 'es' else 'English' }}
+                <strong>{{ t('dashboard.language_label') }}:</strong> {{ t('lang.' + lang) }}
             </div>
             <div>
-                <strong>Base de Datos:</strong> SQLite (.ettem/ettem.sqlite)
+                <strong>{{ t('dashboard.database_label') }}:</strong> SQLite (.ettem/ettem.sqlite)
             </div>
             <div>
-                <strong>Estado:</strong> <span class="badge badge-success">Operativo</span>
+                <strong>{{ t('dashboard.status_label') }}:</strong> <span class="badge badge-success">{{ t('dashboard.status_operational') }}</span>
             </div>
         </div>
     </div>

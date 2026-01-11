@@ -156,7 +156,7 @@
                 <!-- Bracket Rounds -->
                 {% if status.bracket.rounds %}
                 {% for round_name, round_status in status.bracket.rounds.items() %}
-                <tr style="background: #f9f9f9;">
+                <tr style="background: var(--bg-color);">
                     <td style="padding-left: 2rem;">
                         ↳ {{ round_name }}
                     </td>
@@ -176,12 +176,12 @@
 
                 <!-- Champion -->
                 {% if status.champion %}
-                <tr style="background: linear-gradient(135deg, #fff9e6, #fff3cd);">
+                <tr style="background: linear-gradient(135deg, var(--warning), rgba(255, 193, 7, 0.3));">
                     <td>
                         <strong>👑 Campeón</strong>
                     </td>
                     <td colspan="2">
-                        <strong style="font-size: 1.1rem; color: #d4a400;">
+                        <strong style="font-size: 1.1rem; color: var(--warning);">
                             {{ status.champion.nombre }} {{ status.champion.apellido }}
                         </strong>
                         <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ status.champion.pais_cd }}</span>

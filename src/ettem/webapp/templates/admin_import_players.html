@@ -281,7 +281,7 @@
                 <div class="form-section">
                     <label class="form-label">Puntos de Ranking *</label>
                     <input type="number" name="ranking_pts" id="edit-ranking" required class="form-control" step="0.01" min="0">
-                    <p class="form-help" style="color: #666; font-size: 0.85rem; margin-top: 0.25rem;">El seed se recalcula automáticamente según el ranking</p>
+                    <p class="form-help" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">El seed se recalcula automáticamente según el ranking</p>
                 </div>
             </div>
             <div class="modal-footer">
@@ -314,7 +314,7 @@
 }
 .modal-content {
     position: relative;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     width: 90%;
@@ -326,8 +326,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 1.25rem 1.5rem;
-    border-bottom: 2px solid #e0e0e0;
-    background: linear-gradient(135deg, #2196F3, #1976D2);
+    border-bottom: 2px solid var(--border-color);
+    background: linear-gradient(135deg, var(--info), var(--secondary-color));
 }
 .modal-header h3 {
     margin: 0;
@@ -354,24 +354,24 @@
 }
 .modal-body {
     padding: 1.5rem;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 .modal-body .form-label {
-    color: #333333;
+    color: var(--text-primary);
     font-weight: 600;
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
     display: block;
 }
 .modal-body .form-control {
-    background: #ffffff;
-    border: 2px solid #d0d0d0;
-    color: #333333;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
     padding: 0.6rem 0.75rem;
     font-size: 1rem;
 }
 .modal-body .form-control:focus {
-    border-color: #2196F3;
+    border-color: var(--info);
     outline: none;
     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
 }
@@ -380,8 +380,8 @@
     justify-content: flex-end;
     gap: 0.75rem;
     padding: 1rem 1.5rem;
-    border-top: 2px solid #e0e0e0;
-    background: #f8f9fa;
+    border-top: 2px solid var(--border-color);
+    background: var(--bg-color);
 }
 </style>
 

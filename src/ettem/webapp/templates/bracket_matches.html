@@ -1,31 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}Bracket {{ category }} - ETTEM{% endblock %}
+{% block title %}{{ t('nav.bracket') }} {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}Bracket - {{ category }}{% endblock %}
+{% block page_title %}{{ t('nav.bracket') }} - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}/bracket" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Llave Visual</span>
+    <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">
     <span>👥</span>
-    <span>Grupos</span>
+    <span>{{ t('nav.groups') }}</span>
 </a>
 {% if pending_byes is defined and pending_byes > 0 %}
-<button onclick="confirmProcessByes('{{ category }}', {{ pending_byes }})" class="btn btn-primary btn-sm" title="Procesar BYEs pendientes">
+<button onclick="confirmProcessByes('{{ category }}', {{ pending_byes }})" class="btn btn-primary btn-sm" title="{{ t('bracket.process_byes') }}">
     <span>⏩</span>
-    <span>Procesar BYEs ({{ pending_byes }})</span>
+    <span>{{ t('bracket.process_byes') }} ({{ pending_byes }})</span>
 </button>
 {% endif %}
 <a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
     <span>🏆</span>
-    <span>Resultados</span>
+    <span>{{ t('nav.results') }}</span>
 </a>
-<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" title="Resetear Bracket">
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" title="{{ t('bracket.reset_bracket') }}">
     <span>🔄</span>
-    <span>Resetear</span>
+    <span>{{ t('common.reset') }}</span>
 </button>
 {% endblock %}
 
@@ -38,14 +38,14 @@
         <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
             <span style="font-size: 2rem;">🎉</span>
             <div>
-                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem;">¡Torneo Finalizado!</div>
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem;">{{ t('bracket.tournament_finished') }}</div>
                 <div style="font-size: 1.3rem; font-weight: bold;">
-                    👑 Campeón: <span style="color: var(--primary-color);">{{ champion.nombre }} {{ champion.apellido }}</span>
+                    👑 {{ t('bracket.champion') }}: <span style="color: var(--primary-color);">{{ champion.nombre }} {{ champion.apellido }}</span>
                     <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ champion.pais_cd }}</span>
                 </div>
             </div>
             <a href="/category/{{ category }}/results" class="btn btn-warning" style="margin-left: 1rem;">
-                Ver Podio Completo →
+                {{ t('bracket.view_podium') }} →
             </a>
         </div>
     </div>
@@ -54,13 +54,13 @@
 
 <!-- Round Display Names Mapping -->
 {% set round_names = {
-    'R128': 'Ronda de 128',
-    'R64': 'Ronda de 64',
-    'R32': 'Ronda de 32',
-    'R16': 'Ronda de 16',
-    'QF': 'Cuartos de Final',
-    'SF': 'Semifinales',
-    'F': 'Final'
+    'R128': t('bracket.round_128'),
+    'R64': t('bracket.round_64'),
+    'R32': t('bracket.round_32'),
+    'R16': t('bracket.round_16'),
+    'QF': t('bracket.quarter_finals'),
+    'SF': t('bracket.semi_finals'),
+    'F': t('bracket.final')
 } %}
 
 {% if round_order %}
@@ -88,12 +88,12 @@
                     <thead>
                         <tr>
                             <th style="width: 60px;">#</th>
-                            <th>Jugador 1</th>
-                            <th style="width: 40px; text-align: center;">vs</th>
-                            <th>Jugador 2</th>
-                            <th style="width: 120px; text-align: center;">Resultado</th>
-                            <th style="width: 120px; text-align: center;">Estado</th>
-                            <th style="width: 200px; text-align: center;">Acciones</th>
+                            <th>{{ t('matches.player1') }}</th>
+                            <th style="width: 40px; text-align: center;">{{ t('matches.vs') }}</th>
+                            <th>{{ t('matches.player2') }}</th>
+                            <th style="width: 120px; text-align: center;">{{ t('matches.score') }}</th>
+                            <th style="width: 120px; text-align: center;">{{ t('tournaments.status') }}</th>
+                            <th style="width: 200px; text-align: center;">{{ t('common.actions') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,11 +134,11 @@
                             </td>
                             <td style="text-align: center;">
                                 {% if m.match.status == 'pending' %}
-                                    <span class="badge badge-secondary">Pendiente</span>
+                                    <span class="badge badge-secondary">{{ t('matches.status.pending') }}</span>
                                 {% elif m.match.status == 'WALKOVER' %}
-                                    <span class="badge badge-warning">Walkover</span>
+                                    <span class="badge badge-warning">{{ t('matches.status.walkover') }}</span>
                                 {% else %}
-                                    <span class="badge badge-success">Completado</span>
+                                    <span class="badge badge-success">{{ t('matches.status.completed') }}</span>
                                 {% endif %}
                             </td>
                             <td style="text-align: center;">
@@ -146,21 +146,21 @@
                                     {% if m.match.status == 'pending' %}
                                         <a href="/match/{{ m.match.id }}/enter-result"
                                            class="btn btn-success btn-sm"
-                                           title="Ingresar resultado"
+                                           title="{{ t('matches.enter_result') }}"
                                            style="padding: 0.25rem 0.5rem;">
                                             ✓
                                         </a>
                                     {% else %}
                                         <a href="/match/{{ m.match.id }}/enter-result"
                                            class="btn btn-warning btn-sm"
-                                           title="Editar resultado"
+                                           title="{{ t('matches.edit_result') }}"
                                            style="padding: 0.25rem 0.5rem;">
                                             ✎
                                         </a>
-                                        <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" data-confirm="¿Está seguro de eliminar este resultado?">
+                                        <form action="/match/{{ m.match.id }}/delete-result" method="post" style="display:inline;" data-confirm="{{ t('matches.confirm_delete') }}">
                                             <button type="submit"
                                                     class="btn btn-danger btn-sm"
-                                                    title="Eliminar resultado"
+                                                    title="{{ t('matches.delete_result') }}"
                                                     style="padding: 0.25rem 0.5rem;">
                                                 ✕
                                             </button>
@@ -181,7 +181,7 @@
 <div class="card">
     <div class="card-body">
         <p class="text-muted" style="text-align: center; margin: 2rem 0;">
-            No hay partidos de bracket creados aún. Genera el bracket primero.
+            {{ t('bracket.no_bracket_matches') }}
         </p>
     </div>
 </div>
@@ -310,9 +310,9 @@ function switchTab(roundType) {
 
 // Process BYEs confirmation
 function confirmProcessByes(category, pendingCount) {
-    let message = '¿Procesar ' + pendingCount + ' BYEs pendientes?\n\n';
-    message += 'Los jugadores que enfrentan BYE avanzarán automáticamente a la siguiente ronda.\n\n';
-    message += '¿Desea continuar?';
+    let message = '{{ t("bracket.process_byes_confirm") }}'.replace('{count}', pendingCount) + '\n\n';
+    message += '{{ t("bracket.process_byes_msg") }}\n\n';
+    message += '{{ t("bracket.reset_continue") }}';
 
     if (confirm(message)) {
         // Create and submit form
@@ -326,13 +326,13 @@ function confirmProcessByes(category, pendingCount) {
 
 // Reset bracket confirmation
 function confirmResetBracket(category) {
-    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
-    message += '⚠️ ESTO ELIMINARÁ:\n';
-    message += '• Todas las posiciones del bracket\n';
-    message += '• Todos los partidos de eliminación\n';
-    message += '• Todos los resultados ingresados\n\n';
-    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
-    message += '¿Desea continuar?';
+    let message = '{{ t("bracket.reset_confirm_title") }}'.replace('{category}', category) + '\n\n';
+    message += '⚠️ {{ t("bracket.reset_warning") }}:\n';
+    message += '• {{ t("bracket.reset_item_1") }}\n';
+    message += '• {{ t("bracket.reset_item_2") }}\n';
+    message += '• {{ t("bracket.reset_item_3") }}\n\n';
+    message += '✓ {{ t("bracket.reset_keep") }}\n\n';
+    message += '{{ t("bracket.reset_continue") }}';
 
     if (confirm(message)) {
         // Create and submit form

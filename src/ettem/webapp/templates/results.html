@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Resultados Finales - {{ category }} - ETTEM{% endblock %}
+{% block title %}{{ t('results.title') }} - {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}{{ category }} - Resultados Finales{% endblock %}
+{% block page_title %}{{ category }} - {{ t('results.title') }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
+    <span>{{ t('common.back') }}</span>
 </a>
 <a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
     <span>🗂️</span>
-    <span>Llave Visual</span>
+    <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
 {% endblock %}
 
@@ -19,23 +19,23 @@
 <!-- Tournament Status Card -->
 <div class="card mb-3">
     <div class="card-header">
-        <h2 class="card-title">🏆 Resultados Finales del Torneo</h2>
+        <h2 class="card-title">🏆 {{ t('results.final_results') }}</h2>
     </div>
     <div class="card-body">
         {% if champion %}
             <div class="alert alert-success">
                 <span class="icon">🎉</span>
                 <div class="alert-content">
-                    <div class="alert-title">¡Torneo Completado!</div>
-                    <div>El torneo de la categoría {{ category }} ha finalizado exitosamente.</div>
+                    <div class="alert-title">{{ t('results.tournament_completed') }}</div>
+                    <div>{{ t('results.tournament_completed_msg', category=category) }}</div>
                 </div>
             </div>
         {% else %}
             <div class="alert alert-warning">
                 <span class="icon">⚠️</span>
                 <div class="alert-content">
-                    <div class="alert-title">Torneo en Progreso</div>
-                    <div>El torneo aún no ha finalizado. Completa todos los partidos de bracket para ver los resultados finales.</div>
+                    <div class="alert-title">{{ t('results.tournament_in_progress') }}</div>
+                    <div>{{ t('results.tournament_in_progress_msg') }}</div>
                 </div>
             </div>
         {% endif %}
@@ -47,7 +47,7 @@
 <div class="card mb-3" style="border: 3px solid #FFD700; box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);">
     <div class="card-header" style="background: linear-gradient(135deg, #FFD700, #FFA500); color: #000;">
         <h3 class="card-title" style="font-size: 1.5rem; text-align: center; margin: 0;">
-            👑 CAMPEÓN
+            👑 {{ t('results.champion') }}
         </h3>
     </div>
     <div class="card-body" style="text-align: center; padding: 2rem;">
@@ -68,7 +68,7 @@
 <!-- Podium Card -->
 <div class="card mb-3">
     <div class="card-header">
-        <h3 class="card-title">🏅 Podio</h3>
+        <h3 class="card-title">🏅 {{ t('results.podium') }}</h3>
     </div>
     <div class="card-body">
         <div style="display: flex; justify-content: center; align-items: flex-end; gap: 2rem; padding: 1rem; flex-wrap: wrap;">
@@ -77,13 +77,13 @@
             <div style="display: flex; flex-direction: column; align-items: center; min-width: 200px;">
                 <div style="width: 100%; background: linear-gradient(135deg, #C0C0C0, #A8A8A8); padding: 1.5rem; border-radius: var(--border-radius); text-align: center; box-shadow: var(--shadow-md); margin-bottom: 0.5rem;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">🥈</div>
-                    <div style="font-size: 1.3rem; font-weight: bold; color: #333; margin-bottom: 0.5rem;">
+                    <div style="font-size: 1.3rem; font-weight: bold; color: #1a1a1a; margin-bottom: 0.5rem;">
                         {{ second_place.nombre }} {{ second_place.apellido }}
                     </div>
-                    <span class="badge badge-secondary">{{ second_place.pais_cd }}</span>
+                    <span class="badge" style="background: #666; color: #fff;">{{ second_place.pais_cd }}</span>
                 </div>
-                <div style="background: #E0E0E0; padding: 1rem; text-align: center; font-weight: bold; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 80px; display: flex; align-items: center; justify-content: center;">
-                    2° LUGAR
+                <div style="background: #E0E0E0; padding: 1rem; text-align: center; font-weight: bold; color: #1a1a1a; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    {{ t('results.second_place') }}
                 </div>
             </div>
             {% endif %}
@@ -92,13 +92,13 @@
             <div style="display: flex; flex-direction: column; align-items: center; min-width: 220px;">
                 <div style="width: 100%; background: linear-gradient(135deg, #FFD700, #FFA500); padding: 2rem; border-radius: var(--border-radius); text-align: center; box-shadow: var(--shadow-lg); margin-bottom: 0.5rem; border: 3px solid #FFD700;">
                     <div style="font-size: 3rem; margin-bottom: 0.5rem;">👑</div>
-                    <div style="font-size: 1.5rem; font-weight: bold; color: #000; margin-bottom: 0.5rem;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #1a1a1a; margin-bottom: 0.5rem;">
                         {{ champion.nombre }} {{ champion.apellido }}
                     </div>
-                    <span class="badge badge-primary" style="background: #000; color: #fff;">{{ champion.pais_cd }}</span>
+                    <span class="badge" style="background: #1a1a1a; color: #fff;">{{ champion.pais_cd }}</span>
                 </div>
-                <div style="background: #FFD700; padding: 1.5rem; text-align: center; font-weight: bold; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-                    1° LUGAR
+                <div style="background: #FFD700; padding: 1.5rem; text-align: center; font-weight: bold; color: #1a1a1a; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                    {{ t('results.first_place') }}
                 </div>
             </div>
 
@@ -108,7 +108,7 @@
                 <div style="width: 100%; background: linear-gradient(135deg, #CD7F32, #A0522D); padding: 1.5rem; border-radius: var(--border-radius); text-align: center; box-shadow: var(--shadow-md); margin-bottom: 0.5rem;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">🥉</div>
                     <div style="font-size: 1.1rem; font-weight: bold; color: #fff; margin-bottom: 0.5rem;">
-                        3° / 4° LUGAR
+                        {{ t('results.third_fourth_place') }}
                     </div>
                     <div style="font-size: 0.9rem; color: #fff; margin-bottom: 0.25rem;">
                         {% for player in third_fourth %}
@@ -119,8 +119,8 @@
                         {% endfor %}
                     </div>
                 </div>
-                <div style="background: #D4A574; padding: 1rem; text-align: center; font-weight: bold; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 60px; display: flex; align-items: center; justify-content: center;">
-                    3°/4° LUGAR
+                <div style="background: #D4A574; padding: 1rem; text-align: center; font-weight: bold; color: #1a1a1a; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 60px; display: flex; align-items: center; justify-content: center;">
+                    {{ t('results.third_fourth_place') }}
                 </div>
             </div>
             {% endif %}
@@ -133,18 +133,18 @@
 {% if all_players %}
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">📊 Clasificación Final Completa</h3>
+        <h3 class="card-title">📊 {{ t('results.final_classification') }}</h3>
     </div>
     <div class="card-body" style="padding: 0;">
         <div class="table-responsive">
             <table class="table">
                 <thead>
                     <tr>
-                        <th style="width: 100px; text-align: center;">Posición</th>
-                        <th>Jugador</th>
-                        <th style="width: 120px; text-align: center;">País</th>
-                        <th style="width: 100px; text-align: center;">Seed</th>
-                        <th style="width: 150px; text-align: center;">Fase</th>
+                        <th style="width: 100px; text-align: center;">{{ t('results.final_position') }}</th>
+                        <th>{{ t('standings.player') }}</th>
+                        <th style="width: 120px; text-align: center;">{{ t('standings.country') }}</th>
+                        <th style="width: 100px; text-align: center;">{{ t('standings.seed') }}</th>
+                        <th style="width: 150px; text-align: center;">{{ t('results.elimination_round') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -198,11 +198,8 @@
         <div class="alert alert-info" style="margin: 0;">
             <span class="icon">ℹ️</span>
             <div class="alert-content">
-                <div class="alert-title">Información de Clasificación</div>
-                <div>
-                    Las posiciones finales se determinan por la ronda en que fueron eliminados.
-                    Jugadores eliminados en la misma ronda comparten posición.
-                </div>
+                <div class="alert-title">{{ t('results.classification_info') }}</div>
+                <div>{{ t('results.classification_info_msg') }}</div>
             </div>
         </div>
     </div>
@@ -213,7 +210,7 @@
 <div class="card">
     <div class="card-body">
         <p class="text-muted" style="text-align: center; margin: 2rem 0;">
-            No hay resultados disponibles. Genera el bracket y completa los partidos primero.
+            {{ t('results.no_results') }}
         </p>
     </div>
 </div>

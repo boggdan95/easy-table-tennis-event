@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Clasificación Grupo {{ group.name }} - ETTEM{% endblock %}
+{% block title %}{{ t('nav.standings') }} {{ t('category.group') }} {{ group.name }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}Grupo {{ group.name }} - Clasificación{% endblock %}
+{% block page_title %}{{ t('category.group') }} {{ group.name }} - {{ t('nav.standings') }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
+    <span>{{ t('common.back') }}</span>
 </a>
 {% endblock %}
 
@@ -18,11 +18,11 @@
         <div class="d-flex gap-2">
             <a href="/group/{{ group.id }}/matches" class="btn btn-primary">
                 <span>📋</span>
-                <span>Ver Lista de Partidos</span>
+                <span>{{ t('groups.view_match_list') }}</span>
             </a>
             <a href="/group/{{ group.id }}/sheet" class="btn btn-secondary">
                 <span>📄</span>
-                <span>Ver Hoja de Grupo</span>
+                <span>{{ t('category.view_sheet') }}</span>
             </a>
         </div>
     </div>
@@ -31,17 +31,17 @@
 <!-- Standings Table Card -->
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">🏆 Clasificación</h3>
+        <h3 class="card-title">🏆 {{ t('nav.standings') }}</h3>
     </div>
     {% set has_matches_played = standings and standings[0].standing.points_total > 0 %}
     {% if not has_matches_played %}
     <div class="card-body" style="text-align: center; padding: 2rem;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
-        <h3 style="color: #666; margin-bottom: 0.5rem;">Sin partidos jugados</h3>
-        <p style="color: #999;">La clasificación se actualizará cuando se ingresen resultados de partidos.</p>
+        <h3 style="color: var(--text-muted); margin-bottom: 0.5rem;">{{ t('admin.calculate_standings.no_results') }}</h3>
+        <p style="color: var(--text-muted);">{{ t('standings.no_standings') }}</p>
         <a href="/group/{{ group.id }}/matches" class="btn btn-primary" style="margin-top: 1rem;">
             <span>📋</span>
-            <span>Ir a Partidos</span>
+            <span>{{ t('nav.matches') }}</span>
         </a>
     </div>
     {% else %}
@@ -50,17 +50,17 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th style="width: 80px; text-align: center;">Posición</th>
-                        <th>Jugador</th>
-                        <th style="width: 100px; text-align: center;">Puntos</th>
-                        <th style="width: 100px; text-align: center;">V-D</th>
-                        <th style="width: 120px; text-align: center;">Sets</th>
-                        <th style="width: 120px; text-align: center;">Puntos Juego</th>
+                        <th style="width: 80px; text-align: center;">{{ t('standings.position') }}</th>
+                        <th>{{ t('standings.player') }}</th>
+                        <th style="width: 100px; text-align: center;">{{ t('standings.total_points') }}</th>
+                        <th style="width: 100px; text-align: center;">{{ t('groups.wins_losses') }}</th>
+                        <th style="width: 120px; text-align: center;">{{ t('matches.sets') }}</th>
+                        <th style="width: 120px; text-align: center;">{{ t('groups.points_detail') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in standings %}
-                    <tr {% if s.standing.position <= 2 %}style="background-color: #e8f5e9;"{% endif %}>
+                    <tr {% if s.standing.position <= 2 %}class="row-qualified"{% endif %}>
                         <td style="text-align: center;">
                             {% if s.standing.position == 1 %}
                                 <span class="badge badge-success" style="font-size: 1.1rem;">🥇 1º</span>
@@ -77,34 +77,32 @@
                                 <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
                                 <span class="badge badge-secondary">{{ s.player.pais_cd }}</span>
                                 {% if s.tiebreaker %}
-                                <span class="badge badge-warning" style="font-size: 0.75rem;" title="Desempate por {{ s.tiebreaker.tie_broken_by }}">⚖️</span>
+                                <span class="badge badge-warning" style="font-size: 0.75rem;" title="{{ t('standings.tiebreaker') }}">⚖️</span>
                                 {% endif %}
                             </div>
                             {% if s.tiebreaker %}
-                            <div style="font-size: 0.75rem; color: #666; margin-top: 4px;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
                                 {% if s.tiebreaker.tied_count == 2 %}
-                                {# Simple H2H for 2 players #}
-                                <span style="background: #f5f5f5; padding: 2px 6px; border-radius: 4px; border: 1px solid #ddd;">
+                                <span class="info-box">
                                     H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
-                                    {% if s.tiebreaker.h2h_won %}<span style="color: #2e7d32;">✓</span>{% endif %}
+                                    {% if s.tiebreaker.h2h_won %}<span style="color: var(--success);">✓</span>{% endif %}
                                 </span>
                                 {% else %}
-                                {# Detailed ratios for 3+ players #}
-                                <span style="background: #fff3e0; padding: 2px 6px; border-radius: 4px; border: 1px solid #ffb74d;">
+                                <span class="info-box info-box-warning">
                                     H2H: Sets {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
                                     {% if s.tiebreaker.tie_broken_by == 'sets_ratio' %}
-                                        <strong style="color: #e65100;">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %}) ✓</strong>
+                                        <strong style="color: var(--warning);">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %}) ✓</strong>
                                     {% else %}
-                                        <span style="color: #999;">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %})</span>
+                                        <span style="color: var(--text-muted);">({% if s.tiebreaker.h2h_sets_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_sets_ratio) }}{% endif %})</span>
                                     {% endif %}
                                     | Pts {{ s.tiebreaker.h2h_points_w }}-{{ s.tiebreaker.h2h_points_l }}
                                     {% if s.tiebreaker.tie_broken_by == 'points_ratio' %}
-                                        <strong style="color: #e65100;">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %}) ✓</strong>
+                                        <strong style="color: var(--warning);">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %}) ✓</strong>
                                     {% else %}
-                                        <span style="color: #999;">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %})</span>
+                                        <span style="color: var(--text-muted);">({% if s.tiebreaker.h2h_points_l == 0 %}∞{% else %}{{ "%.2f"|format(s.tiebreaker.h2h_points_ratio) }}{% endif %})</span>
                                     {% endif %}
                                     {% if s.tiebreaker.tie_broken_by == 'seed' %}
-                                        | <strong style="color: #e65100;">Seed: {{ s.tiebreaker.seed }} ✓</strong>
+                                        | <strong style="color: var(--warning);">Seed: {{ s.tiebreaker.seed }} ✓</strong>
                                     {% endif %}
                                 </span>
                                 {% endif %}
@@ -112,7 +110,7 @@
                             {% endif %}
                         </td>
                         <td style="text-align: center;">
-                            <strong style="font-size: 1.1rem; color: #2196F3;">{{ s.standing.points_total }}</strong>
+                            <strong style="font-size: 1.1rem; color: var(--accent-color);">{{ s.standing.points_total }}</strong>
                         </td>
                         <td style="text-align: center;">
                             <span class="badge {% if s.standing.wins > s.standing.losses %}badge-success{% elif s.standing.wins == s.standing.losses %}badge-warning{% else %}badge-danger{% endif %}">
@@ -132,41 +130,37 @@
         </div>
     </div>
     {% endif %}
-    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid #e0e0e0; padding-top: 1rem;">
+    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid var(--border-color); padding-top: 1rem;">
         {% if has_tiebreaker %}
-        <div style="background: #fff3e0; border: 1px solid #ffb74d; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #e65100; margin-bottom: 0.5rem;">
+        <div class="info-box info-box-warning" style="padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: var(--warning); margin-bottom: 0.5rem;">
                 <span>⚖️</span>
-                <span>Desempate Aplicado</span>
+                <span>{{ t('standings.tiebreaker') }}</span>
             </div>
-            <p style="margin: 0; color: #555; font-size: 0.9rem;">
-                Hubo empate entre jugadores con los mismos puntos. El desempate se calculó usando
-                <strong>solo los partidos entre los jugadores empatados</strong> (Head-to-Head).
-                Los stats H2H se muestran debajo de cada jugador afectado.
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                {{ t('rules.tiebreak.description') }}
             </p>
         </div>
         {% endif %}
-        <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
-            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+        <details class="info-box info-box-info" style="padding: 0;">
+            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: var(--info); list-style: none; display: flex; align-items: center; gap: 0.5rem;">
                 <span class="details-arrow">▶</span>
                 <span>ℹ️</span>
-                <span>Reglas de Clasificación</span>
+                <span>{{ t('standings.classification_rules') }}</span>
             </summary>
             <style>
             details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
             details[open] .details-arrow { transform: rotate(90deg); }
             </style>
-            <div style="padding: 0.5rem 1rem 1rem 1rem; color: #555; line-height: 1.8;">
-                <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
+            <div style="padding: 0.5rem 1rem 1rem 1rem; color: var(--text-secondary); line-height: 1.8;">
+                <strong>{{ t('rules.scoring.title') }}:</strong> {{ t('rules.scoring.win') }}, {{ t('rules.scoring.loss') }}, {{ t('rules.scoring.walkover') }}
                 <br>
-                <strong>Desempate (solo entre empatados):</strong>
+                <strong>{{ t('rules.tiebreak.title') }}:</strong>
                 <ol style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-                    <li>Ratio de sets ganados/perdidos (H2H)</li>
-                    <li>Ratio de puntos ganados/perdidos (H2H)</li>
-                    <li>Seed original del jugador (menor gana)</li>
+                    <li>{{ t('standings.rule_2') }}</li>
+                    <li>{{ t('standings.rule_3') }}</li>
+                    <li>{{ t('standings.rule_4') }}</li>
                 </ol>
-                <br>
-                Los primeros 2 clasificados avanzan a la llave de eliminación directa.
             </div>
         </details>
     </div>

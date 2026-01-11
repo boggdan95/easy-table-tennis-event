@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}{{ category }} - ETTEM{% endblock %}
+{% block title %}{{ category }} - {{ t('app.short_title') }}{% endblock %}
 
 {% block page_title %}{{ category }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
     <span>🏆</span>
-    <span>Resultados Finales</span>
+    <span>{{ t('results.title') }}</span>
 </a>
 <a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
     <span>🗂️</span>
-    <span>Llave Visual</span>
+    <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
 <a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
     <span>📋</span>
-    <span>Partidos de Llave</span>
+    <span>{{ t('bracket.bracket_matches') }}</span>
 </a>
 {% endblock %}
 
@@ -23,35 +23,35 @@
 <!-- Category Header -->
 <div class="card mb-3">
     <div class="card-header">
-        <h2 class="card-title">🏆 Categoría: {{ category }}</h2>
+        <h2 class="card-title">🏆 {{ t('nav.category') }}: {{ category }}</h2>
     </div>
     <div class="card-body">
         <p style="margin-bottom: 1rem;">
-            <strong>Fase de Grupos (Round-Robin)</strong><br>
-            <span style="color: var(--text-muted);">Usa el botón <span style="color: var(--warning-color);">✏️ Ingresar Resultados</span> en cada grupo para cargar los scores de los partidos.</span>
+            <strong>{{ t('groups.title') }} (Round-Robin)</strong><br>
+            <span style="color: var(--text-muted);">{{ t('matches.enter_result') }}</span>
         </p>
 
         <!-- Quick Actions -->
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: var(--text-muted);">⚡ Acciones Rápidas:</h4>
+            <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: var(--text-muted);">⚡ {{ t('common.actions') }}:</h4>
             <div class="d-flex gap-2" style="flex-wrap: wrap;">
                 <a href="/category/{{ category }}/standings" class="btn btn-secondary btn-sm">
                     <span>📊</span>
-                    <span>Ver Clasificación General</span>
+                    <span>{{ t('standings.title') }}</span>
                 </a>
                 {% if not groups %}
                 <a href="/admin/create-groups" class="btn btn-primary btn-sm">
                     <span>👥</span>
-                    <span>Crear Grupos</span>
+                    <span>{{ t('nav.create_groups') }}</span>
                 </a>
                 {% endif %}
                 <a href="/admin/calculate-standings" class="btn btn-success btn-sm">
                     <span>🧮</span>
-                    <span>Calcular Standings</span>
+                    <span>{{ t('dashboard.calculate_standings') }}</span>
                 </a>
                 <a href="/admin/generate-bracket" class="btn btn-warning btn-sm">
                     <span>🏆</span>
-                    <span>Generar Bracket</span>
+                    <span>{{ t('dashboard.generate_bracket') }}</span>
                 </a>
             </div>
         </div>
@@ -63,15 +63,15 @@
     {% for group_data in groups %}
     <div class="card">
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 class="card-title" style="margin: 0;">Grupo {{ group_data.group.name }}</h3>
+            <h3 class="card-title" style="margin: 0;">{{ t('category.group') }} {{ group_data.group.name }}</h3>
             {% if group_data.completed_matches == group_data.total_matches and group_data.total_matches > 0 %}
-            <span class="badge badge-success">✓ Completo</span>
+            <span class="badge badge-success">✓ {{ t('admin.calculate_standings.complete') }}</span>
             {% else %}
             <span class="badge badge-secondary">{{ group_data.completed_matches }}/{{ group_data.total_matches }}</span>
             {% endif %}
         </div>
         <div class="card-body">
-            <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text-muted);">Jugadores:</h4>
+            <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text-muted);">{{ t('category.players') }}:</h4>
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                 {% for player in group_data.players %}
                 <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--card-bg-secondary); border-radius: 6px;">
@@ -86,15 +86,15 @@
             <div class="d-flex gap-2" style="flex-wrap: wrap;">
                 <a href="/group/{{ group_data.group.id }}/matches" class="btn btn-warning btn-sm">
                     <span>✏️</span>
-                    <span>Ingresar Resultados</span>
+                    <span>{{ t('matches.enter_result') }}</span>
                 </a>
                 <a href="/group/{{ group_data.group.id }}/standings" class="btn btn-success btn-sm">
                     <span>📊</span>
-                    <span>Clasificación</span>
+                    <span>{{ t('nav.standings') }}</span>
                 </a>
                 <a href="/group/{{ group_data.group.id }}/sheet" class="btn btn-secondary btn-sm">
                     <span>📄</span>
-                    <span>Hoja</span>
+                    <span>{{ t('groups.sheet') }}</span>
                 </a>
             </div>
         </div>

@@ -136,7 +136,7 @@
 }
 
 .slot-item.slot-target {
-    background: #fffde7;
+    background: rgba(246, 173, 85, 0.15);
     border-color: var(--warning-color);
     border-style: solid;
 }
@@ -154,7 +154,7 @@
 }
 
 .slot-item.occupied:hover {
-    background: #c3e6cb;
+    background: rgba(72, 187, 120, 0.25);
 }
 
 .slot-item.dragging {
@@ -198,7 +198,7 @@
 }
 
 .btn-remove:hover {
-    background: #c82333;
+    background: var(--danger);
 }
 
 .warning-badge {
@@ -220,14 +220,14 @@
 }
 
 .bye-slot {
-    background: #fff3cd !important;
+    background: rgba(246, 173, 85, 0.2) !important;
     border: 2px solid var(--warning-color) !important;
     cursor: not-allowed !important;
     opacity: 0.8;
 }
 
 .bye-slot:hover {
-    background: #fff3cd !important;
+    background: rgba(246, 173, 85, 0.2) !important;
     transform: none !important;
 }
 
@@ -248,7 +248,7 @@
 }
 </style>
 
-<div id="draft-notice" class="mb-3" style="background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; padding: 0.6rem 1rem; display: none;">
+<div id="draft-notice" class="mb-3 info-box info-box-warning" style="padding: 0.6rem 1rem; display: none;">
     <div style="display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 0.9rem;">
             <strong>💾 Borrador recuperado</strong> - Se restauró el estado anterior del sorteo
@@ -259,8 +259,8 @@
     </div>
 </div>
 
-<details class="mb-3" style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
-    <summary style="padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+<details class="mb-3 info-box info-box-info" style="padding: 0;">
+    <summary style="padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; color: var(--info); list-style: none; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
         <span class="details-arrow">▶</span>
         <span>ℹ️</span>
         <span>Instrucciones (click para ver)</span>

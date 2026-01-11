@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Grupo {{ group.name }} {{ category }} - ETTEM{% endblock %}
+{% block title %}{{ t('category.group') }} {{ group.name }} {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}Grupo {{ group.name }} - {{ category }}{% endblock %}
+{% block page_title %}{{ t('category.group') }} {{ group.name }} - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
+    <span>{{ t('common.back') }}</span>
 </a>
 {% endblock %}
 
@@ -18,11 +18,11 @@
         <div class="d-flex gap-2">
             <a href="/group/{{ group.id }}/matches" class="btn btn-primary">
                 <span>📋</span>
-                <span>Ver Lista de Partidos</span>
+                <span>{{ t('groups.view_match_list') }}</span>
             </a>
             <a href="/group/{{ group.id }}/standings" class="btn btn-success">
                 <span>📊</span>
-                <span>Ver Clasificación Final</span>
+                <span>{{ t('category.view_standings') }}</span>
             </a>
         </div>
     </div>
@@ -34,16 +34,16 @@
 <!-- Play Order Card -->
 <div class="card" style="flex: 0 0 auto; min-width: 200px;">
     <div class="card-header">
-        <h3 class="card-title">📋 Orden de Juego</h3>
+        <h3 class="card-title">📋 {{ t('groups.play_order') }}</h3>
     </div>
     <div class="card-body" style="padding: 0.5rem;">
         <table class="play-order-table">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Enc.</th>
-                    <th>Mesa</th>
-                    <th>Hora</th>
+                    <th>{{ t('groups.match') }}</th>
+                    <th>{{ t('groups.table') }}</th>
+                    <th>{{ t('groups.time') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,7 +58,7 @@
             </tbody>
         </table>
         {% if not play_order %}
-        <p style="text-align: center; color: #999; padding: 1rem;">Sin partidos</p>
+        <p style="text-align: center; color: var(--text-muted); padding: 1rem;">{{ t('groups.no_matches') }}</p>
         {% endif %}
     </div>
 </div>
@@ -66,21 +66,21 @@
 <!-- Group Sheet Card -->
 <div class="card" style="flex: 1 1 auto;">
     <div class="card-header">
-        <h3 class="card-title">📄 Matriz de Resultados</h3>
+        <h3 class="card-title">📄 {{ t('groups.results_matrix') }}</h3>
     </div>
     <div class="card-body" style="padding: 0; overflow-x: auto;">
 <table class="group-sheet-matrix">
     <thead>
         <tr>
-            <th>Pos</th>
-            <th>Jugador</th>
+            <th>{{ t('groups.position') }}</th>
+            <th>{{ t('groups.player') }}</th>
             {% for p in players %}
             <th>{{ p.player.group_number }}</th>
             {% endfor %}
-            <th>Pts</th>
-            <th>V-D</th>
-            <th>Sets</th>
-            <th>Puntos</th>
+            <th>{{ t('groups.points') }}</th>
+            <th>{{ t('groups.wins_losses') }}</th>
+            <th>{{ t('matches.sets') }}</th>
+            <th>{{ t('groups.points_detail') }}</th>
         </tr>
     </thead>
     <tbody>
@@ -113,18 +113,18 @@
     </tbody>
 </table>
     </div>
-    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid #e0e0e0; padding-top: 1rem;">
-        <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
-            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+    <div class="card-footer" style="margin-top: 1rem; border-top: 2px solid var(--border-color); padding-top: 1rem;">
+        <details class="info-box info-box-info" style="padding: 0;">
+            <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: var(--info); list-style: none; display: flex; align-items: center; gap: 0.5rem;">
                 <span class="details-arrow">▶</span>
                 <span>ℹ️</span>
-                <span>Nota sobre la Hoja de Grupo</span>
+                <span>{{ t('groups.matrix_note_title') }}</span>
             </summary>
-            <ul style="margin: 0; padding: 0.5rem 1rem 1rem 2.5rem; color: #555; line-height: 1.8;">
-                <li>La posición en la tabla es el orden original de sorteo (snake seeding)</li>
-                <li>Los números en las columnas representan la posición asignada en el grupo</li>
-                <li>La matriz muestra el resultado desde la perspectiva del jugador de la fila</li>
-                <li>Para ver la clasificación final ordenada por puntos, click en "Ver Clasificación Final"</li>
+            <ul style="margin: 0; padding: 0.5rem 1rem 1rem 2.5rem; color: var(--text-secondary); line-height: 1.8;">
+                <li>{{ t('groups.matrix_note_1') }}</li>
+                <li>{{ t('groups.matrix_note_2') }}</li>
+                <li>{{ t('groups.matrix_note_3') }}</li>
+                <li>{{ t('groups.matrix_note_4') }}</li>
             </ul>
         </details>
     </div>
@@ -141,7 +141,7 @@
 
 .play-order-table th,
 .play-order-table td {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--border-color);
     padding: 6px 8px;
     text-align: center;
     font-size: 0.9rem;
@@ -155,16 +155,16 @@
 }
 
 .play-order-table tbody tr:nth-child(even) {
-    background-color: #f5f5f5;
+    background-color: var(--bg-color);
 }
 
 .play-order-table tbody tr:hover {
-    background-color: #e3f2fd;
+    background-color: rgba(66, 153, 225, 0.1);
 }
 
 .play-order-table .match-completed {
-    background-color: #e8f5e9 !important;
-    color: #2e7d32;
+    background-color: rgba(72, 187, 120, 0.15) !important;
+    color: var(--success);
 }
 
 .play-order-table .match-completed td {
@@ -181,7 +181,7 @@
 
 .group-sheet-matrix th,
 .group-sheet-matrix td {
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
     padding: 10px 8px;
     text-align: center;
 }
@@ -194,11 +194,11 @@
 }
 
 .group-sheet-matrix tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: var(--bg-color);
 }
 
 .group-sheet-matrix tbody tr:hover {
-    background-color: #e3f2fd;
+    background-color: rgba(66, 153, 225, 0.1);
 }
 
 .matrix-diagonal {
@@ -208,26 +208,26 @@
 }
 
 .matrix-result {
-    background-color: #e8f5e9;
+    background-color: rgba(72, 187, 120, 0.15);
     font-weight: bold;
-    color: #2e7d32;
+    color: var(--success);
 }
 
 .matrix-wo {
-    background-color: #fff3e0;
+    background-color: rgba(246, 173, 85, 0.2);
     font-weight: bold;
-    color: #ff6f00;
+    color: var(--warning);
 }
 
 .matrix-pending {
-    background-color: #fafafa;
-    color: #999;
+    background-color: var(--bg-color);
+    color: var(--text-muted);
 }
 
 .group-sheet-matrix td:first-child {
-    background: linear-gradient(135deg, #e3f2fd, #fff);
+    background: linear-gradient(135deg, rgba(66, 153, 225, 0.1), var(--card-bg));
     font-weight: bold;
-    border-right: 2px solid #2196F3;
+    border-right: 2px solid var(--info);
 }
 
 .group-sheet-matrix td:nth-child(2) {

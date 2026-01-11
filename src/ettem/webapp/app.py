@@ -45,6 +45,33 @@ templates = Jinja2Templates(directory=str(templates_dir))
 import json
 templates.env.filters['from_json'] = json.loads
 
+# Translation helper function for templates
+def make_translation_function(strings: dict, lang: str):
+    """Create a translation function with dot notation support.
+
+    Usage in templates: {{ t('webapp.index.welcome') }}
+    With formatting: {{ t('webapp.match.score', p1='Juan', p2='Pedro') }}
+    """
+    def t(key: str, **kwargs) -> str:
+        value = strings
+        for part in key.split('.'):
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                # Return key if not found (for debugging)
+                return f"[{key}]"
+
+        if isinstance(value, str):
+            if kwargs:
+                try:
+                    return value.format(**kwargs)
+                except KeyError:
+                    return value
+            return value
+        return f"[{key}]"
+
+    return t
+
 # Setup static files directory
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():
@@ -343,16 +370,34 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
     Returns:
         HTMLResponse with rendered template
     """
-    # Load i18n strings based on environment language
-    lang = get_language_from_env()
+    # Get language from: 1) query param, 2) session, 3) environment
+    request = context.get("request")
+    lang = None
+
+    if request:
+        # Check query parameter first
+        lang_param = request.query_params.get("lang")
+        if lang_param in ["es", "en"]:
+            lang = lang_param
+            # Save to session for persistence
+            if hasattr(request, "session"):
+                request.session["lang"] = lang
+        elif hasattr(request, "session"):
+            # Check session
+            lang = request.session.get("lang")
+
+    # Fallback to environment
+    if not lang:
+        lang = get_language_from_env()
+
     try:
         i18n_strings = load_strings(lang)
     except (ValueError, FileNotFoundError):
         # Fallback to empty dict if strings can't be loaded
         i18n_strings = {}
 
-    # Add i18n to context
-    context["t"] = i18n_strings
+    # Add i18n to context - t() function for dot notation access
+    context["t"] = make_translation_function(i18n_strings, lang)
     context["lang"] = lang
 
     # Add global data (categories for sidebar) - filtered by current tournament

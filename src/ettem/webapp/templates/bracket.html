@@ -1,32 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Llave - {{ category }} - ETTEM{% endblock %}
+{% block title %}{{ t('nav.bracket') }} - {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
-{% block page_title %}{{ category }} - Llave Eliminatoria{% endblock %}
+{% block page_title %}{{ category }} - {{ t('bracket.title') }}{% endblock %}
 
 {% block topbar_actions %}
 <a href="/bracket/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Partidos</span>
+    <span>{{ t('nav.matches') }}</span>
 </a>
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">
     <span>👥</span>
-    <span>Grupos</span>
+    <span>{{ t('nav.groups') }}</span>
 </a>
 <div class="btn-group" style="margin-left: 0.5rem;">
     <button onclick="zoomOut()" class="btn btn-secondary btn-sm" title="Zoom Out">
         <span>🔍−</span>
     </button>
-    <button onclick="resetZoom()" class="btn btn-secondary btn-sm" title="Tamaño Normal">
+    <button onclick="resetZoom()" class="btn btn-secondary btn-sm" title="{{ t('bracket.normal_size') }}">
         <span>100%</span>
     </button>
     <button onclick="zoomIn()" class="btn btn-secondary btn-sm" title="Zoom In">
         <span>🔍+</span>
     </button>
 </div>
-<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" style="margin-left: 0.5rem;" title="Resetear Bracket">
+<button onclick="confirmResetBracket('{{ category }}')" class="btn btn-danger btn-sm" style="margin-left: 0.5rem;" title="{{ t('bracket.reset_bracket') }}">
     <span>🔄</span>
-    <span>Resetear</span>
+    <span>{{ t('common.reset') }}</span>
 </button>
 {% endblock %}
 
@@ -50,24 +50,23 @@
 <div class="card mb-3">
     <div class="card-body" style="text-align: center; padding: 3rem;">
         <div style="font-size: 4rem; margin-bottom: 1rem;">🎲</div>
-        <h2 style="margin-bottom: 1rem; color: var(--text-color);">Bracket Pendiente de Sorteo</h2>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">{{ t('bracket.pending_draw') }}</h2>
         <p style="color: var(--text-muted); margin-bottom: 1.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
-            El bracket está creado pero aún no se han asignado los jugadores clasificados.
-            Realiza el sorteo para definir las posiciones de cada jugador en la llave.
+            {{ t('bracket.pending_draw_msg') }}
         </p>
         <div class="d-flex gap-2" style="justify-content: center;">
             <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 1rem 2rem;">
                 <span>🎲</span>
-                <span>Realizar Sorteo Automático</span>
+                <span>{{ t('bracket.auto_draw') }}</span>
             </a>
             <a href="/admin/manual-bracket/{{ category }}" class="btn btn-secondary" style="font-size: 1.1rem; padding: 1rem 2rem;">
                 <span>✋</span>
-                <span>Sorteo Manual</span>
+                <span>{{ t('bracket.manual_draw') }}</span>
             </a>
         </div>
         <p style="color: var(--text-muted); margin-top: 1.5rem; font-size: 0.9rem;">
-            <strong>Nota:</strong> El sorteo automático asigna posiciones según las reglas ITTF.<br>
-            El sorteo manual permite arrastrar y soltar jugadores a las posiciones deseadas.
+            <strong>{{ t('bracket.draw_note') }}:</strong> {{ t('bracket.auto_draw_note') }}<br>
+            {{ t('bracket.manual_draw_note') }}
         </p>
     </div>
 </div>
@@ -75,20 +74,20 @@
 <!-- Bracket Info Card -->
 <div class="card mb-3">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <h2 class="card-title" style="margin: 0;">🏅 Llave de Eliminación Directa</h2>
+        <h2 class="card-title" style="margin: 0;">🏅 {{ t('bracket.title') }}</h2>
         {% if not has_played_matches and not champion_id %}
         <!-- Format selector - only visible if no matches played -->
         <form action="/admin/bracket/{{ category }}/update-format" method="POST" class="d-flex gap-2" style="align-items: center;">
-            <span class="badge badge-secondary">Formato:</span>
+            <span class="badge badge-secondary">{{ t('matches.match_format') }}:</span>
             <select name="best_of" class="form-control" style="width: auto;" onchange="this.form.submit()">
-                <option value="3" {% if bracket_best_of == 3 %}selected{% endif %}>Mejor de 3 sets</option>
-                <option value="5" {% if bracket_best_of == 5 %}selected{% endif %}>Mejor de 5 sets</option>
-                <option value="7" {% if bracket_best_of == 7 %}selected{% endif %}>Mejor de 7 sets</option>
+                <option value="3" {% if bracket_best_of == 3 %}selected{% endif %}>{{ t('matches.best_of_3') }}</option>
+                <option value="5" {% if bracket_best_of == 5 %}selected{% endif %}>{{ t('matches.best_of_5') }}</option>
+                <option value="7" {% if bracket_best_of == 7 %}selected{% endif %}>{{ t('matches.best_of_7') }}</option>
             </select>
         </form>
         {% else %}
         <span class="badge badge-secondary">
-            Mejor de {{ bracket_best_of }} sets
+            {{ t('bracket.best_of_n', n=bracket_best_of) }}
         </span>
         {% endif %}
     </div>
@@ -97,19 +96,19 @@
             <div class="alert alert-success">
                 <span class="icon">🎉</span>
                 <div class="alert-content">
-                    <div class="alert-title">¡Torneo Finalizado!</div>
-                    <div>El torneo ha concluido. <a href="/category/{{ category }}/results" style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">Ver Resultados Finales y Podio</a></div>
+                    <div class="alert-title">{{ t('bracket.tournament_finished') }}</div>
+                    <div>{{ t('bracket.tournament_finished_msg') }} <a href="/category/{{ category }}/results" style="color: var(--primary-color); font-weight: bold; text-decoration: underline;">{{ t('bracket.view_final_results') }}</a></div>
                 </div>
             </div>
         {% else %}
-            <p>Visualización del cuadro de eliminación directa con los clasificados de los grupos.</p>
+            <p>{{ t('bracket.visualization_msg') }}</p>
         {% endif %}
     </div>
 </div>
 
 <div class="bracket-wrapper">
     <div class="bracket-container" id="bracket-container">
-        {% set round_names = {'R128': 'Ronda de 128', 'R64': 'Ronda de 64', 'R32': 'Ronda de 32', 'R16': 'Ronda de 16', 'QF': 'Cuartos de Final', 'SF': 'Semifinal', 'F': 'Final'} %}
+        {% set round_names = {'R128': t('bracket.round_128'), 'R64': t('bracket.round_64'), 'R32': t('bracket.round_32'), 'R16': t('bracket.round_16'), 'QF': t('bracket.quarter_finals'), 'SF': t('bracket.semi_finals'), 'F': t('bracket.final')} %}
         {% for round_type, slots in slots_by_round.items() %}
         <div class="bracket-column">
             <h3 class="round-header">{{ round_names.get(round_type, round_type) }}</h3>
@@ -228,7 +227,7 @@
     min-height: 600px;
     max-height: calc(100vh - 200px);
     padding: 20px;
-    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    background: linear-gradient(135deg, var(--bg-color) 0%, var(--border-color) 100%);
     border-radius: var(--border-radius);
 }
 
@@ -273,11 +272,11 @@
 }
 
 .match-card {
-    background: white;
+    background: var(--card-bg);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-md);
     overflow: visible;
-    border: 3px solid #e0e0e0;
+    border: 3px solid var(--border-color);
     position: relative;
     transition: all 0.3s ease;
 }
@@ -290,7 +289,7 @@
     top: 50%;
     width: 50px;
     height: 2px;
-    background: #2196F3;
+    background: var(--accent-color);
     transform: translateY(-50%);
     z-index: 0;
 }
@@ -313,7 +312,7 @@
     top: 50%;
     width: 2px;
     height: calc(100% + 40px);
-    background: #2196F3;
+    background: var(--accent-color);
     z-index: 1;
 }
 
@@ -325,7 +324,7 @@
     bottom: 50%;
     width: 2px;
     height: calc(100% + 40px);
-    background: #2196F3;
+    background: var(--accent-color);
     z-index: 1;
 }
 
@@ -348,7 +347,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 14px 16px;
-    border-bottom: 2px solid #f0f0f0;
+    border-bottom: 2px solid var(--border-color);
     transition: background-color 0.2s ease;
 }
 
@@ -357,7 +356,7 @@
 }
 
 .match-player.winner {
-    background: linear-gradient(90deg, #e8f5e9 0%, #ffffff 100%);
+    background: linear-gradient(90deg, rgba(72, 187, 120, 0.15) 0%, var(--card-bg) 100%);
     font-weight: 600;
 }
 
@@ -390,12 +389,12 @@
 }
 
 .player-name em {
-    color: #999;
+    color: var(--text-muted);
     font-style: italic;
 }
 
 .country {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.85em;
     margin-left: 6px;
 }
@@ -427,13 +426,13 @@
     gap: 6px;
     padding: 8px 16px 12px;
     justify-content: center;
-    background: linear-gradient(180deg, #fafafa 0%, #f5f5f5 100%);
-    border-top: 1px solid #e0e0e0;
+    background: linear-gradient(180deg, var(--bg-color) 0%, var(--border-color) 100%);
+    border-top: 1px solid var(--border-color);
     flex-wrap: wrap;
 }
 
 .set-score {
-    background: white;
+    background: var(--card-bg);
     border: 2px solid var(--primary-color);
     border-radius: 6px;
     padding: 4px 8px;
@@ -565,13 +564,13 @@ function applyZoom() {
 
 // Reset bracket confirmation
 function confirmResetBracket(category) {
-    let message = '¿Resetear el bracket de la categoría "' + category + '"?\n\n';
-    message += '⚠️ ESTO ELIMINARÁ:\n';
-    message += '• Todas las posiciones del bracket\n';
-    message += '• Todos los partidos de eliminación\n';
-    message += '• Todos los resultados ingresados\n\n';
-    message += '✓ Los grupos y partidos de grupo se MANTIENEN.\n\n';
-    message += '¿Desea continuar?';
+    let message = '{{ t("bracket.reset_confirm_title") }}'.replace('{category}', category) + '\n\n';
+    message += '⚠️ {{ t("bracket.reset_warning") }}:\n';
+    message += '• {{ t("bracket.reset_item_1") }}\n';
+    message += '• {{ t("bracket.reset_item_2") }}\n';
+    message += '• {{ t("bracket.reset_item_3") }}\n\n';
+    message += '✓ {{ t("bracket.reset_keep") }}\n\n';
+    message += '{{ t("bracket.reset_continue") }}';
 
     if (confirm(message)) {
         // Create and submit form
@@ -587,16 +586,16 @@ function confirmResetBracket(category) {
 <!-- Legend Card -->
 <div class="card" style="margin-top: 2rem;">
     <div class="card-header">
-        <h3 class="card-title">ℹ️ Leyenda</h3>
+        <h3 class="card-title">ℹ️ {{ t('bracket.legend') }}</h3>
     </div>
     <div class="card-body">
         <ul style="margin: 0; padding-left: 1.5rem; line-height: 2;">
-            <li><strong>#N</strong> - Posición en el cuadro (1 = tope, último = fondo)</li>
-            <li><strong>Fondo verde claro</strong> - Ganador del partido</li>
-            <li><strong>Número a la derecha</strong> - Sets ganados</li>
-            <li><strong>✓</strong> - Partido completado (click para ver detalles)</li>
-            <li><strong>📝</strong> - Ingresar resultado</li>
-            <li><strong>👑</strong> - Campeón del torneo</li>
+            <li><strong>#N</strong> - {{ t('bracket.legend_position') }}</li>
+            <li><strong>{{ t('bracket.legend_green') }}</strong> - {{ t('bracket.legend_winner') }}</li>
+            <li><strong>{{ t('bracket.legend_number') }}</strong> - {{ t('bracket.legend_sets') }}</li>
+            <li><strong>✓</strong> - {{ t('bracket.legend_completed') }}</li>
+            <li><strong>📝</strong> - {{ t('bracket.legend_enter') }}</li>
+            <li><strong>👑</strong> - {{ t('bracket.legend_champion') }}</li>
         </ul>
     </div>
 </div>

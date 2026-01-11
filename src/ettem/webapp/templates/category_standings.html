@@ -84,8 +84,8 @@
 
     {% set has_matches_played = group_data.standings and group_data.standings[0].standing.points_total > 0 %}
     {% if not has_matches_played %}
-    <div class="card-body" style="text-align: center; padding: 1.5rem; background: #fafafa;">
-        <span style="color: #999;">⏳ Sin partidos jugados aún</span>
+    <div class="card-body" style="text-align: center; padding: 1.5rem; background: var(--bg-color);">
+        <span style="color: var(--text-muted);">⏳ Sin partidos jugados aún</span>
     </div>
     {% else %}
     <div class="card-body" style="padding: 0;">
@@ -103,7 +103,7 @@
                 </thead>
                 <tbody>
                     {% for s in group_data.standings %}
-                    <tr {% if s.standing.position <= 2 %}style="background-color: #e8f5e9;"{% endif %}>
+                    <tr {% if s.standing.position <= 2 %}class="row-qualified"{% endif %}>
                         <td style="text-align: center;">
                             {% if s.standing.position == 1 %}
                                 <span class="badge badge-success">🥇 1º</span>
@@ -124,25 +124,25 @@
                                 {% endif %}
                             </div>
                             {% if s.tiebreaker %}
-                            <div style="font-size: 0.7rem; color: #666; margin-top: 2px;">
+                            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">
                                 {% if s.tiebreaker.tied_count == 2 %}
                                 {# Simple H2H for 2 players #}
-                                <span style="background: #f5f5f5; padding: 1px 4px; border-radius: 3px; border: 1px solid #ddd;">
+                                <span class="info-box" style="padding: 1px 4px; display: inline-block;">
                                     H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
-                                    {% if s.tiebreaker.h2h_won %}<span style="color: #2e7d32;">✓</span>{% endif %}
+                                    {% if s.tiebreaker.h2h_won %}<span style="color: var(--success);">✓</span>{% endif %}
                                 </span>
                                 {% else %}
                                 {# Detailed ratios for 3+ players #}
-                                <span style="background: #fff3e0; padding: 1px 4px; border-radius: 3px; border: 1px solid #ffb74d;">
+                                <span class="info-box info-box-warning" style="padding: 1px 4px; display: inline-block;">
                                     H2H: {{ s.tiebreaker.h2h_sets_w }}-{{ s.tiebreaker.h2h_sets_l }}
                                     {% if s.tiebreaker.tie_broken_by == 'sets_ratio' %}
-                                        <strong style="color: #e65100;">✓</strong>
+                                        <strong style="color: var(--warning);">✓</strong>
                                     {% endif %}
                                     | {{ s.tiebreaker.h2h_points_w }}-{{ s.tiebreaker.h2h_points_l }}
                                     {% if s.tiebreaker.tie_broken_by == 'points_ratio' %}
-                                        <strong style="color: #e65100;">✓</strong>
+                                        <strong style="color: var(--warning);">✓</strong>
                                     {% elif s.tiebreaker.tie_broken_by == 'seed' %}
-                                        | Seed:{{ s.tiebreaker.seed }} <strong style="color: #e65100;">✓</strong>
+                                        | Seed:{{ s.tiebreaker.seed }} <strong style="color: var(--warning);">✓</strong>
                                     {% endif %}
                                 </span>
                                 {% endif %}
@@ -150,7 +150,7 @@
                             {% endif %}
                         </td>
                         <td style="text-align: center;">
-                            <strong style="color: #2196F3;">{{ s.standing.points_total }}</strong>
+                            <strong style="color: var(--accent-color);">{{ s.standing.points_total }}</strong>
                         </td>
                         <td style="text-align: center;">
                             <span class="badge {% if s.standing.wins > s.standing.losses %}badge-success{% elif s.standing.wins == s.standing.losses %}badge-warning{% else %}badge-danger{% endif %}">
@@ -175,8 +175,8 @@
 
 <!-- Classification Rules -->
 <div class="card">
-    <details style="background: #e3f2fd; border-radius: 8px; border: 1px solid #90caf9;">
-        <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: #1976d2; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+    <details class="info-box info-box-info" style="padding: 0;">
+        <summary style="padding: 0.75rem 1rem; cursor: pointer; font-weight: 600; color: var(--info); list-style: none; display: flex; align-items: center; gap: 0.5rem;">
             <span class="details-arrow">▶</span>
             <span>ℹ️</span>
             <span>Reglas de Clasificación</span>
@@ -185,7 +185,7 @@
         details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
         details[open] .details-arrow { transform: rotate(90deg); }
         </style>
-        <div style="padding: 0.5rem 1rem 1rem 1rem; color: #555; line-height: 1.8;">
+        <div style="padding: 0.5rem 1rem 1rem 1rem; color: var(--text-secondary); line-height: 1.8;">
             <strong>Puntuación:</strong> Victoria = 2 pts, Derrota = 1 pt, Walkover (perdedor) = 0 pts.
             <br>
             <strong>Desempate:</strong> 1) Ratio de sets, 2) Ratio de puntos, 3) Seed.

@@ -402,8 +402,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Theme toggle functionality
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    if (newTheme === 'dark') {
+        html.setAttribute('data-theme', 'dark');
+    } else {
+        html.removeAttribute('data-theme');
+    }
+
+    // Save preference
+    localStorage.setItem('ettem_theme', newTheme);
+
+    // Show notification
+    const themeName = newTheme === 'dark' ? 'oscuro' : 'claro';
+    toast.info(`Tema ${themeName} activado`);
+}
+
 // Export for use in other scripts
 window.toast = toast;
 window.utils = utils;
 window.toggleSubmenu = toggleSubmenu;
 window.toggleSidebar = toggleSidebar;
+window.toggleTheme = toggleTheme;
