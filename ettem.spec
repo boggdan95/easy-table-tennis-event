@@ -70,6 +70,7 @@ hiddenimports = [
     'ettem.config_loader',
     'ettem.pdf_generator',
     'ettem.paths',
+    'ettem.licensing',
 ]
 
 a = Analysis(

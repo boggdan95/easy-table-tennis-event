@@ -218,3 +218,7 @@ E2E_TESTING_MANUAL.md
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# License administration (confidential - local only)
+LICENSE_ADMIN.md
+tools/

@@ -28,6 +28,7 @@ from ettem.validation import validate_match_sets, validate_tt_set, validate_walk
 from ettem.i18n import load_strings, get_language_from_env
 from ettem import pdf_generator
 from ettem.paths import get_templates_dir, get_static_dir
+from ettem.licensing import get_current_license, validate_license_key, save_license, LicenseInfo
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -37,6 +38,34 @@ app.add_middleware(
     SessionMiddleware,
     secret_key="ettem-secret-key-change-in-production-2024"  # TODO: Move to config
 )
+
+
+# License verification middleware
+@app.middleware("http")
+async def license_middleware(request: Request, call_next):
+    """Verify license on every request, redirect to activation if invalid."""
+    # Allow these paths without license check
+    allowed_paths = ["/license", "/static", "/favicon.ico"]
+
+    path = request.url.path
+
+    # Check if path is allowed without license
+    if any(path.startswith(p) for p in allowed_paths):
+        return await call_next(request)
+
+    # Check license validity
+    is_valid, license_info, error = get_current_license()
+
+    if not is_valid:
+        # Redirect to license activation page
+        return RedirectResponse(url="/license/activate", status_code=303)
+
+    # License is valid, continue with request
+    # Store license info in request state for use in templates
+    request.state.license_info = license_info
+
+    return await call_next(request)
+
 
 # Setup templates directory (supports PyInstaller frozen mode)
 templates_dir = get_templates_dir()
@@ -421,6 +450,10 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
         if "current_tournament" not in context:
             context["current_tournament"] = current_tournament
 
+        # Add license info to context for display in UI
+        _, license_info, _ = get_current_license()
+        context["license_info"] = license_info
+
         print(f"[DEBUG] Categories loaded for tournament {tournament_id}: {categories}")
     except Exception as e:
         print(f"[ERROR] Failed to load categories: {e}")
@@ -592,6 +625,87 @@ async def delete_tournament(request: Request, tournament_id: int):
         request.session["flash_type"] = "error"
 
     return RedirectResponse(url="/tournaments", status_code=303)
+
+
+# ============================================================================
+# License Routes
+# ============================================================================
+
+
+@app.get("/license/activate", response_class=HTMLResponse)
+async def license_activate_page(request: Request):
+    """Show license activation page."""
+    # Get language from session or environment
+    lang = None
+    if hasattr(request, "session"):
+        lang = request.session.get("lang")
+    if not lang:
+        lang = get_language_from_env()
+
+    try:
+        i18n_strings = load_strings(lang)
+    except (ValueError, FileNotFoundError):
+        i18n_strings = {}
+
+    t = make_translation_function(i18n_strings, lang)
+
+    # Check if there's an expired license to show info
+    _, license_info, _ = get_current_license()
+
+    context = {
+        "request": request,
+        "t": t,
+        "lang": lang,
+        "error": None,
+        "expired_info": license_info if license_info and license_info.is_expired else None,
+        "submitted_key": None
+    }
+
+    return templates.TemplateResponse("license_activation.html", context)
+
+
+@app.post("/license/activate")
+async def license_activate(request: Request, license_key: str = Form(...)):
+    """Process license activation."""
+    # Get language from session or environment
+    lang = None
+    if hasattr(request, "session"):
+        lang = request.session.get("lang")
+    if not lang:
+        lang = get_language_from_env()
+
+    try:
+        i18n_strings = load_strings(lang)
+    except (ValueError, FileNotFoundError):
+        i18n_strings = {}
+
+    t = make_translation_function(i18n_strings, lang)
+
+    # Validate the license key
+    is_valid, license_info, error = validate_license_key(license_key)
+
+    if not is_valid:
+        # Show error
+        context = {
+            "request": request,
+            "t": t,
+            "lang": lang,
+            "error": error or t("license.invalid_key"),
+            "expired_info": license_info if license_info and license_info.is_expired else None,
+            "submitted_key": license_key
+        }
+        return templates.TemplateResponse("license_activation.html", context)
+
+    # Save the valid license
+    save_license(license_key)
+
+    # Set success flash message
+    if hasattr(request, "session"):
+        request.session["flash_message"] = t("license.activation_success")
+        request.session["flash_type"] = "success"
+
+    # Redirect to home page
+    return RedirectResponse(url="/", status_code=303)
 
 
 # ============================================================================

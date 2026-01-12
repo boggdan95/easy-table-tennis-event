@@ -1146,6 +1146,29 @@ tr:last-child td {
     }
 }
 
+/* License Status */
+.license-status {
+    padding: 0.5rem 0;
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+.license-ok {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.license-warning {
+    color: var(--warning-dark);
+    font-weight: 600;
+    animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
 /* Print styles */
 @media print {
     .sidebar,

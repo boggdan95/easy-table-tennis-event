@@ -116,7 +116,16 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div class="sidebar-text">{{ t('app.short_title') }} v1.2.0</div>
+                {% if license_info %}
+                <div class="license-status sidebar-text" title="{{ t('license.expires_on') }}: {{ license_info.expiration_date.strftime('%d/%m/%Y') }}">
+                    {% if license_info.days_remaining <= 7 %}
+                    <span class="license-warning">{{ license_info.days_remaining }} {{ t('license.days_remaining') }}</span>
+                    {% else %}
+                    <span class="license-ok">{{ license_info.days_remaining }}d</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="sidebar-text">{{ t('app.short_title') }} v2.1.0</div>
                 <div class="sidebar-text" style="opacity: 0.6; font-size: 0.75rem;">{{ t('app.full_name') }}</div>
             </div>
         </aside>
