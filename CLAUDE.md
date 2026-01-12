@@ -296,47 +296,40 @@ Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
   - Migración automática para partidos existentes (default: 5)
   - Al regenerar bracket, preserva el formato configurado
 
-### 🚧 Próxima Sesión (V1.1.1 - Completar MVP)
+### 🚧 Próxima Sesión
 
-**OBJETIVO: Correr un evento completo de 1 categoría de principio a fin**
+**Estado Actual (2026-01-11):**
+- ✅ Sistema i18n completo con función `t()` y archivos YAML (ES/EN)
+- ✅ Tema claro/oscuro con toggle y CSS variables
+- ✅ Selector de idioma funcional con persistencia en sesión
+- ✅ **Ejecutable PyInstaller funcionando** 🎉
+  * `dist/ETTEM.exe` - Standalone (~39 MB)
+  * No requiere instalación de Python ni dependencias
+  * Doble clic abre automáticamente el panel web
+  * CLI completo disponible (`ETTEM.exe --help`)
+  * Base de datos se crea en `.ettem/ettem.sqlite` junto al exe
 
-**Estado Actual (2026-01-06):**
-- ✅ Fix aplicado a creación de grupos con preview modal (4366ea4)
-- ✅ Preview modal con drag-and-drop implementado (0d802e0)
-- ✅ Vista de resultados finales y campeón implementada (d3e0456)
-- ✅ MVP Roadmap documentado (127dc4e)
-- ✅ Muestra de 32 jugadores para testing (127dc4e)
-- ✅ **Formato de partidos (best_of) por categoría implementado** (feature/scheduler-v2.0)
-  * Selector en Crear Grupos y Generar Bracket
-  * Cada partido guarda su formato individualmente
-  * Formulario de resultados dinámico según formato
-- ⚠️ **Pendiente:** Probar flujo completo end-to-end de torneo completo
-- ⚠️ **Rama actual:** `feature/scheduler-v2.0` - cambios sin commit
+**Rama actual:** `feature/v2.1-release`
 
-**Tareas Críticas para MVP:**
-1. **Testing End-to-End Completo** (PRÓXIMO - PRIORITARIO)
-   - [ ] Eliminar base de datos actual y empezar desde cero
-   - [ ] Importar 32 jugadores desde `data/samples/players_32.csv`
-   - [ ] Crear grupos con preview y drag-and-drop
-   - [ ] Ingresar todos los resultados de grupos
-   - [ ] Calcular standings
-   - [ ] Generar bracket (probar auto y manual)
-   - [ ] Ingresar todos los resultados de bracket
-   - [ ] Validar avance automático de ganadores
-   - [ ] Verificar identificación de campeón
-   - [ ] Ver resultados finales y podio
+**Commits recientes:**
+- `098479e` - Make CLI open web panel by default when no command specified
+- `85a0175` - Add PyInstaller executable support for Windows distribution
+- `963e438` - Add complete i18n system and dark theme support
 
-2. **Ajustes Post-Testing** (según bugs encontrados)
-   - Corregir cualquier error encontrado en testing
-   - Mejorar mensajes de error si es necesario
-   - Ajustar validaciones si es necesario
+**Archivos clave del ejecutable:**
+- `launcher.py` - Punto de entrada para PyInstaller (abre browser automáticamente)
+- `src/ettem/paths.py` - Manejo de paths para modo frozen vs desarrollo
+- `ettem.spec` - Configuración de PyInstaller
 
-**Mejoras Futuras (V1.2+):**
-- Edición de jugadores desde UI
-- Eliminación de categorías completas
-- Exportación a CSV desde UI
-- Impresión de hojas de grupo (PDF)
-- Mejoras al bracket manual (auto-sugerencias, rellenar BYEs)
+**Para reconstruir el ejecutable:**
+```bash
+python -m PyInstaller ettem.spec --clean --noconfirm
+```
+
+**Pendiente (futuro):**
+- Sistema de licencias para monetización
+- Testing end-to-end de torneo completo
+- Mejoras UI adicionales
 
 ### Flujo de Trabajo Actual
 
