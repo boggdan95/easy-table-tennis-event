@@ -4,7 +4,7 @@ import os
 import click
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="1.1.0")
 @click.option("--lang", type=click.Choice(["es", "en"]), default=None,
               help="Language (es=Spanish, en=English). Default: from ETTEM_LANG env or 'es'")
@@ -21,6 +21,10 @@ def cli(ctx, lang):
     else:
         from ettem.i18n import get_language_from_env
         ctx.obj["lang"] = get_language_from_env()
+
+    # If no command specified, launch the web panel (default action for GUI mode)
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(open_panel)
 
 
 @cli.command()
