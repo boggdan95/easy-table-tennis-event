@@ -27,6 +27,7 @@ from ettem.storage import (
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
 from ettem.i18n import load_strings, get_language_from_env
 from ettem import pdf_generator
+from ettem.paths import get_templates_dir, get_static_dir
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -37,8 +38,8 @@ app.add_middleware(
     secret_key="ettem-secret-key-change-in-production-2024"  # TODO: Move to config
 )
 
-# Setup templates directory
-templates_dir = Path(__file__).parent / "templates"
+# Setup templates directory (supports PyInstaller frozen mode)
+templates_dir = get_templates_dir()
 templates = Jinja2Templates(directory=str(templates_dir))
 
 # Add custom Jinja2 filters
@@ -72,8 +73,8 @@ def make_translation_function(strings: dict, lang: str):
 
     return t
 
-# Setup static files directory
-static_dir = Path(__file__).parent / "static"
+# Setup static files directory (supports PyInstaller frozen mode)
+static_dir = get_static_dir()
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 

@@ -6,6 +6,8 @@ from typing import Any, Dict, Optional
 
 import yaml
 
+from ettem.paths import get_i18n_dir
+
 # Cache for loaded strings to avoid repeated file I/O
 _strings_cache: Dict[str, Dict[str, Any]] = {}
 
@@ -15,11 +17,8 @@ DEFAULT_LANGUAGE = "es"
 
 
 def _get_i18n_dir() -> Path:
-    """Get the i18n directory path."""
-    # Assuming i18n/ is at the root of the project
-    current_file = Path(__file__)
-    project_root = current_file.parent.parent.parent  # src/ettem/ -> src/ -> root/
-    return project_root / "i18n"
+    """Get the i18n directory path (supports PyInstaller frozen mode)."""
+    return get_i18n_dir()
 
 
 def load_strings(lang: str) -> Dict[str, Any]:
