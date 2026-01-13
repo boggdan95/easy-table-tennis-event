@@ -224,11 +224,22 @@ mypy src/ettem
 
 ### Build Executable
 
+#### Windows
 ```bash
 python -m PyInstaller ettem.spec --clean --noconfirm
 ```
-
 Output: `dist/ETTEM.exe`
+
+#### macOS
+```bash
+python -m PyInstaller ettem.spec --clean --noconfirm
+```
+Output: `dist/ETTEM.app`
+
+The codebase is fully cross-platform. The same spec file works on both Windows and Mac.
+PyInstaller automatically generates the appropriate format for each platform.
+
+**Note for macOS distribution:** For wider distribution, consider code signing with an Apple Developer certificate to avoid Gatekeeper warnings.
 
 ## Project Structure
 

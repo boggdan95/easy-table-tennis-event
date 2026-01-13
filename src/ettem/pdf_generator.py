@@ -242,3 +242,46 @@ def generate_all_match_sheets_pdf(
 
     html = render_html("all_match_sheets.html", context)
     return html_to_pdf(html)
+
+
+def generate_bracket_tree_pdf(context: Dict[str, Any]) -> bytes:
+    """
+    Generate a bracket tree PDF (visual bracket visualization).
+
+    Args:
+        context: Dict with bracket data including:
+            - tournament_name: Tournament name
+            - category: Category name
+            - slots_by_round: Dict[round_type, List[{slot, player}]]
+            - matches_by_round: Dict[round_type, List[{match, player1, player2}]]
+            - round_order: List of round types in order
+            - round_names: Dict mapping round types to display names
+            - best_of: Match format (3, 5, or 7)
+            - champion: Champion player object or None
+            - generation_date: Date string
+
+    Returns:
+        PDF as bytes
+    """
+    html = render_html("bracket_tree.html", context)
+    return html_to_pdf(html)
+
+
+def generate_scheduler_pdf(context: Dict[str, Any]) -> bytes:
+    """
+    Generate a scheduler grid PDF.
+
+    Args:
+        context: Dict with scheduler data including:
+            - tournament_name: Tournament name
+            - session: Session object
+            - time_slots: List of time slots
+            - tables: List of table numbers
+            - schedule_grid: Dict mapping (time, table) to match data
+            - generation_date: Date string
+
+    Returns:
+        PDF as bytes
+    """
+    html = render_html("scheduler_grid.html", context)
+    return html_to_pdf(html)

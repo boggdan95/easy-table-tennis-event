@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Llave - {{ category }}</title>
+    <style>
+        @page {
+            size: letter landscape;
+            margin: 1cm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8pt;
+            line-height: 1.3;
+            color: #000;
+        }
+
+        .bracket-sheet {
+            width: 100%;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 14pt;
+            margin-bottom: 3px;
+        }
+
+        .header .subtitle {
+            font-size: 10pt;
+            color: #333;
+        }
+
+        /* Bracket Layout */
+        .bracket-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .bracket-table th {
+            background: #333;
+            color: white;
+            padding: 6px 4px;
+            font-size: 8pt;
+            text-align: center;
+            border: 1px solid #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .bracket-table td {
+            vertical-align: top;
+            padding: 4px;
+            border: 1px solid #ddd;
+        }
+
+        /* Match Card */
+        .match-box {
+            border: 1px solid #000;
+            margin-bottom: 6px;
+            background: white;
+            page-break-inside: avoid;
+        }
+
+        .match-box.completed {
+            border-color: #2d8a4e;
+            border-width: 2px;
+        }
+
+        .player-row {
+            display: table;
+            width: 100%;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .player-row:last-child {
+            border-bottom: none;
+        }
+
+        .player-row.winner {
+            background: #e8f5e9;
+            font-weight: bold;
+        }
+
+        .slot-num {
+            display: table-cell;
+            width: 20px;
+            background: #f0f0f0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 7pt;
+            vertical-align: middle;
+            border-right: 1px solid #ccc;
+            padding: 4px 2px;
+        }
+
+        .player-name-cell {
+            display: table-cell;
+            padding: 4px 6px;
+            vertical-align: middle;
+            font-size: 8pt;
+        }
+
+        .player-name-cell em {
+            color: #666;
+            font-style: italic;
+        }
+
+        .country-code {
+            color: #666;
+            font-size: 7pt;
+        }
+
+        .score-cell {
+            display: table-cell;
+            width: 24px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 10pt;
+            vertical-align: middle;
+            background: #f5f5f5;
+            border-left: 1px solid #ccc;
+        }
+
+        .player-row.winner .score-cell {
+            background: #c8e6c9;
+            color: #1b5e20;
+        }
+
+        /* Set scores row */
+        .set-scores-row {
+            background: #f9f9f9;
+            padding: 2px 6px;
+            text-align: center;
+            font-size: 7pt;
+            border-top: 1px solid #eee;
+        }
+
+        .set-score {
+            display: inline-block;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 1px 4px;
+            margin: 0 1px;
+            border-radius: 2px;
+        }
+
+        /* Champion badge */
+        .champion-badge {
+            background: #ffd700;
+            color: #000;
+            padding: 2px 6px;
+            font-size: 7pt;
+            font-weight: bold;
+            border-radius: 3px;
+            margin-left: 4px;
+        }
+
+        /* Spacer row for alignment */
+        .spacer {
+            height: 20px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            border-top: 1px solid #ccc;
+            padding-top: 6px;
+        }
+
+        /* Legend */
+        .legend {
+            margin-top: 8px;
+            font-size: 7pt;
+            color: #666;
+        }
+
+        .legend-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+
+        .legend-box {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #000;
+            vertical-align: middle;
+            margin-right: 3px;
+        }
+
+        .legend-box.winner {
+            background: #e8f5e9;
+            border-color: #2d8a4e;
+        }
+
+        .legend-box.completed {
+            border-color: #2d8a4e;
+            border-width: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bracket-sheet">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ tournament_name }}</h1>
+            <div class="subtitle">
+                {% if category %}Categoria: {{ category }}{% endif %}
+                {% if best_of %} | Mejor de {{ best_of }}{% endif %}
+                {% if champion %}| CAMPEON: {{ champion.nombre }} {{ champion.apellido }} ({{ champion.pais_cd }}){% endif %}
+            </div>
+        </div>
+
+        <!-- Bracket Table -->
+        <table class="bracket-table">
+            <thead>
+                <tr>
+                    {% for round_type in round_order %}
+                    <th>{{ round_names.get(round_type, round_type) }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    {% for round_type in round_order %}
+                    <td>
+                        {% set slots = slots_by_round.get(round_type, []) %}
+                        {% for i in range(0, slots|length, 2) %}
+                            {% set slot1 = slots[i] %}
+                            {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
+
+                            {# Find match for this slot pair #}
+                            {% set match_data = None %}
+                            {% if matches_by_round.get(round_type) %}
+                                {% for m in matches_by_round[round_type] %}
+                                    {% if (m.player1 and slot1.player and m.player1.id == slot1.player.id) or
+                                          (m.player2 and slot1.player and m.player2.id == slot1.player.id) %}
+                                        {% set match_data = m %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            <div class="match-box {% if match_data and match_data.match.winner_id %}completed{% endif %}">
+                                {# Player 1 #}
+                                <div class="player-row {% if slot1.player and match_data and match_data.match.winner_id == slot1.player.id %}winner{% endif %}">
+                                    <span class="slot-num">{{ slot1.slot.slot_number }}</span>
+                                    <span class="player-name-cell">
+                                        {% if slot1.slot.is_bye %}
+                                            <em>BYE</em>
+                                        {% elif slot1.player %}
+                                            {{ slot1.player.nombre }} {{ slot1.player.apellido }}
+                                            <span class="country-code">({{ slot1.player.pais_cd }})</span>
+                                            {% if champion and slot1.player.id == champion.id %}
+                                                <span class="champion-badge">CAMPEON</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <em>-</em>
+                                        {% endif %}
+                                    </span>
+                                    <span class="score-cell">
+                                        {% if match_data and match_data.match.winner_id and slot1.player %}
+                                            {% if match_data.player1 and match_data.player1.id == slot1.player.id %}
+                                                {{ match_data.match.player1_sets_won }}
+                                            {% elif match_data.player2 and match_data.player2.id == slot1.player.id %}
+                                                {{ match_data.match.player2_sets_won }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
+                                </div>
+
+                                {# Player 2 #}
+                                {% if slot2 %}
+                                <div class="player-row {% if slot2.player and match_data and match_data.match.winner_id == slot2.player.id %}winner{% endif %}">
+                                    <span class="slot-num">{{ slot2.slot.slot_number }}</span>
+                                    <span class="player-name-cell">
+                                        {% if slot2.slot.is_bye %}
+                                            <em>BYE</em>
+                                        {% elif slot2.player %}
+                                            {{ slot2.player.nombre }} {{ slot2.player.apellido }}
+                                            <span class="country-code">({{ slot2.player.pais_cd }})</span>
+                                            {% if champion and slot2.player.id == champion.id %}
+                                                <span class="champion-badge">CAMPEON</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <em>-</em>
+                                        {% endif %}
+                                    </span>
+                                    <span class="score-cell">
+                                        {% if match_data and match_data.match.winner_id and slot2.player %}
+                                            {% if match_data.player1 and match_data.player1.id == slot2.player.id %}
+                                                {{ match_data.match.player1_sets_won }}
+                                            {% elif match_data.player2 and match_data.player2.id == slot2.player.id %}
+                                                {{ match_data.match.player2_sets_won }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% endif %}
+
+                                {# Set scores #}
+                                {% if match_data and match_data.match.winner_id and match_data.match.sets %}
+                                <div class="set-scores-row">
+                                    {% for set_obj in match_data.match.sets %}
+                                        <span class="set-score">{{ set_obj.player1_points }}-{{ set_obj.player2_points }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            {# Add spacer for alignment between rounds #}
+                            {% if loop.index < (slots|length / 2) %}
+                            <div class="spacer"></div>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Legend -->
+        <div class="legend">
+            <span class="legend-item"><span class="legend-box winner"></span> Ganador</span>
+            <span class="legend-item"><span class="legend-box completed"></span> Partido completado</span>
+            <span class="legend-item"><strong>#N</strong> = Posicion en llave</span>
+            <span class="legend-item"><strong>BYE</strong> = Pasa automaticamente</span>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            ETTEM - Easy Table Tennis Event Manager | Generado: {{ generation_date }}
+        </div>
+    </div>
+</body>
+</html>

@@ -6843,6 +6843,305 @@ async def print_bracket_all_match_sheets(category: str):
             return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
 
 
+@app.get("/preview/bracket/{category}/tree", response_class=HTMLResponse)
+async def preview_bracket_tree(request: Request, category: str):
+    """Preview the bracket tree visualization for printing."""
+    from collections import defaultdict, namedtuple
+    from datetime import datetime
+
+    with get_db_session() as session:
+        bracket_repo = BracketRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get bracket slots for this category
+        bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+
+        if not bracket_slots:
+            return Response(content="No hay bracket generado para esta categoria", status_code=404)
+
+        # Group slots by round
+        slots_by_round = defaultdict(list)
+        for slot_orm in bracket_slots:
+            slots_by_round[slot_orm.round_type].append(slot_orm)
+
+        # Sort each round by slot_number
+        for round_type in slots_by_round:
+            slots_by_round[round_type].sort(key=lambda s: s.slot_number)
+
+        # Determine bracket size and required rounds
+        bracket_size = 0
+        round_priority = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        for round_type in round_priority:
+            if round_type in slots_by_round:
+                bracket_size = len(slots_by_round[round_type])
+                break
+
+        required_rounds = []
+        if bracket_size >= 128:
+            required_rounds = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 64:
+            required_rounds = ['R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 32:
+            required_rounds = ['R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 16:
+            required_rounds = ['R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 8:
+            required_rounds = ['QF', 'SF', 'F']
+        elif bracket_size >= 4:
+            required_rounds = ['SF', 'F']
+        elif bracket_size >= 2:
+            required_rounds = ['F']
+
+        # Create dummy slots for missing rounds
+        DummySlot = namedtuple('DummySlot', ['slot_number', 'round_type', 'player_id', 'is_bye', 'same_country_warning', 'id'])
+
+        complete_bracket = {}
+        current_slots = bracket_size
+
+        for round_type in required_rounds:
+            if round_type in slots_by_round:
+                complete_bracket[round_type] = slots_by_round[round_type]
+            else:
+                current_slots = current_slots // 2
+                complete_bracket[round_type] = []
+                for i in range(current_slots):
+                    dummy = DummySlot(
+                        slot_number=i + 1,
+                        round_type=round_type,
+                        player_id=None,
+                        is_bye=False,
+                        same_country_warning=False,
+                        id=None
+                    )
+                    complete_bracket[round_type].append(dummy)
+
+        # Get player details for each slot
+        slots_with_players = {}
+        for round_type, slots in complete_bracket.items():
+            slots_with_players[round_type] = []
+            for slot in slots:
+                player = None
+                if slot.player_id:
+                    player = player_repo.get_by_id(slot.player_id)
+                slots_with_players[round_type].append({
+                    "slot": slot,
+                    "player": player
+                })
+
+        # Get bracket matches with scores
+        all_bracket_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+        matches_by_round = {}
+        bracket_best_of = 5
+        champion = None
+
+        for match in all_bracket_matches:
+            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            if p1 and p1.categoria == category:
+                if match.round_type not in matches_by_round:
+                    matches_by_round[match.round_type] = []
+
+                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+                matches_by_round[match.round_type].append({
+                    "match": match,
+                    "player1": p1,
+                    "player2": p2,
+                })
+
+                bracket_best_of = match.best_of or 5
+
+                # Check for champion (final match winner)
+                if match.round_type == 'F' and match.winner_id:
+                    champion = player_repo.get_by_id(match.winner_id)
+
+        # Round display names
+        round_names = {
+            "R128": "Ronda 128",
+            "R64": "Ronda 64",
+            "R32": "Ronda 32",
+            "R16": "Octavos",
+            "QF": "Cuartos",
+            "SF": "Semifinal",
+            "F": "Final"
+        }
+
+        context = {
+            "request": request,
+            "preview_title": f"Llave - {category}",
+            "back_url": f"/category/{category}/bracket",
+            "download_url": f"/print/bracket/{category}/tree",
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "slots_by_round": slots_with_players,
+            "matches_by_round": matches_by_round,
+            "round_order": required_rounds,
+            "round_names": round_names,
+            "best_of": bracket_best_of,
+            "champion": champion,
+            "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+
+        return render_template("print/preview_bracket_tree.html", context)
+
+
+@app.get("/print/bracket/{category}/tree")
+async def print_bracket_tree(category: str):
+    """Download PDF for bracket tree visualization."""
+    from collections import defaultdict, namedtuple
+    from datetime import datetime
+
+    with get_db_session() as session:
+        bracket_repo = BracketRepository(session)
+        player_repo = PlayerRepository(session)
+        match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        # Get current tournament
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Get bracket slots for this category
+        bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+
+        if not bracket_slots:
+            return Response(content="No hay bracket generado para esta categoria", status_code=404)
+
+        # Group slots by round
+        slots_by_round = defaultdict(list)
+        for slot_orm in bracket_slots:
+            slots_by_round[slot_orm.round_type].append(slot_orm)
+
+        # Sort each round by slot_number
+        for round_type in slots_by_round:
+            slots_by_round[round_type].sort(key=lambda s: s.slot_number)
+
+        # Determine bracket size and required rounds
+        bracket_size = 0
+        round_priority = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        for round_type in round_priority:
+            if round_type in slots_by_round:
+                bracket_size = len(slots_by_round[round_type])
+                break
+
+        required_rounds = []
+        if bracket_size >= 128:
+            required_rounds = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 64:
+            required_rounds = ['R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 32:
+            required_rounds = ['R32', 'R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 16:
+            required_rounds = ['R16', 'QF', 'SF', 'F']
+        elif bracket_size >= 8:
+            required_rounds = ['QF', 'SF', 'F']
+        elif bracket_size >= 4:
+            required_rounds = ['SF', 'F']
+        elif bracket_size >= 2:
+            required_rounds = ['F']
+
+        # Create dummy slots for missing rounds
+        DummySlot = namedtuple('DummySlot', ['slot_number', 'round_type', 'player_id', 'is_bye', 'same_country_warning', 'id'])
+
+        complete_bracket = {}
+        current_slots = bracket_size
+
+        for round_type in required_rounds:
+            if round_type in slots_by_round:
+                complete_bracket[round_type] = slots_by_round[round_type]
+            else:
+                current_slots = current_slots // 2
+                complete_bracket[round_type] = []
+                for i in range(current_slots):
+                    dummy = DummySlot(
+                        slot_number=i + 1,
+                        round_type=round_type,
+                        player_id=None,
+                        is_bye=False,
+                        same_country_warning=False,
+                        id=None
+                    )
+                    complete_bracket[round_type].append(dummy)
+
+        # Get player details for each slot
+        slots_with_players = {}
+        for round_type, slots in complete_bracket.items():
+            slots_with_players[round_type] = []
+            for slot in slots:
+                player = None
+                if slot.player_id:
+                    player = player_repo.get_by_id(slot.player_id)
+                slots_with_players[round_type].append({
+                    "slot": slot,
+                    "player": player
+                })
+
+        # Get bracket matches with scores
+        all_bracket_matches = [m for m in match_repo.get_all() if m.group_id is None]
+
+        matches_by_round = {}
+        bracket_best_of = 5
+        champion = None
+
+        for match in all_bracket_matches:
+            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            if p1 and p1.categoria == category:
+                if match.round_type not in matches_by_round:
+                    matches_by_round[match.round_type] = []
+
+                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+                matches_by_round[match.round_type].append({
+                    "match": match,
+                    "player1": p1,
+                    "player2": p2,
+                })
+
+                bracket_best_of = match.best_of or 5
+
+                # Check for champion (final match winner)
+                if match.round_type == 'F' and match.winner_id:
+                    champion = player_repo.get_by_id(match.winner_id)
+
+        # Round display names
+        round_names = {
+            "R128": "Ronda 128",
+            "R64": "Ronda 64",
+            "R32": "Ronda 32",
+            "R16": "Octavos",
+            "QF": "Cuartos",
+            "SF": "Semifinal",
+            "F": "Final"
+        }
+
+        context = {
+            "tournament_name": get_tournament_name(),
+            "category": category,
+            "slots_by_round": slots_with_players,
+            "matches_by_round": matches_by_round,
+            "round_order": required_rounds,
+            "round_names": round_names,
+            "best_of": bracket_best_of,
+            "champion": champion,
+            "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+
+        try:
+            pdf_bytes = pdf_generator.generate_bracket_tree_pdf(context)
+            filename = f"llave_{category}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
+
+
 # ==============================================================================
 # SCHEDULER ROUTES
 # ==============================================================================
@@ -7266,6 +7565,8 @@ async def scheduler_grid(request: Request, session_id: int):
 @app.get("/admin/scheduler/grid/{session_id}/print", response_class=HTMLResponse)
 async def scheduler_grid_print(request: Request, session_id: int):
     """Printable version of the scheduling grid."""
+    from datetime import datetime
+
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
         from ettem.storage import SessionRepository, ScheduleSlotRepository, TimeSlotRepository
@@ -7304,8 +7605,11 @@ async def scheduler_grid_print(request: Request, session_id: int):
         # Get scheduled slots for this session
         scheduled_slots = schedule_repo.get_by_session(session_id)
 
-        # Build grid data
+        # Build grid data and collect categories
         grid_data = {}
+        categories = set()
+        total_matches = 0
+
         for time_slot in time_slots:
             grid_data[time_slot] = {}
             for table in range(1, num_tables + 1):
@@ -7323,7 +7627,10 @@ async def scheduler_grid_print(request: Request, session_id: int):
                     category = group.category if group else "?"
                 else:
                     match_label = match_orm.round_type or "Bracket"
-                    category = match_orm.category or "?"
+                    category = p1.categoria if p1 else (p2.categoria if p2 else "?")
+
+                categories.add(category)
+                total_matches += 1
 
                 grid_data[slot.start_time][slot.table_number] = {
                     "match_id": match_orm.id,
@@ -7342,6 +7649,12 @@ async def scheduler_grid_print(request: Request, session_id: int):
             if has_match:
                 non_empty_time_slots.append(time_slot)
 
+        # Category colors for legend
+        category_colors = {}
+        color_palette = ['#4a90d9', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac', '#d69e2e', '#667eea']
+        for i, cat in enumerate(sorted(categories)):
+            category_colors[cat] = color_palette[i % len(color_palette)]
+
         context = {
             "request": request,
             "tournament": tournament,
@@ -7349,9 +7662,130 @@ async def scheduler_grid_print(request: Request, session_id: int):
             "time_slots": non_empty_time_slots,
             "num_tables": num_tables,
             "grid_data": grid_data,
+            "total_matches": total_matches,
+            "categories": sorted(categories),
+            "category_colors": category_colors,
+            "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
 
         return render_template("admin_scheduler_print.html", context)
+
+
+@app.get("/print/scheduler/grid/{session_id}")
+async def print_scheduler_grid_pdf(session_id: int):
+    """Download PDF for scheduler grid."""
+    from datetime import datetime
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        from ettem.storage import SessionRepository, ScheduleSlotRepository, TimeSlotRepository
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return Response(content="No hay torneo activo", status_code=404)
+
+        session_repo = SessionRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+        time_slot_repo = TimeSlotRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+
+        session_obj = session_repo.get_by_id(session_id)
+        if not session_obj:
+            return Response(content="Sesion no encontrada", status_code=404)
+
+        num_tables = tournament.num_tables or 4
+        match_duration = tournament.default_match_duration or 30
+
+        # Get or initialize time slots for this session
+        db_time_slots = time_slot_repo.get_by_session(session_id)
+        if not db_time_slots:
+            db_time_slots = time_slot_repo.initialize_for_session(
+                session_id=session_id,
+                start_time=session_obj.start_time,
+                end_time=session_obj.end_time,
+                default_duration=match_duration
+            )
+
+        # Build time slots list
+        time_slots = [ts.start_time for ts in db_time_slots]
+
+        # Get scheduled slots for this session
+        scheduled_slots = schedule_repo.get_by_session(session_id)
+
+        # Build grid data and collect categories
+        grid_data = {}
+        categories = set()
+        total_matches = 0
+
+        for time_slot in time_slots:
+            grid_data[time_slot] = {}
+            for table in range(1, num_tables + 1):
+                grid_data[time_slot][table] = None
+
+        for slot in scheduled_slots:
+            match_orm = match_repo.get_by_id(slot.match_id)
+            if match_orm and slot.start_time in grid_data:
+                p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
+                p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+
+                if match_orm.group_id:
+                    group = group_repo.get_by_id(match_orm.group_id)
+                    match_label = f"G{group.name}" if group else "Grupo"
+                    category = group.category if group else "?"
+                else:
+                    match_label = match_orm.round_type or "Bracket"
+                    category = p1.categoria if p1 else (p2.categoria if p2 else "?")
+
+                categories.add(category)
+                total_matches += 1
+
+                grid_data[slot.start_time][slot.table_number] = {
+                    "match_id": match_orm.id,
+                    "player1": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "player1_country": p1.pais_cd if p1 else "",
+                    "player2_country": p2.pais_cd if p2 else "",
+                    "label": match_label,
+                    "category": category,
+                }
+
+        # Filter out empty time slots
+        non_empty_time_slots = []
+        for time_slot in time_slots:
+            has_match = any(grid_data[time_slot][table] is not None for table in range(1, num_tables + 1))
+            if has_match:
+                non_empty_time_slots.append(time_slot)
+
+        # Category colors for legend
+        category_colors = {}
+        color_palette = ['#4a90d9', '#48bb78', '#ed8936', '#e53e3e', '#9f7aea', '#38b2ac', '#d69e2e', '#667eea']
+        for i, cat in enumerate(sorted(categories)):
+            category_colors[cat] = color_palette[i % len(color_palette)]
+
+        context = {
+            "tournament_name": tournament.name,
+            "session": session_obj,
+            "time_slots": non_empty_time_slots,
+            "num_tables": num_tables,
+            "grid_data": grid_data,
+            "total_matches": total_matches,
+            "categories": sorted(categories),
+            "category_colors": category_colors,
+            "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        }
+
+        try:
+            pdf_bytes = pdf_generator.generate_scheduler_pdf(context)
+            filename = f"programacion_{session_obj.name.replace(' ', '_')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+        except Exception as e:
+            return Response(content=f"Error generando PDF: {str(e)}", status_code=500)
 
 
 @app.post("/admin/scheduler/timeslot/update-duration")
