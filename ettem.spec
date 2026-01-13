@@ -71,6 +71,23 @@ hiddenimports = [
     'ettem.pdf_generator',
     'ettem.paths',
     'ettem.licensing',
+    # xhtml2pdf and reportlab dependencies
+    'xhtml2pdf',
+    'reportlab',
+    'reportlab.graphics.barcode',
+    'reportlab.graphics.barcode.code128',
+    'reportlab.graphics.barcode.code39',
+    'reportlab.graphics.barcode.code93',
+    'reportlab.graphics.barcode.usps',
+    'reportlab.graphics.barcode.usps4s',
+    'reportlab.graphics.barcode.ecc200datamatrix',
+    'reportlab.graphics.barcode.eanbc',
+    'reportlab.graphics.barcode.qr',
+    'reportlab.graphics.barcode.fourstate',
+    'reportlab.graphics.barcode.lto',
+    'reportlab.graphics.barcode.widgets',
+    'PIL',
+    'PIL.Image',
 ]
 
 a = Analysis(
@@ -87,7 +104,6 @@ a = Analysis(
         'matplotlib',
         'numpy',
         'pandas',
-        'PIL',
         'cv2',
     ],
     win_no_prefer_redirects=False,
