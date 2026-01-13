@@ -1,24 +1,56 @@
-# Easy Table Tennis Event Manager (ettem)
+# Easy Table Tennis Event Manager (ETTEM)
 
 Python application for managing table tennis tournaments with round robin groups and knockout brackets.
 
-## Features (V1)
+## Features
 
-- Player registration from CSV with validation
+### Core Tournament Management
+- Player registration from CSV with ITTF standard categories
 - Round Robin group generation with snake seeding
 - Automatic fixture generation using circle method
-- Local web panel for manual result entry
 - Standings calculation with advanced tie-breaking
 - Knockout bracket generation with strategic placement
 - SQLite persistence (offline-first)
-- Internationalization (Spanish/English)
-- CSV export for groups, standings, and brackets
 
-**Note:** V1 does NOT include scheduling/table assignment. This is planned for V1.1.
+### Web Panel
+- Modern responsive UI with sidebar navigation
+- Complete tournament management from browser
+- Real-time result entry and validation
+- Drag-and-drop manual bracket builder
+- Dark/Light theme toggle
+- Internationalization (Spanish/English)
+
+### Match Format
+- Configurable format per category (Best of 3, 5, or 7)
+- Different formats for groups vs knockout
+- ITTF-compliant score validation
+
+### Windows Executable
+- Standalone `.exe` file (~39 MB)
+- No Python installation required
+- Double-click to launch web panel
+- Full CLI available via terminal
+
+### License System
+- Offline license key validation
+- Monthly, semestral, and annual plans
+- Automatic expiration handling
 
 ## Quick Start
 
-### Installation
+### Option 1: Windows Executable (Recommended)
+
+1. Download `ETTEM.exe`
+2. Double-click to open the web panel
+3. Browser opens automatically at `http://127.0.0.1:8000`
+
+For CLI access:
+```cmd
+ETTEM.exe --help
+ETTEM.exe import-players --csv players.csv --category U13BS
+```
+
+### Option 2: From Source
 
 1. Create and activate a virtual environment:
 ```bash
@@ -34,40 +66,59 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Basic Usage
-
+3. Run the application:
 ```bash
-# Import players from CSV
-ettem import-players --csv data/samples/players.csv --category U13
-
-# Build groups
-ettem build-groups --config config/sample_config.yaml --out out/
-
-# Launch web panel to enter results
+# Open web panel (recommended)
 ettem open-panel
 
-# Calculate standings
-ettem compute-standings --out out/
-
-# Generate knockout bracket
-ettem build-bracket --out out/
-
-# Export data
-ettem export --what standings --format csv --out out/
+# Or use CLI commands
+ettem --help
 ```
+
+## ITTF Standard Categories
+
+ETTEM uses standard ITTF category nomenclature:
+
+| Category | Description |
+|----------|-------------|
+| U11BS | Under 11 Boys Singles |
+| U11GS | Under 11 Girls Singles |
+| U13BS | Under 13 Boys Singles |
+| U13GS | Under 13 Girls Singles |
+| U15BS | Under 15 Boys Singles |
+| U15GS | Under 15 Girls Singles |
+| U17BS | Under 17 Boys Singles |
+| U17GS | Under 17 Girls Singles |
+| U19BS | Under 19 Boys Singles |
+| U19GS | Under 19 Girls Singles |
+| U21BS | Under 21 Boys Singles |
+| U21GS | Under 21 Girls Singles |
+| MS | Men's Singles |
+| WS | Women's Singles |
 
 ## CSV Format
 
 Players CSV must include these columns:
-- `id`: Unique player identifier
-- `nombre`: First name
-- `apellido`: Last name
-- `genero`: Gender (M or F)
-- `pais_cd`: ISO-3 country code (ESP, MEX, ARG, etc.)
-- `ranking_pts`: Numeric ranking points
-- `categoria`: Category (e.g., U13, U15, etc.)
 
-See `data/samples/players.csv` for an example.
+| Column | Description | Required |
+|--------|-------------|----------|
+| `id` | Unique player identifier | Yes |
+| `nombre` | First name | Yes |
+| `apellido` | Last name | Yes |
+| `genero` | Gender (M or F) | Yes |
+| `pais_cd` | ISO-3 country code | Yes |
+| `ranking_pts` | Ranking points (0 if unranked) | Yes |
+| `categoria` | Category code (e.g., U13BS, MS) | Yes |
+
+Example:
+```csv
+id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Francisco,Alvarez,M,URU,1850,U17BS
+2,Rodrigo,Benitez,M,ARG,1820,U17BS
+3,Kevin,Quiroga,M,PAR,0,U17BS
+```
+
+**Note:** Players with `ranking_pts=0` are considered unranked and seeded by insertion order after ranked players.
 
 ## Scoring Rules
 
@@ -90,22 +141,18 @@ When 3+ players are tied on tournament points, the following criteria are applie
 - Bracket size: next power of 2 ≥ number of qualifiers
 - **G1 (best 1st place):** top slot
 - **G2 (second best 1st place):** bottom slot
-- **Other 1st place finishers:** random draw in predefined slots (deterministic with `random_seed`)
+- **Other 1st place finishers:** random draw in predefined slots
 - **2nd place finishers:** placed in opposite half from their group's 1st place
 - **BYEs:** filled automatically according to ITTF positioning rules
-- **Same-country annotation:** 1st round matches with same country are flagged for review (non-blocking)
+- **Same-country annotation:** 1st round matches flagged for review
 
 ### Manual Bracket (Drag & Drop)
 
 The web UI includes a manual bracket builder with:
-- **Drag-and-drop interface:** Move players between slots or from lists to slots
-- **ITTF-compliant BYE positioning:** BYEs are pre-placed according to official ITTF rules based on number of groups
-  - 3 groups (6 players → 8 bracket): BYEs at positions [2, 7]
-  - 5 groups (10 players → 16 bracket): BYEs at positions [2, 6, 7, 10, 11, 15]
-  - Supports up to 20 groups with predefined positions
-- **Removable/repositionable BYEs:** Click X to remove, drag from pool to reposition
-- **Group constraint validation:** Same group cannot be in same half of bracket
-- **Same-country warnings:** Visual alerts for same-country first-round matches
+- **Drag-and-drop interface:** Move players between slots
+- **ITTF-compliant BYE positioning:** Pre-placed according to official rules
+- **Group constraint validation:** Same group cannot be in same half
+- **Same-country warnings:** Visual alerts for first-round matches
 - **Player swap support:** Drag occupied slots to swap players
 
 ## Configuration
@@ -117,23 +164,56 @@ random_seed: 42              # For deterministic draws
 group_size_preference: 4     # Preferred group size (3 or 4)
 advance_per_group: 2         # Players advancing to knockout
 lang: es                     # Language (es or en)
+best_of: 5                   # Match format (3, 5, or 7)
 ```
 
-## Development Commands
+## CLI Commands
+
+```bash
+# Import players from CSV
+ettem import-players --csv data/samples/players.csv --category U13BS
+
+# Build groups
+ettem build-groups --config config/sample_config.yaml --category U13BS
+
+# Launch web panel
+ettem open-panel
+
+# Calculate standings
+ettem compute-standings --category U13BS
+
+# Generate knockout bracket
+ettem build-bracket --category U13BS --config config/sample_config.yaml
+
+# Export data
+ettem export --what standings --format csv --out out/
+```
+
+## Web Panel Features
+
+Access all functionality from the browser at `http://127.0.0.1:8000`:
+
+- **Dashboard:** Overview of all categories and stats
+- **Import Players:** Upload CSV or add manually
+- **Create Groups:** Configure and preview with snake seeding
+- **Enter Results:** Form with score validation
+- **View Standings:** Live standings with tie-breaker details
+- **Generate Bracket:** Auto or manual with drag-and-drop
+- **Settings:** Language and theme preferences
+
+## Development
+
+### Commands
 
 ```bash
 # Run all tests
 pytest
-
-# Run specific test
-pytest tests/test_standings.py::test_triple_tie
 
 # Run with coverage
 pytest --cov=ettem --cov-report=html
 
 # Lint code
 ruff check .
-ruff check --fix .
 
 # Format code
 black .
@@ -142,6 +222,14 @@ black .
 mypy src/ettem
 ```
 
+### Build Executable
+
+```bash
+python -m PyInstaller ettem.spec --clean --noconfirm
+```
+
+Output: `dist/ETTEM.exe`
+
 ## Project Structure
 
 ```
@@ -149,8 +237,7 @@ easy-table-tennis-event/
 ├── config/
 │   └── sample_config.yaml       # Configuration template
 ├── data/
-│   └── samples/
-│       └── players.csv          # Sample player data
+│   └── samples/                 # Sample CSV files
 ├── i18n/
 │   ├── strings_es.yaml          # Spanish translations
 │   └── strings_en.yaml          # English translations
@@ -162,55 +249,32 @@ easy-table-tennis-event/
 │       ├── group_builder.py     # Group generation
 │       ├── standings.py         # Standings calculator
 │       ├── bracket.py           # Bracket generator
-│       ├── io_csv.py            # CSV import/export
-│       ├── config_loader.py     # Config validation
+│       ├── validation.py        # Score validation
+│       ├── licensing.py         # License system
 │       ├── i18n.py              # Translation helpers
 │       └── webapp/
 │           ├── app.py           # FastAPI application
 │           ├── templates/       # HTML templates
 │           └── static/          # CSS/JS files
 ├── tests/                       # Test suite
+├── launcher.py                  # PyInstaller entry point
+├── ettem.spec                   # PyInstaller config
 ├── requirements.txt             # Dependencies
-├── pyproject.toml               # Project configuration
-├── README.md                    # This file
-└── CLAUDE.md                    # Claude Code guidance
+└── pyproject.toml               # Project configuration
 ```
+
+## Version History
+
+- **V2.1** - License system, ITTF nomenclature, Windows executable
+- **V2.0** - Scheduler system with table/time assignments
+- **V1.1** - Complete UI management (import, groups, standings, bracket)
+- **V1.0** - Core tournament engine with CLI
 
 ## Roadmap
 
-See **MVP_ROADMAP.md** for detailed roadmap and version planning.
-
-### Current Focus: V1.1.1 (Complete MVP)
-
-**Goal:** Run a complete tournament for 1 category from start to finish.
-
-**What's Missing:**
-- [ ] Final results and podium view
-- [ ] Champion identification
-- [ ] Tournament completion status
-
-**Everything else works!** You can already:
-- ✅ Import players
-- ✅ Create groups
-- ✅ Enter group results
-- ✅ Calculate standings
-- ✅ Generate bracket (auto + manual)
-- ✅ Enter bracket results
-- ✅ Auto-advance winners
-
-### Future Versions
-
-- **V1.2:** Usability improvements (edit players, delete categories, etc.)
-- **V1.3:** Export & print (PDFs, certificates, group sheets)
-- **V1.4:** Multiple simultaneous categories
-- **V2.0:** Scheduler with table/time assignments
-- **V2.1:** Live operation (displays, notifications, table panels)
-- **V3.0:** Advanced features (roles, multi-tenant, API, mobile app)
-
-## Contributing
-
-Private project. For bugs or feature requests, create an issue or contact the maintainer.
+- **V2.2:** Live operation displays and notifications
+- **V3.0:** Multi-tenant, API, mobile app
 
 ## License
 
-Private project
+Private project. Contact maintainer for licensing information.

@@ -1,405 +1,159 @@
-Crea un repositorio en Python llamado `easy-tt-event-manager` (V1 sin scheduler). 
-Propósito: gestionar un evento de tenis de mesa (Singles) con inscripciones, construcción de grupos (round robin), standings con desempates, generación de llave (KO) y un panel local para ingresar resultados manualmente. 
-No implementes aún asignación horaria/mesas (scheduler); deja hooks para V1.1.
+# ETTEM - Easy Table Tennis Event Manager
 
 ## Project Overview
-Easy Table Tennis Event — aplicación Python para gestionar torneos/eventos de tenis de mesa:
-- Inscripciones desde CSV
+
+Aplicación Python para gestionar torneos de tenis de mesa:
+- Inscripciones desde CSV o manualmente
 - Motor deportivo (grupos RR → standings → llave KO)
-- Panel local para ingresar resultados
-- Exportables (CSV) para comunicación/operación
+- Panel web local para gestión completa
+- Scheduler de mesas y horarios
+- Ejecutable Windows standalone (PyInstaller)
+- Sistema de licencias para distribución comercial
 - Internacionalización ES/EN
 - Windows-first, offline-first (SQLite)
 
-## Development Setup (multi-herramienta)
-El repo debe permitir trabajar con cualquiera de estos gestores (sin casarte con uno):
-- pip (`requirements.txt`)
-- poetry (`pyproject.toml`, `poetry.lock`)
-- pipenv (`Pipfile`, `Pipfile.lock`)
-- uv / pdm (soporte opcional)
+## Estado Actual: V2.1.0 - Release Comercial
 
-Incluye:
-- `.gitignore` listo para .venv y artefactos
-- Instrucciones de entorno virtual en README
-- Sección de “Common Commands” (pytest, ruff/flake8, black/ruff format)
+### ✅ Funcionalidades Completas
 
-## Alcance funcional (V1)
-1) **Inscripciones**
-   - Importar desde CSV con columnas: `id, nombre, apellido, genero, pais_cd, ranking_pts, categoria`
-   - V1 trabaja sobre **una sola categoría** (filtrable por `--category`)
-   - Validaciones básicas (campos obligatorios, genero M/F, ISO-3 en `pais_cd`, ranking numérico)
-
-2) **Grupos (Round Robin)**
-   - Crear grupos con `group_size_preference` en {3,4}; si N no cuadra, mezclar (preferir más grupos de 4 que de 3)
-   - Distribución de seeds en “serpiente” (snake)
-   - Generación de fixture RR por grupo con método del círculo (función genérica N>=3)
-
-3) **Resultados y Standings**
-   - Ingreso **manual** de resultados en panel local (nada de CSV en V1)
-   - Puntuación:
-     - victoria = 2 pts
-     - derrota (jugado) = 1 pt
-     - walkover (perdedor) = 0 pt (el ganador cuenta victoria)
-   - Métricas por jugador: wins, losses, sets_w, sets_l, points_w, points_l, points_total
-   - **Desempate de ≥3 empatados (solo entre los empatados)**:
-     1) `sets_ratio = sets_w / sets_l` (si sets_l=0 → tratar como infinito/valor máximo)
-     2) Si persiste: `points_ratio = points_w / points_l` (si points_l=0 → infinito/valor máximo)
-     3) Si persiste: desempatar por `seed` ascendente (criterio determinista)
-
-4) **Llave (Knockout)**
-   - Tamaño = siguiente potencia de 2 ≥ clasificados (primeros y segundos de grupo)
-   - Posiciones:
-     - G1: tope del cuadro (slot 1)
-     - G2: fondo del cuadro (último slot)
-     - Resto de primeros: **sorteo** en slots predefinidos (usar `random_seed` para determinismo)
-     - Segundos: a **mitad opuesta** de su primero; intentar evitar mismo cuarto si cabe
-   - **Anotaciones** (no bloqueantes): marcar cruce de 1R con **mismo país** para revisión humana
-   - Rellenar con **BYEs** si corresponde
-   - Exportar `knockout_bracket.csv` con estructura por rondas (R16/QF/SF/F)
-
-5) **Panel local (web app minimal)**
-   - FastAPI + Jinja2 (o Starlette + Jinja2): 
-     - Ver grupos y partidos
-     - Form de carga de resultados (sets/puntos, flags `played`/`walkover`)
-     - Botón “Recalcular standings”
-   - Persistencia en **SQLite** (archivo en `.ettem/ettem.sqlite`)
-
-6) **Internacionalización (i18n)**
-   - Strings centralizados en `i18n/strings_es.yaml` y `i18n/strings_en.yaml`
-   - Selección por flag CLI `--lang es|en` (y variable de entorno)
-
-7) **CLI**
-   - `ettem import-players --csv path.csv --category U13`
-   - `ettem build-groups --config config.yaml --out out/`
-   - `ettem open-panel`  # lanza http://127.0.0.1:8000
-   - `ettem compute-standings --out out/`  # idem desde UI
-   - `ettem build-bracket --out out/`
-   - `ettem export --what groups|standings|bracket --format csv --out out/`
-   - Todas las operaciones usan SQLite como estado fuente de la verdad
-
-8) **Configuración**
-   - `config/sample_config.yaml` con:
-     - `random_seed`
-     - `group_size_preference: 4`
-     - `advance_per_group: 2`
-     - `lang: es` (por defecto)
-     - (nota: scheduler no está en V1; dejar `scheduling: {enabled: false}` como hook)
-
-9) **Calidad**
-   - Python 3.11+
-   - Lint/format: ruff + black (o ruff format), flake8 opcional
-   - Type hints + mypy (nivel básico)
-   - Tests con pytest:
-     - grupos con mezcla 3/4 + serpiente
-     - triple empate (≥3) con ratios “solo entre empatados”
-     - bracket con G1 top, G2 bottom, sorteos deterministas, BYEs
-     - smoke test de webapp (ruta `/` responde 200)
-
-## Estructura del repo
-easy-tt-event-manager/
-├─ README.md
-├─ .gitignore
-├─ requirements.txt            # mínimo viable (FastAPI/Jinja2/SQLAlchemy o equivalente, pydantic, pytest, ruff, black)
-├─ pyproject.toml              # (si usas poetry/ruff/black/mypy)
-├─ Pipfile                     # (opcional)
-├─ config/
-│  └─ sample_config.yaml
-├─ data/
-│  └─ samples/
-│     ├─ players.csv
-│     └─ results_fixture.csv   # solo de ejemplo; en V1 ingresar manualmente
-├─ i18n/
-│  ├─ strings_es.yaml
-│  └─ strings_en.yaml
-├─ src/
-│  └─ ettem/
-│     ├─ __init__.py
-│     ├─ cli.py
-│     ├─ models.py             # Player, Match, Group, GroupStanding, Bracket, Bye (dataclasses / pydantic)
-│     ├─ storage.py            # repos SQLite: players, groups, matches, results, standings
-│     ├─ group_builder.py
-│     ├─ standings.py
-│     ├─ bracket.py
-│     ├─ io_csv.py             # import/export CSV
-│     ├─ config_loader.py      # YAML + validaciones
-│     ├─ i18n.py               # helpers de traducción
-│     └─ webapp/
-│        ├─ app.py             # FastAPI + rutas + inyección de storage
-│        ├─ templates/
-│        │  ├─ base.html
-│        │  ├─ groups.html
-│        │  ├─ matches.html
-│        │  └─ standings.html
-│        └─ static/
-│           └─ styles.css
-└─ tests/
-   ├─ test_groups.py
-   ├─ test_standings.py
-   ├─ test_bracket.py
-   ├─ test_storage.py
-   └─ test_webapp_smoke.py
-
-## Common Commands (README)
-- Crear venv:
-  - Linux/Mac: `python -m venv .venv && source .venv/bin/activate`
-  - Windows: `.venv\Scripts\activate`
-- Instalar deps:
-  - pip: `pip install -r requirements.txt`
-  - poetry: `poetry install`
-  - pipenv: `pipenv install`
-- Tests:
-  - `pytest`
-  - `pytest tests/test_standings.py::test_triple_tie`
-- Lint/format:
-  - `ruff check .`
-  - `black .`  (o `ruff format .`)
-
-## Documentación (README + docstrings)
-- CSV de inscripciones (columnas/validaciones y ejemplo)
-- Reglas de puntos (2/1/0) y **desempate ≥3** (ratios “solo entre empatados”, manejo de divisiones por cero)
-- Política de cuadro (G1 top, G2 bottom, segundos mitad opuesta, BYEs, anotaciones por mismo país)
-- Flujo recomendado:
-  1) `import-players`
-  2) `build-groups`
-  3) `open-panel` (ingresar resultados)
-  4) `compute-standings`
-  5) `build-bracket`
-  6) `export`
-
-## Roadmap
-
-Ver archivo **MVP_ROADMAP.md** para roadmap detallado y completo.
-
-**Resumen:**
-- **V1.1.1 (MVP):** Vista de resultados finales y podio → Correr evento completo
-- **V1.2:** Mejoras de usabilidad (editar jugadores, eliminar categorías, etc.)
-- **V1.3:** Exportación e impresión (PDFs, certificados, hojas de grupo)
-- **V1.4:** Múltiples categorías simultáneas
-- **V2.0:** Scheduler/asignación de mesas y horarios
-- **V2.1:** Operación en vivo (displays, notificaciones, panel de mesa)
-- **V3.0:** Funcionalidades avanzadas (roles, multi-tenant, API, app móvil)
-
----
-
-## Estado Actual del Proyecto (V1.1.0 - Gestión Completa desde UI)
-
-### ✅ Completado (V1.0.0 - V1.1.0)
-
-**V1.0.0 - Core Funcional**
+**Core (V1.0 - V1.1)**
 - ✅ CLI completo con todos los comandos
 - ✅ Motor deportivo (grupos RR → standings → bracket KO)
 - ✅ Validación de sets y partidos (reglas ITTF)
-- ✅ Base de datos SQLite con ORM
-- ✅ Tests completos (grupos, standings, bracket, validación)
+- ✅ Gestión 100% desde UI web
+- ✅ Importar jugadores (CSV + manual)
+- ✅ Crear grupos con snake seeding y drag-and-drop
+- ✅ Bracket automático y manual con validaciones ITTF
+- ✅ Formato configurable por categoría (Bo3/Bo5/Bo7)
 
-**V1.0.1 - Edición de Resultados**
-- ✅ Editar/eliminar resultados de partidos
-- ✅ Validación de scores de tenis de mesa
-- ✅ Módulo de validación completo (`validation.py`)
+**Scheduler (V2.0)**
+- ✅ Configuración de mesas y horarios
+- ✅ Sesiones con time slots flexibles
+- ✅ Asignación de partidos a mesa/hora
+- ✅ Grid visual de asignaciones
+- ✅ Finalizar/reabrir sesiones
+- ✅ Impresión de scheduler
 
-**V1.0.2 - Internacionalización y UI Moderna**
-- ✅ Sistema de i18n con archivos YAML (ES/EN)
-- ✅ Comando `export` para grupos/standings/bracket a CSV
-- ✅ Strings traducidos en español/inglés
+**Operación en Vivo (V2.1)**
+- ✅ Live results panel
+- ✅ Print center
+- ✅ Sistema i18n completo (ES/EN)
+- ✅ Tema claro/oscuro
+- ✅ Ejecutable Windows (PyInstaller)
+- ✅ **Sistema de licencias con claves firmadas**
 
-**V1.0.2 - UI Moderna**
-- ✅ **Interfaz moderna con sidebar navegable**
-  - Diseño profesional con CSS moderno (variables, gradientes, sombras)
-  - Sidebar con navegación por categorías
-  - Topbar con selector de idioma
-  - Sistema de cards, badges, alerts, toasts
+### Sistema de Licencias
 
-- ✅ **JavaScript interactivo**
-  - Sistema de notificaciones toast (success/error/warning/info)
-  - Validación de formularios
-  - Confirmaciones de acciones
-  - Navegación activa resaltada
+**Formato de clave:** `ETTEM-XXXX-MMYY-SSSSSSSS`
+- XXXX: ID de cliente
+- MMYY: Mes/año de expiración
+- SSSSSSSS: Firma HMAC-SHA256
 
-- ✅ **Templates completamente rediseñados**
-  - `index.html` - Dashboard con stats y acciones
-  - `category.html` - Vista de categoría con cards de grupos
-  - `group_matches.html` - Tabla moderna de partidos
-  - `enter_result.html` - Formulario horizontal de ingreso de sets
-  - `standings.html` - Clasificación con medallas y badges
-  - `bracket.html` - Visualización de llave eliminatoria
-  - `group_sheet.html` - Matriz de resultados
+**Archivos (NO en repositorio remoto):**
+- `tools/generate_license.py` - Generador de claves
+- `LICENSE_ADMIN.md` - Guía de administración
 
-- ✅ **Mejoras UX**
-  - Errores de validación como toast popups (no page redirects)
-  - Mensajes completamente en español
-  - Valores del formulario se preservan en caso de error
-  - Inputs numéricos sin flechas (spinners)
-  - Tab order vertical en formulario de sets
-  - Botones con solo íconos (tooltips para descripción)
-  - Flash messages con SessionMiddleware
+**Generar licencia:**
+```bash
+python tools/generate_license.py --client XX01 --months 12
+```
 
-**V1.1.0 (Actual) - Gestión Completa desde UI**
-- ✅ **Importar Jugadores** 📥
-  - Upload de archivos CSV con validación
-  - Formulario manual para agregar jugadores individualmente
-  - Validación en tiempo real (género, país ISO-3, ranking)
-  - Preview de jugadores importados
-  - Auto-asignación de seeds
+### Nomenclatura de Categorías (ITTF)
 
-- ✅ **Crear Grupos** 👥
-  - Página de configuración con selector de categoría
-  - Configuración de tamaño preferido (3 o 4 jugadores)
-  - Preview dinámico de distribución de grupos con serpenteo (snake seeding)
-  - Drag-and-drop para ajustes manuales en preview
-  - Random seed configurable para reproducibilidad
-  - Eliminación de grupos existentes y creación de nuevos
-  - **FIX (2025-10-28):** Corregido error al crear grupos desde preview modal
-    * Ahora asigna correctamente group_number a jugadores en asignaciones manuales
-    * Implementada generación de partidos usando generate_round_robin_fixtures()
+| Categoría | Descripción |
+|-----------|-------------|
+| U11BS / U11GS | Under 11 Boys/Girls Singles |
+| U13BS / U13GS | Under 13 Boys/Girls Singles |
+| U15BS / U15GS | Under 15 Boys/Girls Singles |
+| U17BS / U17GS | Under 17 Boys/Girls Singles |
+| U19BS / U19GS | Under 19 Boys/Girls Singles |
+| U21BS / U21GS | Under 21 Boys/Girls Singles |
+| MS / WS | Men's / Women's Singles |
 
-- ✅ **Calcular Standings** 📊
-  - Recalcular todas las categorías de una vez
-  - Calcular por categoría individual
-  - Vista previa de clasificaciones actuales
-  - Notificaciones de éxito/error con toast
-  - Redirección automática a vista de categoría
+### Ejecutable Windows
 
-- ✅ **Generar Bracket** 🏅
-  - Configuración de clasificados por grupo (1º, 1º-2º, 1º-2º-3º)
-  - Preview de tamaño de bracket y BYEs
-  - Random seed para sorteo de posiciones
-  - Vista previa de jugadores clasificados
-  - Generación automática y guardado de bracket en base de datos
-
-- ✅ **Bracket Manual con Drag-and-Drop** 🎯
-  - Interfaz completa de drag-and-drop para posicionamiento manual de jugadores
-  - Listas separadas de 1º y 2º lugar ordenadas por grupo (G1, G2, G3...)
-  - Arrastre desde listas hacia slots del bracket
-  - Arrastre entre slots (mover/intercambiar jugadores dentro del bracket)
-  - BYEs pre-colocados según reglas ITTF (posiciones exactas por cantidad de grupos)
-  - Validaciones estrictas:
-    * Prevención de jugadores duplicados
-    * Error bloqueante si mismo grupo en misma mitad del bracket
-    * Advertencia (no bloqueante) para mismo país
-  - Preservación de formulario en errores de validación
-  - Badges visuales con grupo de cada jugador
-  - BYEs bloqueados (no se pueden mover ni eliminar)
-  - Reglas ITTF implementadas:
-    * 3 grupos (6 jugadores) → Bracket 8 → BYEs en [2, 7]
-    * 5 grupos (10 jugadores) → Bracket 16 → BYEs en [2, 6, 7, 10, 11, 15]
-    * ... hasta 20 grupos con posiciones predefinidas
-
-**V2.0 - Scheduler (En Desarrollo)**
-- ✅ **Configuración de Formato de Partidos (best_of) por Categoría** 🎾
-  - Formato configurable: Mejor de 3, 5, o 7 sets
-  - **POR CATEGORÍA** (no por torneo) - permite SUB13 con Bo3 y OPEN con Bo5
-  - Campo `best_of` agregado al modelo `MatchORM` (cada partido guarda su formato)
-  - Selector de formato en página "Crear Grupos" (aplica a partidos de grupo)
-  - Selector de formato en página "Generar Bracket" (aplica a partidos de llave)
-  - Formulario de resultados muestra dinámicamente el número correcto de sets
-  - Validación usa el `best_of` del partido específico
-  - Migración automática para partidos existentes (default: 5)
-  - Al regenerar bracket, preserva el formato configurado
-
-### 🚧 Próxima Sesión
-
-**Estado Actual (2026-01-11):**
-- ✅ Sistema i18n completo con función `t()` y archivos YAML (ES/EN)
-- ✅ Tema claro/oscuro con toggle y CSS variables
-- ✅ Selector de idioma funcional con persistencia en sesión
-- ✅ **Ejecutable PyInstaller funcionando** 🎉
-  * `dist/ETTEM.exe` - Standalone (~39 MB)
-  * No requiere instalación de Python ni dependencias
-  * Doble clic abre automáticamente el panel web
-  * CLI completo disponible (`ETTEM.exe --help`)
-  * Base de datos se crea en `.ettem/ettem.sqlite` junto al exe
-
-**Rama actual:** `feature/v2.1-release`
-
-**Commits recientes:**
-- `098479e` - Make CLI open web panel by default when no command specified
-- `85a0175` - Add PyInstaller executable support for Windows distribution
-- `963e438` - Add complete i18n system and dark theme support
-
-**Archivos clave del ejecutable:**
-- `launcher.py` - Punto de entrada para PyInstaller (abre browser automáticamente)
-- `src/ettem/paths.py` - Manejo de paths para modo frozen vs desarrollo
-- `ettem.spec` - Configuración de PyInstaller
-
-**Para reconstruir el ejecutable:**
+**Construir:**
 ```bash
 python -m PyInstaller ettem.spec --clean --noconfirm
 ```
 
-**Pendiente (futuro):**
-- Sistema de licencias para monetización
-- Testing end-to-end de torneo completo
-- Mejoras UI adicionales
+**Resultado:** `dist/ETTEM.exe` (~45 MB standalone)
 
-### Flujo de Trabajo Actual
+**Características:**
+- No requiere Python instalado
+- Doble clic abre navegador automáticamente
+- Base de datos en `.ettem/ettem.sqlite`
+- Licencia en `.ettem/license.key`
 
-**Por CLI (funciona perfectamente):**
-```bash
-# 1. Importar jugadores
-ettem import-players --csv data/samples/players.csv --category U13
+### Arquitectura
 
-# 2. Crear grupos
-ettem build-groups --config config/sample_config.yaml --category U13
-
-# 3. Abrir panel web
-ettem open-panel
-
-# 4. Ingresar resultados en http://127.0.0.1:8000
-
-# 5. Calcular standings
-ettem compute-standings --category U13
-
-# 6. Generar bracket
-ettem build-bracket --category U13 --config config/sample_config.yaml
-
-# 7. Exportar
-ettem export --what standings --format csv --out out/
+```
+src/ettem/
+├── cli.py              # Comandos CLI
+├── models.py           # Modelos de datos
+├── storage.py          # Repositorios SQLite
+├── licensing.py        # Sistema de licencias
+├── validation.py       # Validación ITTF
+├── i18n.py             # Internacionalización
+├── paths.py            # Paths (dev/frozen)
+└── webapp/
+    ├── app.py          # FastAPI (~4500 líneas)
+    ├── templates/      # Jinja2 templates
+    └── static/         # CSS/JS
 ```
 
-**Por UI Web (✅ COMPLETO en V1.1.0):**
-- ✅ Ver categorías y grupos
-- ✅ Ver partidos y standings
-- ✅ Ingresar/editar/eliminar resultados
-- ✅ Ver bracket generado
-- ✅ **Importar jugadores (CSV + manual)**
-- ✅ **Crear grupos con configuración**
-- ✅ **Calcular standings (todas o por categoría)**
-- ✅ **Generar bracket con configuración**
+### Comandos de Desarrollo
 
-### Objetivo V1.1 ✅ CUMPLIDO
+```bash
+# Instalar dependencias
+pip install -r requirements.txt
 
-**UI como interfaz principal completa:**
-- ✅ Todas las operaciones del CLI disponibles en la UI web
-- ✅ Usuario puede gestionar torneo 100% desde navegador
-- ✅ CLI queda como herramienta avanzada/scripts
+# Ejecutar en desarrollo
+python -m ettem open-panel
 
-### Notas Técnicas
+# Tests
+pytest
 
-**Arquitectura Actual:**
-- Frontend: FastAPI + Jinja2 templates + JavaScript vanilla
-- Backend: SQLAlchemy ORM + SQLite
-- Validación: Módulo dedicado con reglas ITTF
-- i18n: YAML con dot notation
-- Sesiones: SessionMiddleware para flash messages
+# Lint
+ruff check .
+black .
 
-**Archivos Principales:**
-- `src/ettem/webapp/app.py` - Rutas y endpoints (~4200 líneas con admin + scheduler)
-- `src/ettem/webapp/static/styles.css` - Sistema de diseño (686 líneas)
-- `src/ettem/webapp/static/app.js` - Interactividad (293 líneas)
-- `src/ettem/validation.py` - Reglas de validación (en español, usa match.best_of)
-- `src/ettem/i18n.py` - Sistema de traducción
-- `src/ettem/storage.py` - Repositorios SQLite (MatchORM tiene campo best_of)
+# Construir ejecutable
+python -m PyInstaller ettem.spec --clean --noconfirm
+```
 
-**Nuevos Templates Admin (V1.1.0):**
-- `admin_import_players.html` - Upload CSV + formulario manual
-- `admin_create_groups.html` - Configuración de grupos con preview
-- `admin_calculate_standings.html` - Recalcular clasificaciones
-- `admin_generate_bracket.html` - Configuración de bracket (auto + acceso a manual)
-- `admin_manual_bracket.html` - Interfaz drag-and-drop para bracket manual (~640 líneas)
+### CSV de Jugadores
 
-## Workflow de Desarrollo
+Columnas requeridas:
+- `id` - Identificador único
+- `nombre` - Nombre
+- `apellido` - Apellido
+- `genero` - M o F
+- `pais_cd` - Código ISO-3 (ESP, MEX, ARG, etc.)
+- `ranking_pts` - Puntos de ranking (0 si no tiene)
+- `categoria` - Categoría (U13BS, MS, etc.)
 
-### Ramas de Git
-- `main` - Código estable y probado (V1.0.0, V1.0.1, V1.0.2, V1.1.0)
-- `feature/*` - Nuevas funcionalidades en desarrollo (se mergean a main cuando están listas)
-5. Testing de flujo completo desde UI
+**Ejemplo:**
+```csv
+id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Juan,Perez,M,ESP,1200,U15BS
+2,Maria,Garcia,F,ESP,1150,U15GS
+3,Pedro,Lopez,M,MEX,0,U15BS
+```
+
+### Roadmap Futuro
+
+- **V3.0:** Roles de usuario, multi-tenant, API REST
+- **V3.1:** App móvil para árbitros
+- **V4.0:** Torneos en la nube, rankings federativos
+
+## Workflow de Git
+
+- `main` - Código estable y probado
+- `feature/*` - Nuevas funcionalidades
+
+### Commits Recientes (V2.1)
+- Sistema de licencias con claves firmadas HMAC
+- Ejecutable PyInstaller para Windows
+- i18n completo (ES/EN) con tema claro/oscuro
+- CSVs de ejemplo con nomenclatura ITTF estándar
