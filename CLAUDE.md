@@ -157,3 +157,55 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 - Ejecutable PyInstaller para Windows
 - i18n completo (ES/EN) con tema claro/oscuro
 - CSVs de ejemplo con nomenclatura ITTF estándar
+
+---
+
+## Estado de Sesion (2026-01-14)
+
+### Rama Actual
+`feature/v2.1-release`
+
+### Trabajo Completado Hoy
+
+**1. Visualizacion de Llave para Imprimir**
+- Creado template `preview_bracket_tree.html` que extiende `print/preview.html`
+- Usa flexbox para mostrar las rondas con conectores entre partidos
+- Muestra: numero de slot, nombre jugador, pais, score (si hay resultado)
+- Muestra set scores debajo de partidos completados
+- Integrado con la UI de la app (sidebar, topbar, boton Imprimir)
+
+**2. Template PDF para Llave**
+- `bracket_tree.html` - version simplificada con tablas (xhtml2pdf no soporta flexbox)
+- Colores explicitos en hex para mejor compatibilidad
+- Orientacion vertical (portrait)
+
+**3. Centro de Impresion Actualizado**
+- Boton "Llave {categoria}" agregado a Acciones Rapidas
+- Eliminada seccion separada de PDF de llave
+- La visualizacion esta accesible desde Print Center
+
+**4. Bug Fix: Seleccion de Partidos Vacia**
+- Corregido error 422 cuando no hay partidos seleccionados en bracket
+- Ahora muestra mensaje "Debes seleccionar al menos un partido"
+- Archivo: `app.py` linea ~6668 - `match_ids: list[int] = Form(default=[])`
+
+### Archivos Modificados
+- `src/ettem/webapp/templates/print/preview_bracket_tree.html` - Preview de llave
+- `src/ettem/webapp/templates/print/bracket_tree.html` - PDF de llave
+- `src/ettem/webapp/templates/admin_print_center.html` - Centro de impresion
+- `src/ettem/webapp/app.py` - Fix para match_ids vacio
+
+### Pendiente / Siguiente Sesion
+- Probar que el fix de match_ids vacio funciona correctamente
+- Considerar si el PDF de llave es necesario o si solo con Ctrl+P es suficiente
+- Testing general de la funcionalidad de impresion
+- Posible merge a main cuando todo este probado
+
+### Como Ejecutar
+```bash
+cd "C:\Users\boggd\Documents\Boggdan - Projects\Code\projects\personal\easy-table-tennis-event"
+"C:\ProgramData\anaconda3\python.exe" -m uvicorn ettem.webapp.app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### Licencia de Prueba
+`ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)

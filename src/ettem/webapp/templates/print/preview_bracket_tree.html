@@ -1,346 +1,288 @@
 {% extends "print/preview.html" %}
 
-{% block extra_css %}
-{{ super() }}
-<style>
-    /* Override preview page for landscape */
-    .preview-page {
-        max-width: 27.9cm; /* Letter height as width: 11in */
-    }
-
-    /* Bracket tree specific styles */
-    .bracket-tree-preview {
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 9pt;
-    }
-
-    .bracket-tree-preview .header {
-        text-align: center;
-        border-bottom: 2px solid #000;
-        padding-bottom: 8px;
-        margin-bottom: 12px;
-    }
-
-    .bracket-tree-preview .header h1 {
-        font-size: 14pt;
-        margin: 0 0 4px 0;
-    }
-
-    .bracket-tree-preview .header .subtitle {
-        font-size: 10pt;
-        color: #333;
-    }
-
-    .bracket-tree-preview table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    .bracket-tree-preview th {
-        background: #333;
-        color: white;
-        padding: 8px 4px;
-        font-size: 9pt;
-        text-align: center;
-        border: 1px solid #333;
-        text-transform: uppercase;
-    }
-
-    .bracket-tree-preview td {
-        vertical-align: top;
-        padding: 6px;
-        border: 1px solid #ddd;
-    }
-
-    .bracket-tree-preview .match-box {
-        border: 1px solid #000;
-        margin-bottom: 8px;
-        background: white;
-    }
-
-    .bracket-tree-preview .match-box.completed {
-        border-color: #2d8a4e;
-        border-width: 2px;
-    }
-
-    .bracket-tree-preview .player-row {
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #ccc;
-        padding: 0;
-    }
-
-    .bracket-tree-preview .player-row:last-of-type {
-        border-bottom: none;
-    }
-
-    .bracket-tree-preview .player-row.winner {
-        background: #e8f5e9;
-        font-weight: bold;
-    }
-
-    .bracket-tree-preview .slot-num {
-        width: 24px;
-        background: #f0f0f0;
-        text-align: center;
-        font-weight: bold;
-        font-size: 8pt;
-        padding: 6px 2px;
-        border-right: 1px solid #ccc;
-        flex-shrink: 0;
-    }
-
-    .bracket-tree-preview .player-name-cell {
-        flex: 1;
-        padding: 6px 8px;
-        font-size: 9pt;
-    }
-
-    .bracket-tree-preview .player-name-cell em {
-        color: #666;
-        font-style: italic;
-    }
-
-    .bracket-tree-preview .country-code {
-        color: #666;
-        font-size: 8pt;
-    }
-
-    .bracket-tree-preview .score-cell {
-        width: 28px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 12pt;
-        padding: 4px;
-        background: #f5f5f5;
-        border-left: 1px solid #ccc;
-        flex-shrink: 0;
-    }
-
-    .bracket-tree-preview .player-row.winner .score-cell {
-        background: #c8e6c9;
-        color: #1b5e20;
-    }
-
-    .bracket-tree-preview .set-scores-row {
-        background: #f9f9f9;
-        padding: 4px 8px;
-        text-align: center;
-        font-size: 8pt;
-        border-top: 1px solid #eee;
-    }
-
-    .bracket-tree-preview .set-score {
-        display: inline-block;
-        background: white;
-        border: 1px solid #ccc;
-        padding: 2px 5px;
-        margin: 0 2px;
-        border-radius: 3px;
-        font-weight: 500;
-    }
-
-    .bracket-tree-preview .champion-badge {
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        color: #000;
-        padding: 2px 8px;
-        font-size: 8pt;
-        font-weight: bold;
-        border-radius: 4px;
-        margin-left: 6px;
-    }
-
-    .bracket-tree-preview .spacer {
-        height: 16px;
-    }
-
-    .bracket-tree-preview .legend {
-        margin-top: 12px;
-        font-size: 8pt;
-        color: #666;
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-    }
-
-    .bracket-tree-preview .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .bracket-tree-preview .legend-box {
-        width: 14px;
-        height: 14px;
-        border: 1px solid #000;
-    }
-
-    .bracket-tree-preview .legend-box.winner {
-        background: #e8f5e9;
-        border-color: #2d8a4e;
-    }
-
-    .bracket-tree-preview .legend-box.completed {
-        border-color: #2d8a4e;
-        border-width: 2px;
-    }
-
-    .bracket-tree-preview .footer {
-        margin-top: 12px;
-        text-align: center;
-        font-size: 8pt;
-        color: #666;
-        border-top: 1px solid #ccc;
-        padding-top: 8px;
-    }
-
-    /* Print overrides */
-    @media print {
-        @page {
-            size: letter landscape;
-            margin: 0.5cm;
-        }
-
-        .preview-page {
-            max-width: none !important;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block preview_content %}
-<div class="preview-page landscape">
-    <div class="bracket-tree-preview">
+<div class="preview-page">
+    <div class="bracket-tree-print">
         <!-- Header -->
-        <div class="header">
+        <div class="bracket-header">
             <h1>{{ tournament_name }}</h1>
-            <div class="subtitle">
-                {% if category %}Categoria: {{ category }}{% endif %}
-                {% if best_of %} | Mejor de {{ best_of }}{% endif %}
-                {% if champion %} | CAMPEON: {{ champion.nombre }} {{ champion.apellido }} ({{ champion.pais_cd }}){% endif %}
-            </div>
+            <div class="subtitle">{{ category }}{% if best_of %} - Mejor de {{ best_of }}{% endif %}</div>
+            {% if champion %}
+            <div class="champion">Campeon: {{ champion.nombre }} {{ champion.apellido }} ({{ champion.pais_cd }})</div>
+            {% endif %}
         </div>
 
-        <!-- Bracket Table -->
-        <table>
-            <thead>
-                <tr>
-                    {% for round_type in round_order %}
-                    <th>{{ round_names.get(round_type, round_type) }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    {% for round_type in round_order %}
-                    <td>
-                        {% set slots = slots_by_round.get(round_type, []) %}
-                        {% for i in range(0, slots|length, 2) %}
-                            {% set slot1 = slots[i] %}
-                            {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
+        <!-- Bracket -->
+        <div class="bracket-container">
+            {% for round_type in round_order %}
+            <div class="bracket-round">
+                <div class="round-title">{{ round_names.get(round_type, round_type) }}</div>
+                <div class="round-matches">
+                    {% set slots = slots_by_round.get(round_type, []) %}
+                    {% for i in range(0, slots|length, 2) %}
+                        {% set slot1 = slots[i] %}
+                        {% set slot2 = slots[i+1] if i+1 < slots|length else None %}
 
-                            {# Find match for this slot pair #}
-                            {% set match_data = None %}
-                            {% if matches_by_round.get(round_type) %}
-                                {% for m in matches_by_round[round_type] %}
-                                    {% if (m.player1 and slot1.player and m.player1.id == slot1.player.id) or
-                                          (m.player2 and slot1.player and m.player2.id == slot1.player.id) %}
-                                        {% set match_data = m %}
-                                    {% endif %}
-                                {% endfor %}
+                        {# Find match #}
+                        {% set ns = namespace(match_data=None) %}
+                        {% for m in matches_by_round.get(round_type, []) %}
+                            {% if (m.player1 and slot1.player and m.player1.id == slot1.player.id) or
+                                  (m.player2 and slot1.player and m.player2.id == slot1.player.id) or
+                                  (slot1.slot.is_bye and slot2 and m.player2 and slot2.player and m.player2.id == slot2.player.id) %}
+                                {% set ns.match_data = m %}
                             {% endif %}
+                        {% endfor %}
 
-                            <div class="match-box {% if match_data and match_data.match.winner_id %}completed{% endif %}">
-                                {# Player 1 #}
-                                <div class="player-row {% if slot1.player and match_data and match_data.match.winner_id == slot1.player.id %}winner{% endif %}">
-                                    <span class="slot-num">{{ slot1.slot.slot_number }}</span>
-                                    <span class="player-name-cell">
-                                        {% if slot1.slot.is_bye %}
-                                            <em>BYE</em>
-                                        {% elif slot1.player %}
-                                            {{ slot1.player.nombre }} {{ slot1.player.apellido }}
-                                            <span class="country-code">({{ slot1.player.pais_cd }})</span>
-                                            {% if champion and slot1.player.id == champion.id %}
-                                                <span class="champion-badge">CAMPEON</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <em>-</em>
-                                        {% endif %}
-                                    </span>
-                                    <span class="score-cell">
-                                        {% if match_data and match_data.match.winner_id and slot1.player %}
-                                            {% if match_data.player1 and match_data.player1.id == slot1.player.id %}
-                                                {{ match_data.match.player1_sets_won }}
-                                            {% elif match_data.player2 and match_data.player2.id == slot1.player.id %}
-                                                {{ match_data.match.player2_sets_won }}
-                                            {% endif %}
-                                        {% endif %}
-                                    </span>
-                                </div>
+                        {% set match_data = ns.match_data %}
+                        {% set is_done = match_data and match_data.match.winner_id %}
 
-                                {# Player 2 #}
-                                {% if slot2 %}
-                                <div class="player-row {% if slot2.player and match_data and match_data.match.winner_id == slot2.player.id %}winner{% endif %}">
-                                    <span class="slot-num">{{ slot2.slot.slot_number }}</span>
-                                    <span class="player-name-cell">
-                                        {% if slot2.slot.is_bye %}
-                                            <em>BYE</em>
-                                        {% elif slot2.player %}
-                                            {{ slot2.player.nombre }} {{ slot2.player.apellido }}
-                                            <span class="country-code">({{ slot2.player.pais_cd }})</span>
-                                            {% if champion and slot2.player.id == champion.id %}
-                                                <span class="champion-badge">CAMPEON</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <em>-</em>
-                                        {% endif %}
+                        <div class="bracket-match">
+                            {# Player 1 #}
+                            {% set w1 = slot1.player and match_data and match_data.match.winner_id == slot1.player.id %}
+                            {% set l1 = slot1.player and match_data and match_data.match.winner_id and match_data.match.winner_id != slot1.player.id %}
+                            <div class="match-slot {% if slot1.slot.is_bye %}bye{% elif not slot1.player %}tbd{% elif w1 %}winner{% elif l1 %}loser{% endif %}">
+                                <span class="slot-num">{{ slot1.slot.slot_number }}</span>
+                                <span class="slot-name">
+                                    {% if slot1.slot.is_bye %}BYE
+                                    {% elif slot1.player %}{{ slot1.player.apellido|upper }} {{ slot1.player.nombre[0] }}. ({{ slot1.player.pais_cd }})
+                                    {% else %}-{% endif %}
+                                </span>
+                                {% if is_done and slot1.player %}
+                                    <span class="slot-score">
+                                        {% if match_data.player1 and match_data.player1.id == slot1.player.id %}{{ match_data.match.player1_sets_won }}
+                                        {% elif match_data.player2 %}{{ match_data.match.player2_sets_won }}{% endif %}
                                     </span>
-                                    <span class="score-cell">
-                                        {% if match_data and match_data.match.winner_id and slot2.player %}
-                                            {% if match_data.player1 and match_data.player1.id == slot2.player.id %}
-                                                {{ match_data.match.player1_sets_won }}
-                                            {% elif match_data.player2 and match_data.player2.id == slot2.player.id %}
-                                                {{ match_data.match.player2_sets_won }}
-                                            {% endif %}
-                                        {% endif %}
-                                    </span>
-                                </div>
-                                {% endif %}
-
-                                {# Set scores #}
-                                {% if match_data and match_data.match.winner_id and match_data.match.sets %}
-                                <div class="set-scores-row">
-                                    {% for set_obj in match_data.match.sets %}
-                                        <span class="set-score">{{ set_obj.player1_points }}-{{ set_obj.player2_points }}</span>
-                                    {% endfor %}
-                                </div>
                                 {% endif %}
                             </div>
 
-                            {# Add spacer for alignment between rounds #}
-                            {% if loop.index < (slots|length / 2) %}
-                            <div class="spacer"></div>
+                            {# Player 2 #}
+                            {% if slot2 %}
+                            {% set w2 = slot2.player and match_data and match_data.match.winner_id == slot2.player.id %}
+                            {% set l2 = slot2.player and match_data and match_data.match.winner_id and match_data.match.winner_id != slot2.player.id %}
+                            <div class="match-slot {% if slot2.slot.is_bye %}bye{% elif not slot2.player %}tbd{% elif w2 %}winner{% elif l2 %}loser{% endif %}">
+                                <span class="slot-num">{{ slot2.slot.slot_number }}</span>
+                                <span class="slot-name">
+                                    {% if slot2.slot.is_bye %}BYE
+                                    {% elif slot2.player %}{{ slot2.player.apellido|upper }} {{ slot2.player.nombre[0] }}. ({{ slot2.player.pais_cd }})
+                                    {% else %}-{% endif %}
+                                </span>
+                                {% if is_done and slot2.player %}
+                                    <span class="slot-score">
+                                        {% if match_data.player1 and match_data.player1.id == slot2.player.id %}{{ match_data.match.player1_sets_won }}
+                                        {% elif match_data.player2 %}{{ match_data.match.player2_sets_won }}{% endif %}
+                                    </span>
+                                {% endif %}
+                            </div>
                             {% endif %}
-                        {% endfor %}
-                    </td>
-                    {% endfor %}
-                </tr>
-            </tbody>
-        </table>
 
-        <!-- Legend -->
-        <div class="legend">
-            <span class="legend-item"><span class="legend-box winner"></span> Ganador</span>
-            <span class="legend-item"><span class="legend-box completed"></span> Completado</span>
-            <span class="legend-item"><strong>#N</strong> = Posicion</span>
-            <span class="legend-item"><strong>BYE</strong> = Pasa automaticamente</span>
+                            {# Set scores #}
+                            {% if is_done and match_data.match.sets %}
+                            <div class="match-sets">
+                                {% for s in match_data.match.sets %}{{ s.player1_points }}-{{ s.player2_points }}{% if not loop.last %} {% endif %}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Connector #}
+            {% if not loop.last %}
+            <div class="bracket-connector">
+                {% set next_round = round_order[loop.index] %}
+                {% set next_slots = slots_by_round.get(next_round, []) %}
+                {% set num_matches_next = (next_slots|length) // 2 %}
+                {% for j in range(num_matches_next) %}
+                <div class="conn-group">
+                    <div class="conn-top"></div>
+                    <div class="conn-bottom"></div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
         </div>
 
         <!-- Footer -->
-        <div class="footer">
-            ETTEM - Easy Table Tennis Event Manager | Generado: {{ generation_date }}
+        <div class="bracket-footer">
+            ETTEM - {{ generation_date }}
         </div>
     </div>
 </div>
+
+<style>
+.bracket-tree-print {
+    font-family: Arial, sans-serif;
+    font-size: 9pt;
+}
+
+.bracket-header {
+    text-align: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #000;
+}
+
+.bracket-header h1 {
+    font-size: 16pt;
+    margin: 0 0 5px 0;
+}
+
+.bracket-header .subtitle {
+    font-size: 10pt;
+    color: #333;
+}
+
+.bracket-header .champion {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 5px;
+    color: #1565c0;
+}
+
+.bracket-container {
+    display: flex;
+    align-items: stretch;
+    min-height: 400px;
+}
+
+.bracket-round {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.round-title {
+    background: #444;
+    color: white;
+    padding: 5px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 8pt;
+}
+
+.round-matches {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: 5px 3px;
+}
+
+.bracket-match {
+    border: 1px solid #999;
+    background: white;
+    margin: 2px 0;
+}
+
+.match-slot {
+    display: flex;
+    align-items: center;
+    padding: 3px 5px;
+    font-size: 7pt;
+    min-height: 18px;
+    border-bottom: 1px solid #ddd;
+}
+
+.match-slot:last-of-type {
+    border-bottom: none;
+}
+
+.match-slot.winner {
+    background: #e8f5e9;
+    font-weight: bold;
+}
+
+.match-slot.loser {
+    color: #888;
+}
+
+.match-slot.bye {
+    color: #999;
+    font-style: italic;
+    background: #fafafa;
+}
+
+.match-slot.tbd {
+    color: #ccc;
+}
+
+.slot-num {
+    min-width: 16px;
+    color: #666;
+    font-size: 7pt;
+}
+
+.slot-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.slot-score {
+    min-width: 14px;
+    text-align: right;
+    font-weight: bold;
+    color: #2e7d32;
+}
+
+.match-sets {
+    background: #f5f5f5;
+    font-size: 6pt;
+    color: #666;
+    text-align: center;
+    padding: 2px;
+    border-top: 1px solid #ddd;
+}
+
+/* Connectors */
+.bracket-connector {
+    width: 18px;
+    min-width: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding-top: 25px;
+}
+
+.conn-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.conn-top {
+    flex: 1;
+    border-bottom: 1px solid #333;
+    border-right: 1px solid #333;
+}
+
+.conn-bottom {
+    flex: 1;
+    border-top: 1px solid #333;
+    border-right: 1px solid #333;
+}
+
+.bracket-footer {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 8pt;
+    color: #666;
+    border-top: 1px solid #ccc;
+    padding-top: 8px;
+}
+
+/* Print adjustments */
+@media print {
+    .bracket-tree-print {
+        padding: 0;
+    }
+
+    .bracket-container {
+        min-height: 500px;
+    }
+}
+</style>
 {% endblock %}

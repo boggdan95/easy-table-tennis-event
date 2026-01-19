@@ -64,42 +64,17 @@
                 <span>📊</span>
                 <span>Hojas Grupo {{ category }}</span>
             </a>
+            <a href="/preview/bracket/{{ category }}/tree"
+               class="btn btn-warning"
+               title="Vista de llave eliminatoria {{ category }}">
+                <span>🏅</span>
+                <span>Llave {{ category }}</span>
+            </a>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<!-- Bracket Tree Visualization -->
-<div class="card mb-3">
-    <div class="card-header">
-        <h3 class="card-title">🏅 Visualizacion de Llave</h3>
-    </div>
-    <div class="card-body">
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            Genera una vista imprimible de la llave eliminatoria completa:
-        </p>
-        <div class="d-flex gap-2" style="flex-wrap: wrap;">
-            {% for category, groups in categories_groups.items() %}
-            <div class="btn-group" style="display: inline-flex; border-radius: var(--border-radius); overflow: hidden; border: 1px solid var(--border-color);">
-                <a href="/preview/bracket/{{ category }}/tree"
-                   class="btn btn-outline btn-sm"
-                   style="border: none; border-right: 1px solid var(--border-color); border-radius: 0;"
-                   title="Vista previa de llave {{ category }}">
-                    <span>👁️</span>
-                    <span>Ver {{ category }}</span>
-                </a>
-                <a href="/print/bracket/{{ category }}/tree"
-                   class="btn btn-success btn-sm"
-                   style="border: none; border-radius: 0;"
-                   title="Descargar PDF de llave {{ category }}">
-                    <span>📥</span>
-                    <span>PDF</span>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
 
 <!-- CSV Exports -->
 <div class="card mb-3">

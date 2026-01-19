@@ -222,3 +222,4 @@ __marimo__/
 # License administration (confidential - local only)
 LICENSE_ADMIN.md
 tools/
+tmpclaude-*

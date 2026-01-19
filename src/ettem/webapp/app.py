@@ -6669,10 +6669,16 @@ async def print_bracket_match_sheet(match_id: int):
 async def print_bracket_selected_matches(
     request: Request,
     category: str = Form(...),
-    match_ids: list[int] = Form(...)
+    match_ids: list[int] = Form(default=[])
 ):
     """Preview selected bracket match sheets before printing."""
     from ettem.storage import ScheduleSlotRepository
+
+    # Check if any matches were selected
+    if not match_ids:
+        request.session["flash_message"] = "Debes seleccionar al menos un partido"
+        request.session["flash_type"] = "warning"
+        return RedirectResponse(url="/admin/print-center", status_code=303)
 
     with get_db_session() as session:
         match_repo = MatchRepository(session)
