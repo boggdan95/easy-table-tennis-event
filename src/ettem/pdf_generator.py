@@ -160,64 +160,6 @@ def generate_match_list_pdf(
     return html_to_pdf(html)
 
 
-def generate_bracket_pdf(
-    bracket_data: Dict[str, Any],
-    tournament_name: Optional[str] = None,
-    category: Optional[str] = None,
-    show_results: bool = False
-) -> bytes:
-    """
-    Generate a bracket PDF (empty or with results).
-
-    Args:
-        bracket_data: Bracket structure with slots and matches
-        tournament_name: Optional tournament name
-        category: Optional category name
-        show_results: Whether to show results or leave empty
-
-    Returns:
-        PDF as bytes
-    """
-    context = {
-        "bracket": bracket_data,
-        "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
-        "category": category,
-        "show_results": show_results,
-    }
-
-    html = render_html("bracket.html", context)
-    return html_to_pdf(html)
-
-
-def generate_standings_pdf(
-    standings: List[Dict[str, Any]],
-    group_name: str,
-    tournament_name: Optional[str] = None,
-    category: Optional[str] = None
-) -> bytes:
-    """
-    Generate a standings/classification PDF.
-
-    Args:
-        standings: List of standing dicts with player info
-        group_name: Group name
-        tournament_name: Optional tournament name
-        category: Optional category name
-
-    Returns:
-        PDF as bytes
-    """
-    context = {
-        "standings": standings,
-        "group_name": group_name,
-        "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
-        "category": category,
-    }
-
-    html = render_html("standings.html", context)
-    return html_to_pdf(html)
-
-
 def generate_all_match_sheets_pdf(
     matches_data: List[Dict[str, Any]],
     tournament_name: Optional[str] = None,

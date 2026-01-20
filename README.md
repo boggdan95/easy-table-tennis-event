@@ -193,13 +193,32 @@ ettem export --what standings --format csv --out out/
 
 Access all functionality from the browser at `http://127.0.0.1:8000`:
 
-- **Dashboard:** Overview of all categories and stats
-- **Import Players:** Upload CSV or add manually
-- **Create Groups:** Configure and preview with snake seeding
-- **Enter Results:** Form with score validation
+### Tournament Management
+- **Dashboard:** Overview of all categories and tournament status
+- **Import Players:** Upload CSV or add players manually
+- **Create Groups:** Configure and preview with snake seeding, drag-and-drop reordering
+- **Enter Results:** Form with ITTF score validation (deuce rules, etc.)
 - **View Standings:** Live standings with tie-breaker details
-- **Generate Bracket:** Auto or manual with drag-and-drop
-- **Settings:** Language and theme preferences
+- **Generate Bracket:** Auto from standings or manual with drag-and-drop
+
+### Scheduler System
+- **Table Configuration:** Define available tables for the venue
+- **Session Management:** Create sessions with flexible time slots
+- **Match Assignment:** Assign matches to specific table and time
+- **Visual Grid:** See all assignments at a glance
+- **Print Scheduler:** Export schedule grid as PDF
+
+### Live Operations
+- **Live Results Panel:** Real-time result entry during tournament
+- **Print Center:** Central hub for all printing needs
+  - Match sheets (individual or batch)
+  - Group sheets with result matrix
+  - Bracket tree visualization
+  - Scheduler grid
+
+### Settings
+- **Language:** Spanish / English toggle
+- **Theme:** Light / Dark mode
 
 ## Development
 
@@ -276,15 +295,31 @@ easy-table-tennis-event/
 
 ## Version History
 
-- **V2.1** - License system, ITTF nomenclature, Windows executable
-- **V2.0** - Scheduler system with table/time assignments
-- **V1.1** - Complete UI management (import, groups, standings, bracket)
+- **V2.1** - License system, i18n (ES/EN), dark theme, print center, bracket tree view, scheduler print, live results panel, Windows executable (PyInstaller)
+- **V2.0** - Scheduler system with table/time assignments, session management
+- **V1.1** - Complete UI management (import, groups, standings, bracket), configurable match format (Bo3/Bo5/Bo7)
 - **V1.0** - Core tournament engine with CLI
 
 ## Roadmap
 
-- **V2.2:** Live operation displays and notifications
-- **V3.0:** Multi-tenant, API, mobile app
+### V3.0 - Multi-user & API
+- User authentication and roles (admin, referee, viewer)
+- Multi-tenant support (multiple organizations)
+- REST API for integrations
+
+### V3.1 - Mobile
+- Mobile app for referees (result entry)
+- Push notifications
+
+### V4.0 - Cloud
+- Cloud deployment option
+- Federation rankings integration
+- Online tournament registration
+
+### Future Considerations
+- Doubles support
+- Team events
+- ITTF result export format
 
 ## License
 
