@@ -60,7 +60,7 @@ def test_triple_tie():
         ),
     ]
 
-    standings = calculate_standings(matches, 1, player_repo)
+    standings, _ = calculate_standings(matches, 1, player_repo)
 
     # All should have 3 points (1 win=2pts, 1 loss=1pt)
     assert all(s.points_total == 3 for s in standings)
@@ -157,7 +157,7 @@ def test_seed_tiebreak():
     # Need to create dummy matches (won't be used since stats are identical)
     matches = []
 
-    sorted_standings = break_ties(tied_standings, player_repo, matches)
+    sorted_standings, _ = break_ties(tied_standings, player_repo, matches)
 
     # Should be sorted by seed: player 2 (seed 1), player 3 (seed 2), player 1 (seed 3)
     assert sorted_standings[0].player_id == 2
@@ -185,7 +185,7 @@ def test_walkover_scoring():
         ),
     ]
 
-    standings = calculate_standings(matches, 1, player_repo)
+    standings, _ = calculate_standings(matches, 1, player_repo)
 
     # Player 1 should have 2 points, Player 2 should have 0 points
     player1_standing = next(s for s in standings if s.player_id == 1)

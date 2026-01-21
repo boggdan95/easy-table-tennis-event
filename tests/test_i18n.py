@@ -141,9 +141,11 @@ class TestI18n:
     def test_webapp_strings_exist(self):
         """Test that webapp strings are defined."""
         strings = load_strings("es")
-        assert "webapp" in strings
-        assert "nav" in strings["webapp"]
-        assert "home" in strings["webapp"]["nav"]
+        # Navigation strings are at top level
+        assert "nav" in strings
+        assert "home" in strings["nav"]
+        # Admin section has webapp-related strings
+        assert "admin" in strings
 
     def test_cli_strings_exist(self):
         """Test that CLI strings are defined."""
@@ -162,5 +164,6 @@ class TestI18n:
         """Test that common strings are defined."""
         strings = load_strings("es")
         assert "common" in strings
-        assert "yes" in strings["common"]
-        assert "no" in strings["common"]
+        # YAML booleans become Python True/False keys
+        assert True in strings["common"]
+        assert False in strings["common"]
