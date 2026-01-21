@@ -68,10 +68,15 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 - [ ] Más rápido si árbitro usa marcador físico
 - [ ] Sync al guardar cada set
 
-**Configuración por mesa:**
-- [ ] Admin configura modo en Scheduler al asignar mesa
-- [ ] Puede cambiar durante el torneo
-- [ ] Default configurable globalmente
+**Configuración de Mesas (nuevo tab o sección):**
+- [ ] Separado del Scheduler (config fija vs asignaciones del día)
+- [ ] Por cada mesa:
+  - Nombre/número
+  - Modo de árbitro (punto por punto / resultado por set)
+  - Generar/imprimir código QR
+  - Estado (activa/inactiva)
+- [ ] Default global para nuevas mesas
+- [ ] Puede modificarse durante el torneo
 
 **Funciones comunes (ambos modos):**
 - [ ] Funciona offline (no requiere conexión constante)
