@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('admin.table_config.title') }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ t('admin.table_config.title') }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>{{ t('common.back') }}</span>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats Overview -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('admin.table_config.subtitle') }}</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--primary-color);">{{ tables|length }}</div>
+                <div style="color: var(--text-muted);">{{ t('admin.scheduler.tables') }}</div>
+            </div>
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);">{{ available_count }}</div>
+                <div style="color: var(--text-muted);">{{ t('admin.table_config.status_available') }}</div>
+            </div>
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-size: 2rem; font-weight: bold; color: var(--warning-color);">{{ locked_count }}</div>
+                <div style="color: var(--text-muted);">{{ t('admin.table_config.status_locked') }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Initialize Tables (if no tables exist) -->
+{% if not tables %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('admin.table_config.initialize_tables') }}</h3>
+    </div>
+    <div class="card-body">
+        <form action="/admin/table-config/initialize" method="post">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="num_tables">{{ t('admin.table_config.num_tables') }}</label>
+                    <input type="number" id="num_tables" name="num_tables" class="form-control"
+                           value="{{ tournament.num_tables or 4 }}" min="1" max="20" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="default_mode">{{ t('admin.table_config.default_mode') }}</label>
+                    <select id="default_mode" name="default_mode" class="form-control">
+                        <option value="result_per_set">{{ t('admin.table_config.mode_result_per_set') }}</option>
+                        <option value="point_by_point">{{ t('admin.table_config.mode_point_by_point') }}</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        {{ t('admin.table_config.initialize_tables') }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tables List -->
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">{{ t('admin.scheduler.tables') }}</h3>
+        {% if tables %}
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('add-table-form').style.display = document.getElementById('add-table-form').style.display === 'none' ? 'block' : 'none'">
+            + {{ t('common.create') }}
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Add Table Form (hidden by default) -->
+    {% if tables %}
+    <div id="add-table-form" style="display: none; padding: 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+        <form action="/admin/table-config/add" method="post">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="table_name">{{ t('admin.table_config.table_name') }}</label>
+                    <input type="text" id="table_name" name="name" class="form-control"
+                           placeholder="Mesa {{ (tables|length) + 1 }}">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="table_mode">{{ t('admin.table_config.mode') }}</label>
+                    <select id="table_mode" name="mode" class="form-control">
+                        <option value="result_per_set">{{ t('admin.table_config.mode_result_per_set') }}</option>
+                        <option value="point_by_point">{{ t('admin.table_config.mode_point_by_point') }}</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-success">{{ t('common.create') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-table-form').style.display = 'none'">{{ t('common.cancel') }}</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="card-body" style="padding: 0;">
+        {% if tables %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>{{ t('admin.table_config.table_name') }}</th>
+                        <th>{{ t('admin.table_config.mode') }}</th>
+                        <th style="text-align: center;">{{ t('admin.table_config.status') }}</th>
+                        <th>{{ t('admin.table_config.referee_url') }}</th>
+                        <th style="text-align: center;">{{ t('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for table in tables %}
+                    <tr>
+                        <td>
+                            <strong>{{ table.table_number }}</strong>
+                        </td>
+                        <td>
+                            {{ table.name or ('Mesa ' ~ table.table_number) }}
+                        </td>
+                        <td>
+                            <form action="/admin/table-config/{{ table.id }}/mode" method="post" style="margin: 0;" class="mode-form">
+                                <select name="mode" class="form-control form-control-sm" onchange="this.form.submit()" style="width: auto; min-width: 150px;">
+                                    <option value="result_per_set" {{ 'selected' if table.mode == 'result_per_set' }}>{{ t('admin.table_config.mode_result_per_set') }}</option>
+                                    <option value="point_by_point" {{ 'selected' if table.mode == 'point_by_point' }}>{{ t('admin.table_config.mode_point_by_point') }}</option>
+                                </select>
+                            </form>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if not table.is_active %}
+                            <span class="badge badge-secondary">{{ t('admin.table_config.status_inactive') }}</span>
+                            {% elif table.lock %}
+                            <span class="badge badge-warning">{{ t('admin.table_config.status_locked') }}</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                {{ table.lock.locked_at.strftime('%H:%M') }}
+                            </div>
+                            {% else %}
+                            <span class="badge badge-success">{{ t('admin.table_config.status_available') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <code style="font-size: 0.85rem; background: var(--bg-secondary); padding: 0.25rem 0.5rem; border-radius: 4px;">/mesa/{{ table.table_number }}</code>
+                                <button type="button" class="btn btn-sm btn-secondary" onclick="copyUrl('{{ table.table_number }}')" title="{{ t('admin.table_config.copy_url') }}">
+                                    📋
+                                </button>
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                                {% if table.lock %}
+                                <form action="/admin/table-config/{{ table.id }}/unlock" method="post" style="margin: 0;" data-confirm="{{ t('common.confirm') }}">
+                                    <button type="submit" class="btn btn-warning btn-sm" title="{{ t('admin.table_config.unlock') }}">
+                                        🔓 {{ t('admin.table_config.unlock') }}
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <form action="/admin/table-config/{{ table.id }}/toggle" method="post" style="margin: 0;">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-secondary' if table.is_active else 'btn-success' }}" title="{{ t('admin.table_config.is_active') }}">
+                                        {{ '⏸️' if table.is_active else '▶️' }}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+            <p>{{ t('admin.table_config.no_tables') }}</p>
+            <p>{{ t('admin.table_config.initialize_tables') }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Mode Explanations -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('admin.table_config.mode') }}</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius); border-left: 4px solid var(--primary-color);">
+                <h4 style="margin: 0 0 0.5rem 0;">{{ t('admin.table_config.mode_point_by_point') }}</h4>
+                <p style="margin: 0; color: var(--text-muted);">{{ t('admin.table_config.mode_point_help') }}</p>
+            </div>
+            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius); border-left: 4px solid var(--secondary-color);">
+                <h4 style="margin: 0 0 0.5rem 0;">{{ t('admin.table_config.mode_result_per_set') }}</h4>
+                <p style="margin: 0; color: var(--text-muted);">{{ t('admin.table_config.mode_result_help') }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Codes Section -->
+{% if tables %}
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">{{ t('admin.table_config.qr_code') }}</h3>
+        <a href="/admin/table-config/qr-codes" class="btn btn-primary btn-sm" target="_blank">
+            🖨️ {{ t('admin.table_config.print_qr') }}
+        </a>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+            Imprime los códigos QR y colócalos en cada mesa física. Los árbitros podrán escanearlos para acceder al marcador.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+            {% for table in tables %}
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                <div style="font-weight: bold; margin-bottom: 0.5rem;">{{ table.name or ('Mesa ' ~ table.table_number) }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">/mesa/{{ table.table_number }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function copyUrl(tableNumber) {
+    const baseUrl = window.location.origin;
+    const url = baseUrl + '/mesa/' + tableNumber;
+    navigator.clipboard.writeText(url).then(() => {
+        toast.success('{{ t("admin.table_config.url_copied") }}');
+    }).catch(() => {
+        // Fallback for older browsers
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        toast.success('{{ t("admin.table_config.url_copied") }}');
+    });
+}
+</script>
+
+{% endblock %}

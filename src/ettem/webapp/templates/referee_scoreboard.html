@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'es' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{{ t('admin.referee.table_n', n=table.table_number) }} - ETTEM</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .header .status {
+            font-size: 0.75rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.25rem;
+        }
+
+        .status-online { background: var(--success-color); }
+        .status-offline { background: var(--danger-color); }
+        .status-syncing { background: var(--warning-color); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main {
+            flex: 1;
+            padding: 1rem;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: var(--bg-color);
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        /* Match Info */
+        .match-info {
+            text-align: center;
+        }
+
+        .player-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            padding: 0.5rem;
+        }
+
+        .vs {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            padding: 0.25rem;
+        }
+
+        .match-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Score Display */
+        .score-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .player-score {
+            flex: 1;
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 4rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .score-separator {
+            font-size: 2rem;
+            color: var(--text-muted);
+        }
+
+        /* Point by Point Controls */
+        .point-controls {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .point-btn {
+            flex: 1;
+            padding: 2rem;
+            font-size: 2rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            color: white;
+        }
+
+        .point-btn:active {
+            transform: scale(0.95);
+        }
+
+        .point-btn-p1 {
+            background: var(--primary-color);
+        }
+
+        .point-btn-p2 {
+            background: var(--success-color);
+        }
+
+        .undo-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* Set Result Controls */
+        .set-result-form {
+            padding: 1rem;
+        }
+
+        .set-input-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .set-input {
+            width: 80px;
+            height: 60px;
+            font-size: 1.5rem;
+            text-align: center;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        .set-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .submit-btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* Sets Summary */
+        .sets-summary {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-color);
+        }
+
+        .set-badge {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .set-badge-p1 { background: var(--primary-color); color: white; }
+        .set-badge-p2 { background: var(--success-color); color: white; }
+        .set-badge-pending { background: var(--border-color); color: var(--text-muted); }
+
+        /* History */
+        .history-list {
+            list-style: none;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Actions */
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            background: white;
+            color: var(--text-color);
+            text-decoration: none;
+            margin-top: 0.5rem;
+        }
+
+        .action-btn-danger {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+
+        /* No Match State */
+        .no-match {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .no-match-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .no-match h2 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .no-match p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Locked State */
+        .locked-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .locked-message {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .locked-message h2 {
+            margin-bottom: 0.5rem;
+        }
+
+        .locked-message p {
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        /* Hidden */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>{{ t('admin.referee.table_n', n=table.table_number) }}</h1>
+        <div class="status">
+            <span class="status-indicator status-online" id="status-indicator"></span>
+            <span id="status-text">{{ t('admin.referee.synced') }}</span>
+        </div>
+    </header>
+
+    <main class="main">
+        {% if locked %}
+        <!-- Table Locked by Another Device -->
+        <div class="locked-overlay">
+            <div class="locked-message">
+                <h2>{{ t('admin.referee.table_locked') }}</h2>
+                <p>{{ t('admin.referee.table_locked_msg') }}</p>
+                <button class="submit-btn" onclick="window.location.reload()">
+                    {{ t('admin.referee.retry_connection') }}
+                </button>
+            </div>
+        </div>
+        {% elif not match %}
+        <!-- No Match Assigned -->
+        <div class="no-match">
+            <div class="no-match-icon">🏓</div>
+            <h2>{{ t('admin.referee.no_match') }}</h2>
+            <p>{{ t('admin.referee.no_match_msg') }}</p>
+        </div>
+        {% else %}
+        <!-- Match Info -->
+        <div class="card">
+            <div class="card-header">{{ t('admin.referee.current_match') }}</div>
+            <div class="card-body">
+                <div class="match-info">
+                    <div class="player-name">{{ player1.full_name if player1 else 'TBD' }}</div>
+                    <div class="vs">vs</div>
+                    <div class="player-name">{{ player2.full_name if player2 else 'TBD' }}</div>
+                    <div class="match-meta">
+                        {{ match.category }} - {{ match.round_name or 'Grupo' }}
+                        {% if match.best_of %}| Bo{{ match.best_of }}{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sets Summary -->
+        <div class="card">
+            <div class="sets-summary">
+                <div class="set-badge {{ 'set-badge-p1' if live_score.player1_sets > 0 else 'set-badge-pending' }}">
+                    {{ live_score.player1_sets if live_score else 0 }}
+                </div>
+                <span style="color: var(--text-muted); font-size: 0.875rem;">-</span>
+                <div class="set-badge {{ 'set-badge-p2' if live_score.player2_sets > 0 else 'set-badge-pending' }}">
+                    {{ live_score.player2_sets if live_score else 0 }}
+                </div>
+            </div>
+        </div>
+
+        {% if table.mode == 'point_by_point' %}
+        <!-- Point by Point Mode -->
+        <div class="card">
+            <div class="card-header">{{ t('admin.referee.current_set', n=live_score.current_set if live_score else 1) }}</div>
+            <div class="card-body">
+                <div class="score-display">
+                    <div class="player-score">
+                        <div class="score-value" id="p1-points">{{ live_score.player1_points if live_score else 0 }}</div>
+                        <div class="score-label">{{ player1.apellido if player1 else 'J1' }}</div>
+                    </div>
+                    <div class="score-separator">-</div>
+                    <div class="player-score">
+                        <div class="score-value" id="p2-points">{{ live_score.player2_points if live_score else 0 }}</div>
+                        <div class="score-label">{{ player2.apellido if player2 else 'J2' }}</div>
+                    </div>
+                </div>
+                <div class="point-controls">
+                    <button type="button" class="point-btn point-btn-p1" onclick="addPoint(1)">
+                        {{ t('admin.referee.add_point') }}
+                    </button>
+                    <button type="button" class="point-btn point-btn-p2" onclick="addPoint(2)">
+                        {{ t('admin.referee.add_point') }}
+                    </button>
+                </div>
+                <button type="button" class="undo-btn" onclick="undoPoint()">
+                    {{ t('admin.referee.undo_point') }}
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <!-- Result per Set Mode -->
+        <div class="card">
+            <div class="card-header">{{ t('admin.referee.enter_set_result') }}</div>
+            <div class="card-body">
+                <form id="set-result-form" class="set-result-form" action="/mesa/{{ table.table_number }}/set" method="post">
+                    <div class="set-input-row">
+                        <input type="number" name="p1_score" class="set-input" id="p1-score" min="0" max="99" required placeholder="0">
+                        <span style="font-size: 1.5rem; color: var(--text-muted);">-</span>
+                        <input type="number" name="p2_score" class="set-input" id="p2-score" min="0" max="99" required placeholder="0">
+                    </div>
+                    <button type="submit" class="submit-btn">
+                        {{ t('admin.referee.save_set') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- History -->
+        {% if completed_sets %}
+        <div class="card">
+            <div class="card-header">{{ t('admin.referee.history') }}</div>
+            <div class="card-body">
+                <ul class="history-list">
+                    {% for set in completed_sets %}
+                    <li class="history-item">
+                        <span>Set {{ set.set_number }}</span>
+                        <span>{{ set.player1_points }} - {{ set.player2_points }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="card">
+            <div class="card-body">
+                <button type="button" class="action-btn action-btn-danger" onclick="confirmWalkover()">
+                    {{ t('admin.referee.walkover') }}
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </main>
+
+    <script>
+        // Session token for table lock
+        const SESSION_TOKEN = '{{ session_token }}';
+        const TABLE_ID = {{ table.id }};
+        const TABLE_NUMBER = {{ table.table_number }};
+        const MATCH_ID = {{ match.id if match else 'null' }};
+
+        // Local state for point-by-point mode
+        let localState = {
+            p1Points: {{ live_score.player1_points if live_score else 0 }},
+            p2Points: {{ live_score.player2_points if live_score else 0 }},
+            p1Sets: {{ live_score.player1_sets if live_score else 0 }},
+            p2Sets: {{ live_score.player2_sets if live_score else 0 }},
+            currentSet: {{ live_score.current_set if live_score else 1 }},
+            history: []
+        };
+
+        function updateDisplay() {
+            document.getElementById('p1-points').textContent = localState.p1Points;
+            document.getElementById('p2-points').textContent = localState.p2Points;
+        }
+
+        function addPoint(player) {
+            // Save to history for undo
+            localState.history.push({
+                p1Points: localState.p1Points,
+                p2Points: localState.p2Points
+            });
+
+            if (player === 1) {
+                localState.p1Points++;
+            } else {
+                localState.p2Points++;
+            }
+
+            updateDisplay();
+            checkSetEnd();
+            syncToServer();
+        }
+
+        function undoPoint() {
+            if (localState.history.length > 0) {
+                const prev = localState.history.pop();
+                localState.p1Points = prev.p1Points;
+                localState.p2Points = prev.p2Points;
+                updateDisplay();
+                syncToServer();
+            }
+        }
+
+        function checkSetEnd() {
+            const p1 = localState.p1Points;
+            const p2 = localState.p2Points;
+            const diff = Math.abs(p1 - p2);
+
+            // Check if set is won (11+ points, 2+ difference)
+            if ((p1 >= 11 || p2 >= 11) && diff >= 2) {
+                const winner = p1 > p2 ? 1 : 2;
+                if (confirm('{{ t("admin.referee.confirm_set") }} (' + p1 + '-' + p2 + ')')) {
+                    saveSet(p1, p2);
+                }
+            }
+        }
+
+        function saveSet(p1Score, p2Score) {
+            fetch('/mesa/' + TABLE_NUMBER + '/set', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'p1_score=' + p1Score + '&p2_score=' + p2Score + '&session_token=' + SESSION_TOKEN
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update local state
+                    localState.p1Points = 0;
+                    localState.p2Points = 0;
+                    localState.currentSet++;
+                    if (p1Score > p2Score) {
+                        localState.p1Sets++;
+                    } else {
+                        localState.p2Sets++;
+                    }
+                    localState.history = [];
+
+                    // Check if match is over
+                    if (data.match_complete) {
+                        alert('{{ t("admin.referee.match_won") }}');
+                        window.location.reload();
+                    } else {
+                        updateDisplay();
+                        window.location.reload(); // Refresh to get new set data
+                    }
+                } else {
+                    alert(data.error || '{{ t("admin.referee.invalid_score") }}');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving set:', error);
+                alert('Error de conexión');
+            });
+        }
+
+        function syncToServer() {
+            // Update live score on server (for public display)
+            fetch('/api/live-score/' + MATCH_ID, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_token: SESSION_TOKEN,
+                    p1_points: localState.p1Points,
+                    p2_points: localState.p2Points
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    setStatus('online');
+                } else {
+                    setStatus('offline');
+                }
+            })
+            .catch(error => {
+                console.error('Sync error:', error);
+                setStatus('offline');
+            });
+        }
+
+        function setStatus(status) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+
+            indicator.className = 'status-indicator';
+            if (status === 'online') {
+                indicator.classList.add('status-online');
+                text.textContent = '{{ t("admin.referee.synced") }}';
+            } else if (status === 'offline') {
+                indicator.classList.add('status-offline');
+                text.textContent = '{{ t("admin.referee.offline_mode") }}';
+            } else {
+                indicator.classList.add('status-syncing');
+                text.textContent = '{{ t("admin.referee.syncing") }}';
+            }
+        }
+
+        function confirmWalkover() {
+            if (confirm('{{ t("admin.referee.walkover_confirm") }}')) {
+                window.location.href = '/mesa/' + TABLE_NUMBER + '/walkover';
+            }
+        }
+
+        // Keep connection alive
+        setInterval(function() {
+            fetch('/api/table/' + TABLE_ID + '/heartbeat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ session_token: SESSION_TOKEN })
+            }).catch(() => setStatus('offline'));
+        }, 30000); // Every 30 seconds
+    </script>
+</body>
+</html>

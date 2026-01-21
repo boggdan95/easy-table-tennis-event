@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'es' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>{{ t('admin.public_display.title') }} - ETTEM</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f1f5f9;
+            --text-muted: #94a3b8;
+            --primary-color: #3b82f6;
+            --success-color: #22c55e;
+            --warning-color: #eab308;
+            --danger-color: #ef4444;
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr;
+            height: 100vh;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: var(--card-bg);
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-meta {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-header {
+            padding: 0.75rem 1rem;
+            background: rgba(0,0,0,0.2);
+            font-weight: 600;
+            font-size: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .live-section {
+            grid-column: 1 / -1;
+        }
+
+        /* Match Cards */
+        .match-card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .match-card-live {
+            border-left: 4px solid var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { border-left-color: var(--success-color); }
+            50% { border-left-color: var(--primary-color); }
+        }
+
+        .match-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .match-table {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .match-table-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .match-status {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .status-live {
+            width: 8px;
+            height: 8px;
+            background: var(--success-color);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .match-players {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .player {
+            flex: 1;
+            text-align: center;
+        }
+
+        .player-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .player-country {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .match-score {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .match-score-separator {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+        }
+
+        .score-sets {
+            min-width: 2rem;
+            text-align: center;
+        }
+
+        .match-current-set {
+            text-align: center;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .current-set-score {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--warning-color);
+        }
+
+        /* Upcoming/Results Cards */
+        .result-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .result-players {
+            flex: 1;
+        }
+
+        .result-score {
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .result-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .winner {
+            color: var(--success-color);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Live Matches Grid */
+        .live-matches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 0.5rem;
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 0.5rem 1rem;
+            background: rgba(0,0,0,0.5);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Fullscreen adjustments */
+        @media (min-width: 1920px) {
+            .player-name { font-size: 1.5rem; }
+            .match-score { font-size: 3rem; }
+            .current-set-score { font-size: 2rem; }
+        }
+
+        /* Kiosk mode - hide scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>
+                <span>🏓</span>
+                <span>{{ tournament.name if tournament else 'ETTEM' }}</span>
+            </h1>
+            <div class="header-meta">
+                <span id="current-time">{{ now.strftime('%H:%M:%S') if now else '' }}</span>
+            </div>
+        </header>
+
+        <!-- Live Matches -->
+        <section class="section live-section">
+            <div class="section-header">
+                <span class="status-live"></span>
+                {{ t('admin.public_display.live_matches') }}
+            </div>
+            <div class="section-body">
+                {% if live_matches %}
+                <div class="live-matches-grid">
+                    {% for match in live_matches %}
+                    <div class="match-card match-card-live">
+                        <div class="match-header">
+                            <div class="match-table">
+                                <span class="match-table-badge">{{ t('admin.public_display.table') }} {{ match.table_number or '?' }}</span>
+                            </div>
+                            <div class="match-status">
+                                <span class="status-live"></span>
+                                <span>{{ match.category }} - {{ match.round or 'Grupo' }}</span>
+                            </div>
+                        </div>
+                        <div class="match-players">
+                            <div class="player">
+                                <div class="player-name">{{ match.player1.name }}</div>
+                                <div class="player-country">{{ match.player1.country }}</div>
+                            </div>
+                            <div class="match-score">
+                                <span class="score-sets">{{ match.p1_sets }}</span>
+                                <span class="match-score-separator">-</span>
+                                <span class="score-sets">{{ match.p2_sets }}</span>
+                            </div>
+                            <div class="player">
+                                <div class="player-name">{{ match.player2.name }}</div>
+                                <div class="player-country">{{ match.player2.country }}</div>
+                            </div>
+                        </div>
+                        {% if match.p1_points or match.p2_points %}
+                        <div class="match-current-set">
+                            {{ t('admin.public_display.set') }} {{ match.current_set }}:
+                            <span class="current-set-score">{{ match.p1_points }} - {{ match.p2_points }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏓</div>
+                    <div>{{ t('admin.public_display.no_live_matches') }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Recent Results -->
+        <section class="section">
+            <div class="section-header">
+                🏆 {{ t('admin.public_display.recent_results') }}
+            </div>
+            <div class="section-body">
+                {% if recent_results %}
+                {% for result in recent_results %}
+                <div class="result-card">
+                    <div class="result-players">
+                        <div>
+                            <span class="{{ 'winner' if result.winner_id == result.player1_id }}">{{ result.player1_name }}</span>
+                            {{ t('admin.public_display.vs') }}
+                            <span class="{{ 'winner' if result.winner_id == result.player2_id }}">{{ result.player2_name }}</span>
+                        </div>
+                        <div class="result-meta">{{ result.category }} - {{ result.round or 'Grupo' }}</div>
+                    </div>
+                    <div class="result-score">{{ result.score }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📊</div>
+                    <div>{{ t('admin.public_display.no_recent_results') }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Upcoming Matches -->
+        <section class="section">
+            <div class="section-header">
+                ⏰ {{ t('admin.public_display.upcoming_matches') }}
+            </div>
+            <div class="section-body">
+                {% if upcoming_matches %}
+                {% for match in upcoming_matches %}
+                <div class="result-card">
+                    <div class="result-players">
+                        <div>{{ match.player1_name }} {{ t('admin.public_display.vs') }} {{ match.player2_name }}</div>
+                        <div class="result-meta">
+                            {{ match.category }} - {{ match.round or 'Grupo' }}
+                            {% if match.table_number %}| {{ t('admin.public_display.table') }} {{ match.table_number }}{% endif %}
+                            {% if match.time %}| {{ match.time }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div>{{ t('admin.public_display.no_upcoming') }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <span>{{ t('admin.public_display.auto_refresh') }}</span>
+        <span>ETTEM v2.2</span>
+    </footer>
+
+    <script>
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').textContent =
+                now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>

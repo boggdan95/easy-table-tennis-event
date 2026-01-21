@@ -275,6 +275,75 @@ class TimeSlotORM(Base):
     )
 
 
+class TableConfigORM(Base):
+    """Table configuration for referee mode.
+
+    Each physical table can have its own configuration for how scores are entered.
+    """
+
+    __tablename__ = "table_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
+    table_number = Column(Integer, nullable=False)  # 1, 2, 3, ...
+    name = Column(String(50), nullable=True)  # Display name (e.g., "Mesa 1", "Table A")
+    mode = Column(String(20), nullable=False, default="result_per_set")  # "point_by_point" or "result_per_set"
+    is_active = Column(Boolean, nullable=False, default=True)  # Is table available for use
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    tournament = relationship("TournamentORM")
+    lock = relationship("TableLockORM", back_populates="table", uselist=False)
+
+
+class TableLockORM(Base):
+    """Table lock for referee access control.
+
+    Only one device can control a table at a time.
+    """
+
+    __tablename__ = "table_locks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    table_id = Column(Integer, ForeignKey("table_configs.id"), nullable=False, unique=True)
+    session_token = Column(String(64), nullable=False)  # Unique token for the device session
+    locked_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    last_activity = Column(DateTime, nullable=False, default=datetime.utcnow)
+    device_info = Column(String(200), nullable=True)  # Optional browser/device info
+    current_match_id = Column(Integer, ForeignKey("matches.id"), nullable=True)
+
+    # Relationships
+    table = relationship("TableConfigORM", back_populates="lock")
+    current_match = relationship("MatchORM")
+
+
+class LiveScoreORM(Base):
+    """Live score for matches in progress.
+
+    Tracks the current state of a match being played, including point-by-point scoring.
+    This allows the public display to show real-time scores.
+    """
+
+    __tablename__ = "live_scores"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False, unique=True)
+    table_id = Column(Integer, ForeignKey("table_configs.id"), nullable=True)
+    current_set = Column(Integer, nullable=False, default=1)  # Which set is being played (1, 2, 3...)
+    player1_points = Column(Integer, nullable=False, default=0)  # Current points in this set
+    player2_points = Column(Integer, nullable=False, default=0)  # Current points in this set
+    player1_sets = Column(Integer, nullable=False, default=0)  # Sets won
+    player2_sets = Column(Integer, nullable=False, default=0)  # Sets won
+    serving_player = Column(Integer, nullable=True)  # 1 or 2 (who is serving)
+    started_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    match = relationship("MatchORM")
+    table = relationship("TableConfigORM")
+
+
 class ScheduleSlotORM(Base):
     """Schedule slot table.
 
@@ -1472,5 +1541,339 @@ class TimeSlotRepository:
     def delete_by_session(self, session_id: int) -> int:
         """Delete all time slots for a session."""
         count = self.session.query(TimeSlotORM).filter(TimeSlotORM.session_id == session_id).delete()
+        self.session.commit()
+        return count
+
+
+class TableConfigRepository:
+    """Repository for TableConfig operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, tournament_id: int, table_number: int, name: str = None, mode: str = "result_per_set") -> TableConfigORM:
+        """Create a new table configuration.
+
+        Args:
+            tournament_id: Tournament ID
+            table_number: Table number (1, 2, 3, ...)
+            name: Display name (e.g., "Mesa 1")
+            mode: "point_by_point" or "result_per_set"
+
+        Returns:
+            Created TableConfigORM instance
+        """
+        table = TableConfigORM(
+            tournament_id=tournament_id,
+            table_number=table_number,
+            name=name or f"Mesa {table_number}",
+            mode=mode,
+            is_active=True,
+        )
+        self.session.add(table)
+        self.session.commit()
+        self.session.refresh(table)
+        return table
+
+    def get_by_id(self, table_id: int) -> Optional[TableConfigORM]:
+        """Get table config by ID."""
+        return self.session.query(TableConfigORM).filter(TableConfigORM.id == table_id).first()
+
+    def get_by_tournament_and_number(self, tournament_id: int, table_number: int) -> Optional[TableConfigORM]:
+        """Get table config by tournament and table number."""
+        return (
+            self.session.query(TableConfigORM)
+            .filter(TableConfigORM.tournament_id == tournament_id, TableConfigORM.table_number == table_number)
+            .first()
+        )
+
+    def get_by_tournament(self, tournament_id: int, active_only: bool = False) -> list[TableConfigORM]:
+        """Get all table configs for a tournament."""
+        query = self.session.query(TableConfigORM).filter(TableConfigORM.tournament_id == tournament_id)
+        if active_only:
+            query = query.filter(TableConfigORM.is_active == True)
+        return query.order_by(TableConfigORM.table_number).all()
+
+    def update(self, table: TableConfigORM) -> TableConfigORM:
+        """Update table configuration."""
+        self.session.commit()
+        self.session.refresh(table)
+        return table
+
+    def delete(self, table_id: int) -> bool:
+        """Delete a table config."""
+        table = self.get_by_id(table_id)
+        if table:
+            self.session.delete(table)
+            self.session.commit()
+            return True
+        return False
+
+    def initialize_tables(self, tournament_id: int, num_tables: int, default_mode: str = "result_per_set") -> list[TableConfigORM]:
+        """Initialize table configs for a tournament.
+
+        Args:
+            tournament_id: Tournament ID
+            num_tables: Number of tables to create
+            default_mode: Default referee mode for all tables
+
+        Returns:
+            List of created TableConfigORM instances
+        """
+        # Delete existing table configs for this tournament
+        self.session.query(TableConfigORM).filter(TableConfigORM.tournament_id == tournament_id).delete()
+        self.session.commit()
+
+        tables = []
+        for i in range(1, num_tables + 1):
+            table = self.create(tournament_id, i, f"Mesa {i}", default_mode)
+            tables.append(table)
+
+        return tables
+
+
+class TableLockRepository:
+    """Repository for TableLock operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def acquire_lock(self, table_id: int, session_token: str, device_info: str = None) -> Optional[TableLockORM]:
+        """Try to acquire a lock on a table.
+
+        Args:
+            table_id: Table config ID
+            session_token: Unique session token for the device
+            device_info: Optional device/browser info
+
+        Returns:
+            TableLockORM if lock acquired, None if table is already locked by another session
+        """
+        existing = self.get_by_table(table_id)
+        if existing:
+            # Check if it's the same session (reconnect)
+            if existing.session_token == session_token:
+                existing.last_activity = datetime.utcnow()
+                self.session.commit()
+                return existing
+            # Table is locked by another session
+            return None
+
+        lock = TableLockORM(
+            table_id=table_id,
+            session_token=session_token,
+            device_info=device_info,
+            locked_at=datetime.utcnow(),
+            last_activity=datetime.utcnow(),
+        )
+        self.session.add(lock)
+        self.session.commit()
+        self.session.refresh(lock)
+        return lock
+
+    def release_lock(self, table_id: int, session_token: str = None) -> bool:
+        """Release a lock on a table.
+
+        Args:
+            table_id: Table config ID
+            session_token: If provided, only release if token matches (security)
+
+        Returns:
+            True if lock released, False otherwise
+        """
+        lock = self.get_by_table(table_id)
+        if lock:
+            if session_token is None or lock.session_token == session_token:
+                self.session.delete(lock)
+                self.session.commit()
+                return True
+        return False
+
+    def force_release(self, table_id: int) -> bool:
+        """Force release a lock (admin action).
+
+        Args:
+            table_id: Table config ID
+
+        Returns:
+            True if lock released, False if no lock existed
+        """
+        return self.release_lock(table_id, session_token=None)
+
+    def get_by_table(self, table_id: int) -> Optional[TableLockORM]:
+        """Get lock for a table."""
+        return self.session.query(TableLockORM).filter(TableLockORM.table_id == table_id).first()
+
+    def get_by_token(self, session_token: str) -> Optional[TableLockORM]:
+        """Get lock by session token."""
+        return self.session.query(TableLockORM).filter(TableLockORM.session_token == session_token).first()
+
+    def update_activity(self, table_id: int, session_token: str) -> bool:
+        """Update last activity timestamp for a lock.
+
+        Args:
+            table_id: Table config ID
+            session_token: Session token (must match)
+
+        Returns:
+            True if updated, False if lock not found or token doesn't match
+        """
+        lock = self.get_by_table(table_id)
+        if lock and lock.session_token == session_token:
+            lock.last_activity = datetime.utcnow()
+            self.session.commit()
+            return True
+        return False
+
+    def set_current_match(self, table_id: int, session_token: str, match_id: int) -> bool:
+        """Set the current match for a table.
+
+        Args:
+            table_id: Table config ID
+            session_token: Session token (must match)
+            match_id: Match ID to set as current
+
+        Returns:
+            True if updated, False if lock not found or token doesn't match
+        """
+        lock = self.get_by_table(table_id)
+        if lock and lock.session_token == session_token:
+            lock.current_match_id = match_id
+            lock.last_activity = datetime.utcnow()
+            self.session.commit()
+            return True
+        return False
+
+    def cleanup_expired(self, timeout_minutes: int = 10) -> int:
+        """Remove locks that have been inactive for too long.
+
+        Args:
+            timeout_minutes: Inactivity threshold in minutes
+
+        Returns:
+            Number of locks removed
+        """
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+        count = self.session.query(TableLockORM).filter(TableLockORM.last_activity < cutoff).delete()
+        self.session.commit()
+        return count
+
+    def get_all_active(self) -> list[TableLockORM]:
+        """Get all active locks."""
+        return self.session.query(TableLockORM).all()
+
+
+class LiveScoreRepository:
+    """Repository for LiveScore operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, match_id: int, table_id: int = None) -> LiveScoreORM:
+        """Create a live score entry for a match.
+
+        Args:
+            match_id: Match ID
+            table_id: Optional table config ID
+
+        Returns:
+            Created LiveScoreORM instance
+        """
+        live_score = LiveScoreORM(
+            match_id=match_id,
+            table_id=table_id,
+            current_set=1,
+            player1_points=0,
+            player2_points=0,
+            player1_sets=0,
+            player2_sets=0,
+            started_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        self.session.add(live_score)
+        self.session.commit()
+        self.session.refresh(live_score)
+        return live_score
+
+    def get_by_match(self, match_id: int) -> Optional[LiveScoreORM]:
+        """Get live score for a match."""
+        return self.session.query(LiveScoreORM).filter(LiveScoreORM.match_id == match_id).first()
+
+    def get_by_table(self, table_id: int) -> Optional[LiveScoreORM]:
+        """Get live score for a table."""
+        return self.session.query(LiveScoreORM).filter(LiveScoreORM.table_id == table_id).first()
+
+    def get_all_active(self) -> list[LiveScoreORM]:
+        """Get all active live scores."""
+        return self.session.query(LiveScoreORM).all()
+
+    def update_score(self, match_id: int, player1_points: int, player2_points: int) -> Optional[LiveScoreORM]:
+        """Update current set score.
+
+        Args:
+            match_id: Match ID
+            player1_points: Player 1 points in current set
+            player2_points: Player 2 points in current set
+
+        Returns:
+            Updated LiveScoreORM or None if not found
+        """
+        live_score = self.get_by_match(match_id)
+        if live_score:
+            live_score.player1_points = player1_points
+            live_score.player2_points = player2_points
+            live_score.updated_at = datetime.utcnow()
+            self.session.commit()
+            self.session.refresh(live_score)
+        return live_score
+
+    def complete_set(self, match_id: int, p1_set_score: int, p2_set_score: int) -> Optional[LiveScoreORM]:
+        """Record a completed set and move to next.
+
+        Args:
+            match_id: Match ID
+            p1_set_score: Player 1 final score for the set
+            p2_set_score: Player 2 final score for the set
+
+        Returns:
+            Updated LiveScoreORM or None if not found
+        """
+        live_score = self.get_by_match(match_id)
+        if live_score:
+            # Update sets won
+            if p1_set_score > p2_set_score:
+                live_score.player1_sets += 1
+            else:
+                live_score.player2_sets += 1
+
+            # Move to next set
+            live_score.current_set += 1
+            live_score.player1_points = 0
+            live_score.player2_points = 0
+            live_score.updated_at = datetime.utcnow()
+            self.session.commit()
+            self.session.refresh(live_score)
+        return live_score
+
+    def delete(self, match_id: int) -> bool:
+        """Delete live score entry (when match is completed).
+
+        Args:
+            match_id: Match ID
+
+        Returns:
+            True if deleted, False if not found
+        """
+        live_score = self.get_by_match(match_id)
+        if live_score:
+            self.session.delete(live_score)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_all(self) -> int:
+        """Delete all live scores."""
+        count = self.session.query(LiveScoreORM).delete()
         self.session.commit()
         return count
