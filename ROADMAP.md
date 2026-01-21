@@ -15,33 +15,98 @@ Priorizar funcionalidades que:
 
 ---
 
-## V2.2 - Pantalla Pública (Próxima versión)
+## V2.2 - Pantalla Pública + Marcador de Árbitro (Próxima versión)
 
-**Objetivo:** Display en TV/monitor para espectadores y jugadores
+**Objetivo:** Sistema completo de resultados en tiempo real
 
-### 2.2.1 - Live Display (Prioridad Alta)
+```
+ÁRBITRO (celular)              SERVIDOR                 PANTALLA PÚBLICA (TV)
+┌──────────────┐              ┌──────────┐              ┌──────────────┐
+│ Punto x punto│  ──sync──►   │ Guarda   │  ──poll──►   │ Muestra      │
+│ 9-7 → 10-7   │  al acabar   │ set por  │  cada 5s     │ score en     │
+│ → 11-7 ✓     │  cada set    │ set      │              │ vivo         │
+└──────────────┘              └──────────┘              └──────────────┘
+```
+
+### 2.2.1 - Marcador de Árbitro (`/mesa/{numero}`)
+
+**Vista móvil para árbitros - reemplaza el marcador físico**
+
+- [ ] URL simple por mesa: `/mesa/1`, `/mesa/2`, etc.
+- [ ] Código QR en cada mesa física (imprimible)
+- [ ] Sin login (o PIN simple por sesión)
+- [ ] Solo muestra partidos asignados a esa mesa
+
+**Marcador punto por punto (local):**
+- [ ] Botones grandes +1 para cada jugador
+- [ ] Score del set actual en tiempo real
+- [ ] Validación automática de reglas (11 pts, deuce +2)
+- [ ] Funciona offline (no requiere conexión constante)
+
+**Sincronización inteligente:**
+- [ ] Al terminar set → envía automáticamente al servidor
+- [ ] Al terminar partido → marca como completado
+- [ ] Si no hay conexión → guarda local y reintenta
+- [ ] Indicador visual de estado de conexión
+
+**Funciones adicionales:**
+- [ ] Botón "Deshacer" último punto (errores)
+- [ ] Historial de sets jugados
+- [ ] Opción de walkover
+- [ ] Ver siguiente partido de la mesa
+
+### 2.2.2 - Pantalla Pública (`/display`)
+
+**Display para TV/monitor - espectadores y jugadores**
+
 - [ ] Ruta `/display` optimizada para TV (fullscreen, auto-refresh)
-- [ ] Vista de resultados recientes (últimos 5-10 partidos)
-- [ ] Partidos en curso (mesa, jugadores, score parcial)
-- [ ] Próximos partidos (llamado a mesa)
-- [ ] Rotación automática entre vistas
-- [ ] Diseño grande y legible (para ver desde lejos)
-- [ ] Tema oscuro por defecto (mejor para pantallas)
+- [ ] Diseño grande y legible (visible desde 5+ metros)
+- [ ] Tema oscuro por defecto (mejor contraste)
+- [ ] Modo kiosko (sin controles de navegación)
 
-### 2.2.2 - Llamado a Mesa
-- [ ] Lista de "Próximos partidos" con countdown
-- [ ] Estado: "Prepararse" → "A mesa" → "En juego"
-- [ ] Alerta visual cuando jugador no se presenta (parpadeo)
-- [ ] Sonido opcional de llamado (configurable)
+**Vistas con rotación automática:**
+- [ ] **Partidos en curso:** Mesa, jugadores, score actual (ej: "Mesa 1: Juan 2-1 Pedro")
+- [ ] **Resultados recientes:** Últimos 5-10 partidos terminados
+- [ ] **Llamado a mesa:** Próximos partidos con countdown
+- [ ] Tiempo configurable por vista (ej: 10 seg cada una)
 
-### 2.2.3 - Score en Vivo (Opcional)
-- [ ] Actualización de score set por set desde panel admin
-- [ ] Vista de partido individual (para segunda pantalla en mesa)
+**Estados de partido:**
+- [ ] "Prepararse" → jugadores deben acercarse
+- [ ] "A mesa" → partido por comenzar
+- [ ] "En juego" → mostrando score en vivo
+- [ ] "Finalizado" → resultado final
+
+### 2.2.3 - Llamado a Mesa
+
+- [ ] Lista de próximos partidos ordenada por prioridad
+- [ ] Countdown visual ("Partido en 5 minutos")
+- [ ] Alerta visual si jugador no se presenta (parpadeo rojo)
+- [ ] Sonido opcional de llamado (configurable, para usar con parlantes)
+
+### 2.2.4 - Vista de Mesa Individual (Opcional)
+
+**Para pantalla/tablet en cada mesa física**
+
+- [ ] Ruta `/display/mesa/1` - solo muestra esa mesa
+- [ ] Score grande del partido actual
+- [ ] Ideal para segunda pantalla junto al árbitro
 
 ### Consideraciones Técnicas
-- Sin websockets (polling cada 5-10 seg para simplicidad)
-- CSS responsive para diferentes tamaños de TV
-- Modo "kiosko" sin controles de navegación
+
+**Arquitectura:**
+- Polling cada 5 segundos (simple, sin websockets)
+- LocalStorage para persistencia offline del árbitro
+- Service Worker para funcionar sin conexión (PWA)
+
+**Rendimiento:**
+- Endpoint liviano `/api/live-scores` con solo datos necesarios
+- Cache de 5 segundos en servidor
+- Compresión gzip
+
+**Compatibilidad:**
+- Árbitro: cualquier celular con navegador moderno
+- Display: Chrome/Edge en modo kiosko (F11)
+- Responsive para diferentes tamaños de pantalla
 
 ---
 
