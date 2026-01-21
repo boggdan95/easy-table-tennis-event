@@ -302,24 +302,19 @@ easy-table-tennis-event/
 
 ## Roadmap
 
-### V3.0 - Multi-user & API
-- User authentication and roles (admin, referee, viewer)
-- Multi-tenant support (multiple organizations)
-- REST API for integrations
+Ver [ROADMAP.md](ROADMAP.md) para el plan detallado de desarrollo.
 
-### V3.1 - Mobile
-- Mobile app for referees (result entry)
-- Push notifications
+**Próximas versiones:**
 
-### V4.0 - Cloud
-- Cloud deployment option
-- Federation rankings integration
-- Online tournament registration
-
-### Future Considerations
-- Doubles support
-- Team events
-- ITTF result export format
+| Versión | Enfoque |
+|---------|---------|
+| 2.2 | Pantalla pública (resultados en vivo, llamado a mesa) |
+| 2.3 | Check-in de jugadores |
+| 2.4 | Reportes y exportaciones mejoradas |
+| 3.0 | Notificaciones (WhatsApp/SMS) |
+| 3.1 | Inscripciones online |
+| 3.2 | Soporte para dobles |
+| 4.0 | Multi-usuario y cloud |
 
 ## License
 
