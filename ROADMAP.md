@@ -149,47 +149,110 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 
 ---
 
-## V2.3 - Check-in de Jugadores
+## V2.3 - Reportes Personalizables
+
+**Objetivo:** Documentos profesionales con identidad del torneo
+
+### 2.3.1 - Configuración de Torneo/Evento
+- [ ] Subir logo del torneo (PNG/JPG)
+- [ ] Nombre oficial del evento
+- [ ] Fecha y sede
+- [ ] Organizador / Federación
+- [ ] Sponsors (logos secundarios)
+
+### 2.3.2 - Personalización de Reportes
+- [ ] Logo en encabezado de todos los documentos
+- [ ] Bandera del país junto a jugadores (usando pais_cd)
+- [ ] Colores personalizables (primario/secundario)
+- [ ] Pie de página con datos del evento
+
+### 2.3.3 - Documentos Mejorados
+- [ ] Hoja de partido con logo y datos del torneo
+- [ ] Hoja de grupo con encabezado profesional
+- [ ] Bracket con identidad visual
+- [ ] Acta oficial de resultados por categoría
+
+### 2.3.4 - Exportaciones
+- [ ] CSV de todos los resultados
+- [ ] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
+- [ ] PDF de resumen del torneo
+
+### 2.3.5 - Certificados (Opcional)
+- [ ] Template de diploma/certificado
+- [ ] Generación automática para top 3
+- [ ] Logo, firma, datos del evento
+
+---
+
+## V2.4 - Portal Público para Jugadores
+
+**Objetivo:** Jugadores consultan horarios y resultados desde su celular (sin imprimir)
+
+```
+JUGADOR (su celular)              SERVIDOR
+┌──────────────────┐              ┌──────────────────┐
+│ "¿Cuándo juego?" │  ◄────────   │ Horarios,        │
+│ "¿En qué mesa?"  │   consulta   │ resultados,      │
+│ "¿Cómo voy?"     │              │ standings        │
+└──────────────────┘              └──────────────────┘
+```
+
+### 2.4.1 - Acceso al Portal
+- [ ] Ruta pública: `/torneo` o `/public`
+- [ ] Código QR para compartir (imprimible, para pegar en entrada)
+- [ ] Sin login requerido
+- [ ] Funciona en red local o expuesto a internet
+
+### 2.4.2 - Vista General
+- [ ] Lista de categorías del torneo
+- [ ] Estado de cada categoría (grupos, bracket, finalizado)
+- [ ] Resultados recientes
+- [ ] Próximos partidos (todas las mesas)
+
+### 2.4.3 - Búsqueda de Jugador
+- [ ] Buscar por nombre
+- [ ] Ver todos los partidos del jugador (pasados y próximos)
+- [ ] Mesa y hora del próximo partido
+- [ ] Resultados de sus partidos jugados
+
+### 2.4.4 - Vista por Categoría
+- [ ] Grupos con resultados y standings
+- [ ] Bracket interactivo (zoom, scroll)
+- [ ] Horarios de la categoría
+
+### 2.4.5 - Diseño Móvil
+- [ ] Optimizado para celular (responsive)
+- [ ] Carga rápida (datos mínimos)
+- [ ] Pull-to-refresh para actualizar
+- [ ] Modo oscuro opcional
+
+### Consideraciones Técnicas
+- [ ] Red local: accesible via IP del servidor (ej: 192.168.1.100:8000/torneo)
+- [ ] Internet: exponer con ngrok, túnel SSH, o IP pública
+- [ ] Cache agresivo para reducir carga
+- [ ] PWA opcional (agregar a pantalla de inicio)
+
+---
+
+## V2.5 - Check-in de Jugadores
 
 **Objetivo:** Saber quién llegó y quién falta
 
-### 2.3.1 - Control de Asistencia
+### 2.5.1 - Control de Asistencia
 - [ ] Marcar jugador como "presente" (check-in)
 - [ ] Vista de jugadores pendientes por categoría
 - [ ] Hora de check-in registrada
 - [ ] Filtro: "Solo ausentes"
 
-### 2.3.2 - Alertas de Ausencia
+### 2.5.2 - Alertas de Ausencia
 - [ ] Advertencia al generar grupos si hay jugadores sin check-in
 - [ ] Opción de excluir automáticamente ausentes
 - [ ] Reporte de no-shows al final del torneo
 
-### 2.3.3 - QR Check-in (Opcional)
+### 2.5.3 - QR Check-in (Opcional)
 - [ ] Generar QR único por jugador
 - [ ] Escanear con celular del organizador
 - [ ] Auto check-in al escanear
-
----
-
-## V2.4 - Mejoras de Impresión y Reportes
-
-**Objetivo:** Documentación oficial y exportaciones
-
-### 2.4.1 - Acta Oficial de Torneo
-- [ ] Formato estándar de federación (configurable)
-- [ ] Firma digital del árbitro principal
-- [ ] Resumen de resultados por categoría
-- [ ] Lista de participantes con club/asociación
-
-### 2.4.2 - Exportaciones
-- [ ] CSV de todos los resultados
-- [ ] Formato ITTF (si existe estándar)
-- [ ] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
-
-### 2.4.3 - Certificados
-- [ ] Template de diploma/certificado
-- [ ] Generación automática para top 3
-- [ ] Personalizable (logo del torneo, sponsors)
 
 ---
 
@@ -301,13 +364,14 @@ Ideas para evaluar en el futuro:
 | Versión | Enfoque | Estado |
 |---------|---------|--------|
 | 2.1.0 | MVP Comercial | **Actual** |
-| 2.2.0 | Pantalla Pública | Próxima |
-| 2.3.0 | Check-in | Planeada |
-| 2.4.0 | Reportes | Planeada |
-| 3.0.0 | Notificaciones | Futura |
-| 3.1.0 | Inscripciones | Futura |
+| 2.2.0 | Pantalla Pública + Marcador Árbitro | Próxima |
+| 2.3.0 | Reportes Personalizables | Planeada |
+| 2.4.0 | Portal Público para Jugadores | Planeada |
+| 2.5.0 | Check-in de Jugadores | Planeada |
+| 3.0.0 | Notificaciones (WhatsApp/SMS) | Futura |
+| 3.1.0 | Inscripciones Online | Futura |
 | 3.2.0 | Dobles | Futura |
-| 4.0.0 | Multi-usuario | Futura |
+| 4.0.0 | Multi-usuario y Cloud | Futura |
 
 ---
 

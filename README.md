@@ -308,9 +308,10 @@ Ver [ROADMAP.md](ROADMAP.md) para el plan detallado de desarrollo.
 
 | Versión | Enfoque |
 |---------|---------|
-| 2.2 | Pantalla pública (resultados en vivo, llamado a mesa) |
-| 2.3 | Check-in de jugadores |
-| 2.4 | Reportes y exportaciones mejoradas |
+| 2.2 | Pantalla pública + Marcador de árbitro (resultados en vivo) |
+| 2.3 | Reportes personalizables (logo, bandera, certificados) |
+| 2.4 | Portal público para jugadores (horarios desde el celular) |
+| 2.5 | Check-in de jugadores |
 | 3.0 | Notificaciones (WhatsApp/SMS) |
 | 3.1 | Inscripciones online |
 | 3.2 | Soporte para dobles |
