@@ -37,20 +37,46 @@ Priorizar funcionalidades que:
 - [ ] Sin login (o PIN simple por sesión)
 - [ ] Solo muestra partidos asignados a esa mesa
 
-**Marcador punto por punto (local):**
+**Dos modos de operación (configurable por mesa):**
+
+```
+MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
+┌──────────────────┐              ┌──────────────────┐
+│  JUAN    PEDRO   │              │  Set 1:          │
+│  [ 9 ]   [ 7 ]   │              │  [11] - [ 9]     │
+│                  │              │                  │
+│  [+1]     [+1]   │              │  Set 2:          │
+│                  │              │  [11] - [ 7]     │
+│  Auto al llegar  │              │                  │
+│  a 11 (o deuce)  │              │  [GUARDAR SET]   │
+└──────────────────┘              └──────────────────┘
+   Para mesas con                    Para árbitros que
+   árbitro dedicado                  prefieren método
+   o finales                         tradicional
+```
+
+**Modo Punto por Punto:**
 - [ ] Botones grandes +1 para cada jugador
 - [ ] Score del set actual en tiempo real
-- [ ] Validación automática de reglas (11 pts, deuce +2)
-- [ ] Funciona offline (no requiere conexión constante)
+- [ ] Detecta automáticamente fin de set (11 pts o deuce +2)
+- [ ] Botón "Deshacer" último punto
+- [ ] Sync automático al terminar set
 
-**Sincronización inteligente:**
-- [ ] Al terminar set → envía automáticamente al servidor
-- [ ] Al terminar partido → marca como completado
+**Modo Resultado por Set:**
+- [ ] Árbitro ingresa score final del set (ej: 11-9)
+- [ ] Validación de reglas ITTF
+- [ ] Más rápido si árbitro usa marcador físico
+- [ ] Sync al guardar cada set
+
+**Configuración por mesa:**
+- [ ] Admin configura modo en Scheduler al asignar mesa
+- [ ] Puede cambiar durante el torneo
+- [ ] Default configurable globalmente
+
+**Funciones comunes (ambos modos):**
+- [ ] Funciona offline (no requiere conexión constante)
 - [ ] Si no hay conexión → guarda local y reintenta
 - [ ] Indicador visual de estado de conexión
-
-**Funciones adicionales:**
-- [ ] Botón "Deshacer" último punto (errores)
 - [ ] Historial de sets jugados
 - [ ] Opción de walkover
 - [ ] Ver siguiente partido de la mesa
