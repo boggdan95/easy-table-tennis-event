@@ -34,8 +34,16 @@ Priorizar funcionalidades que:
 
 - [ ] URL simple por mesa: `/mesa/1`, `/mesa/2`, etc.
 - [ ] Código QR en cada mesa física (imprimible)
-- [ ] Sin login (o PIN simple por sesión)
+- [ ] Sin login complejo (PIN simple por sesión o solo acceso por QR)
 - [ ] Solo muestra partidos asignados a esa mesa
+
+**Control de acceso por mesa:**
+- [ ] Una mesa = un dispositivo activo a la vez
+- [ ] Al abrir mesa → se bloquea para otros
+- [ ] Si alguien intenta abrir mesa en uso → mensaje "Mesa ocupada"
+- [ ] Timeout automático por inactividad (configurable, ej: 10 min)
+- [ ] Admin puede forzar desbloqueo desde panel si es necesario
+- [ ] Indicador visual en admin de qué mesas están activas
 
 **Dos modos de operación (configurable por mesa):**
 
@@ -247,12 +255,19 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 
 ## V4.0 - Multi-usuario y Cloud
 
-**Objetivo:** Varios organizadores/árbitros trabajando simultáneamente
+**Objetivo:** Varios organizadores trabajando simultáneamente
+
+> **Nota:** En V2.2, los árbitros ya pueden ingresar resultados desde `/mesa/X`,
+> pero sin autenticación completa (solo bloqueo por sesión). V4.0 agrega
+> autenticación real y múltiples admins.
 
 ### 4.0.1 - Roles de Usuario
-- [ ] Admin: control total
-- [ ] Árbitro: ingresar resultados de sus mesas asignadas
-- [ ] Visor: solo lectura (para pantallas públicas)
+- [ ] **Admin:** control total (crear torneos, categorías, grupos, brackets)
+- [ ] **Operador:** ingresar resultados desde panel admin (sin config)
+- [ ] **Árbitro:** ya existe en V2.2 - solo su mesa asignada
+- [ ] **Visor:** solo lectura (para pantallas públicas)
+- [ ] Autenticación con usuario/contraseña
+- [ ] Gestión de usuarios desde panel admin
 
 ### 4.0.2 - Sincronización
 - [ ] Base de datos centralizada (PostgreSQL)
