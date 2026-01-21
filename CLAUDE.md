@@ -163,19 +163,97 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 ## Estado de Sesion (2026-01-21)
 
 ### Rama Actual
-`feature/mvp-preparation`
+`feature/v2.2-live-display`
 
 ### Objetivo
-Preparar ETTEM para release MVP comercial.
+Implementar V2.2: Pantalla Pública + Marcador de Árbitro
 
-### Plan de Trabajo
-Ver `MVP_PLAN.md` para el plan detallado.
+### Estado: IMPLEMENTACIÓN COMPLETA - PENDIENTE PRUEBAS MANUALES
 
-### Tareas Principales
-1. **Documentacion de Usuario** - Crear `USER_GUIDE.md`
-2. **Tests** - Arreglar 16 tests fallidos (standings, i18n, validation)
-3. **Limpieza** - Actualizar version, revisar TODOs
-4. **Validacion** - Checklist pre-release
+### Lo Implementado en V2.2
+
+**1. Configuración de Mesas (`/admin/table-config`)**
+- Inicializar y configurar mesas para el torneo
+- Dos modos: `point_by_point` o `result_per_set`
+- Generar códigos QR para cada mesa
+- Activar/desactivar mesas
+- Ver estado de bloqueo
+
+**2. Marcador de Árbitro (`/mesa/{n}`)**
+- Interfaz móvil optimizada
+- Modo punto por punto con estado local
+- Modo resultado por set
+- Sincronización al servidor por set completado
+- Soporte para walkover
+
+**3. Pantalla Pública (`/display`)**
+- Vista optimizada para TV/monitores
+- Partidos en vivo con marcador actual
+- Resultados recientes (últimos 10)
+- Próximos partidos programados
+- Auto-refresh cada 5 segundos
+- Tema oscuro
+
+**4. Sistema de Bloqueo de Mesas**
+- Un dispositivo por mesa a la vez
+- Bloqueo basado en sesión con cookies
+- Admin puede desbloquear desde panel
+- Timeout automático por inactividad
+
+**5. API de Scores en Vivo**
+- `GET /api/live-scores` - todos los partidos activos
+- `POST /api/live-score/{id}` - actualizar score
+- `POST /api/table/{id}/heartbeat` - mantener lock activo
+
+### Archivos Nuevos/Modificados
+```
+src/ettem/storage.py                    # +3 ORM models, +3 repositories
+src/ettem/webapp/app.py                 # +774 líneas (rutas V2.2)
+src/ettem/webapp/templates/
+├── admin_table_config.html             # Configuración de mesas
+├── admin_table_qr_codes.html           # Imprimir QR codes
+├── referee_scoreboard.html             # Marcador de árbitro
+├── public_display.html                 # Pantalla pública
+└── base.html                           # +link navegación
+i18n/strings_es.yaml                    # +91 líneas traducciones
+i18n/strings_en.yaml                    # +91 líneas traducciones
+```
+
+### Tests Automatizados
+- 63 passed, 1 skipped
+- App importa sin errores
+- Modelos de BD se crean correctamente
+
+### Pruebas Manuales Pendientes
+1. `/admin/table-config` - Configurar mesas, cambiar modos, QR
+2. `/mesa/1` - Marcador de árbitro (ambos modos)
+3. `/display` - Pantalla pública con partidos en vivo
+4. Sistema de bloqueo - Abrir misma mesa en dos dispositivos
+5. Sincronización - Puntos aparezcan en pantalla pública
+
+### Cómo Probar
+```bash
+# Iniciar servidor (accesible desde red local)
+python -m uvicorn ettem.webapp.app:app --host 0.0.0.0 --port 8000
+
+# Encontrar IP local
+ipconfig  # Windows
+# Buscar IPv4 de WiFi (ej: 192.168.1.X)
+
+# URLs para probar:
+# PC: http://127.0.0.1:8000/admin/table-config
+# PC: http://127.0.0.1:8000/display
+# Celular: http://192.168.1.X:8000/mesa/1
+```
+
+### Siguiente Sesión
+1. Probar manualmente las funcionalidades de V2.2
+2. Corregir bugs encontrados
+3. Merge a main
+4. Crear release v2.2.0
+
+### Licencia de Prueba
+`ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)
 
 ### Estado de Tests (64 total)
 - Pasando: 48
