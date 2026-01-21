@@ -220,11 +220,39 @@ JUGADOR (su celular)              SERVIDOR
 - [ ] Bracket interactivo (zoom, scroll)
 - [ ] Horarios de la categoría
 
-### 2.4.5 - Diseño Móvil
-- [ ] Optimizado para celular (responsive)
-- [ ] Carga rápida (datos mínimos)
+### 2.4.5 - Diseño y UX (Prioridad Alta)
+
+**UI completamente diferente al admin - moderna y amigable:**
+
+- [ ] Diseño visual atractivo (no tablas densas)
+- [ ] Cards grandes con información clara
+- [ ] Iconos y colores para estados (en juego, próximo, finalizado)
+- [ ] Tipografía grande y legible
+- [ ] Animaciones sutiles (transiciones, loading)
+- [ ] Banderas de países visibles
+- [ ] Fotos de jugadores (si están disponibles)
+
+**Optimizado para móvil:**
+- [ ] Mobile-first (diseñado para celular primero)
+- [ ] Touch-friendly (botones grandes, swipe)
+- [ ] Carga rápida (datos mínimos, lazy loading)
 - [ ] Pull-to-refresh para actualizar
 - [ ] Modo oscuro opcional
+
+**Ejemplo de card de partido:**
+```
+┌─────────────────────────────────┐
+│  🏓 MESA 3 - EN JUEGO          │
+│  ─────────────────────────────  │
+│  🇪🇸 Juan Pérez                │
+│         2 - 1                   │
+│  🇲🇽 Pedro López               │
+│                                 │
+│  Set actual: 9-7               │
+│  ─────────────────────────────  │
+│  U15 Masculino - Semifinal     │
+└─────────────────────────────────┘
+```
 
 ### Consideraciones Técnicas
 - [ ] Red local: accesible via IP del servidor (ej: 192.168.1.100:8000/torneo)
