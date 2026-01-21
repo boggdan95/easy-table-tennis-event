@@ -223,3 +223,4 @@ __marimo__/
 LICENSE_ADMIN.md
 tools/
 tmpclaude-*
+.venv-build/
