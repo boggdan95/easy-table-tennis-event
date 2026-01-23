@@ -4,6 +4,20 @@
 
 {% block page_title %}{{ t('category.group') }} {{ group.name }} - {{ t('nav.matches') }}{% endblock %}
 
+{% block extra_head %}
+<style>
+    @keyframes pulse-badge {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    .badge-in-progress {
+        background-color: #0d6efd !important;
+        color: white !important;
+        animation: pulse-badge 1.5s ease-in-out infinite;
+    }
+</style>
+{% endblock %}
+
 {% block topbar_actions %}
 <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
@@ -92,6 +106,8 @@
                         <td style="text-align: center;">
                             {% if m.match.status == 'pending' %}
                                 <span class="badge badge-secondary">{{ t('matches.status.pending') }}</span>
+                            {% elif m.match.status == 'in_progress' %}
+                                <span class="badge badge-in-progress">{{ t('matches.status.in_progress') }}</span>
                             {% elif m.match.status == 'WALKOVER' %}
                                 <span class="badge badge-warning">{{ t('matches.status.walkover') }}</span>
                             {% else %}
@@ -132,4 +148,11 @@
         </div>
     </div>
 </div>
+
+<!-- Auto-refresh every 10 seconds for live updates -->
+<script>
+    setTimeout(function() {
+        window.location.reload();
+    }, 10000);
+</script>
 {% endblock %}

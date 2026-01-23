@@ -135,6 +135,8 @@
                             <td style="text-align: center;">
                                 {% if m.match.status == 'pending' %}
                                     <span class="badge badge-secondary">{{ t('matches.status.pending') }}</span>
+                                {% elif m.match.status == 'in_progress' %}
+                                    <span class="badge badge-in-progress">{{ t('matches.status.in_progress') }}</span>
                                 {% elif m.match.status == 'WALKOVER' %}
                                     <span class="badge badge-warning">{{ t('matches.status.walkover') }}</span>
                                 {% else %}
@@ -188,6 +190,17 @@
 {% endif %}
 
 <style>
+/* In Progress badge animation */
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.badge-in-progress {
+    background-color: #0d6efd !important;
+    color: white !important;
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
 /* Tabs Container */
 .tabs-container {
     display: flex;
@@ -346,6 +359,11 @@ function confirmResetBracket(category) {
 
 // Clear any saved bracket draft for this category (we're viewing the saved bracket)
 localStorage.removeItem('ettem_bracket_draft_{{ category }}');
+
+// Auto-refresh every 10 seconds for live updates
+setTimeout(function() {
+    window.location.reload();
+}, 10000);
 </script>
 
 {% endblock %}

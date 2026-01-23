@@ -189,6 +189,7 @@ matches:
   back_to_matches: "Volver a Partidos"
   status:
     pending: "Pendiente"
+    in_progress: "En Juego"
     completed: "Completado"
     walkover: "Walkover"
   match_format: "Formato del Partido"
@@ -507,8 +508,9 @@ admin:
   referee:
     title: "Marcador de Árbitro"
     table_n: "Mesa {n}"
+    select_match: "Selecciona un partido"
     no_match: "Sin partido asignado"
-    no_match_msg: "No hay partido activo en esta mesa. Espera a que el organizador asigne un partido."
+    no_match_msg: "No hay partidos programados para esta mesa."
     current_match: "Partido Actual"
     next_match: "Próximo Partido"
     start_match: "Iniciar Partido"
@@ -541,6 +543,8 @@ admin:
     invalid_score: "Marcador inválido"
     history: "Historial"
     no_sets_played: "Sin sets jugados"
+    match_complete: "¡Partido Completado!"
+    confirm_return: "Confirmar y Regresar"
 
   public_display:
     title: "Pantalla Pública"

@@ -102,6 +102,21 @@ src/ettem/
     └── static/         # CSS/JS
 ```
 
+### Principios de Desarrollo
+
+**Homologación de UI:**
+- Si la misma información se muestra en múltiples vistas, DEBE verse igual en todas
+- Ejemplo: Estado del partido (pending, in_progress, completed) debe usar los mismos badges/estilos en:
+  - `/group/X/matches`
+  - `/admin/live-results`
+  - `/bracket/X/matches`
+  - Cualquier otra vista que muestre partidos
+- Cuando agregues un estado o estilo nuevo, buscar TODOS los lugares donde se usa y actualizarlos
+
+**Vistas con datos en vivo:**
+- Las páginas que muestran datos que pueden cambiar (resultados, estados) deben tener auto-refresh
+- Usar JavaScript `setTimeout` con reload cada 10 segundos para vistas de monitoreo
+
 ### Comandos de Desarrollo
 
 ```bash
@@ -220,7 +235,7 @@ i18n/strings_en.yaml                    # +91 líneas traducciones
 ```
 
 ### Tests Automatizados
-- 63 passed, 1 skipped
+- 64 total: 63 passed, 1 skipped
 - App importa sin errores
 - Modelos de BD se crean correctamente
 
@@ -256,12 +271,8 @@ ipconfig  # Windows
 `ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)
 
 ### Estado de Tests (64 total)
-- Pasando: 48
-- Fallando: 16
-  - Standings: 3 (cambio en estructura de retorno)
-  - i18n: 2 (keys renombradas)
-  - Validation: 10 (formato de errores)
-  - Bracket: 1 (determinismo)
+- Pasando: 63
+- Skipped: 1 (determinismo de bracket - esperado)
 
 ### Sistema de Licencias
 Verificado y funcionando correctamente:

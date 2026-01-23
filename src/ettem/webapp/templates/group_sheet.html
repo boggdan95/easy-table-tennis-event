@@ -48,7 +48,7 @@
             </thead>
             <tbody>
                 {% for match in play_order %}
-                <tr class="{% if match.status != 'pending' %}match-completed{% endif %}">
+                <tr class="{% if match.status == 'in_progress' %}match-in-progress{% elif match.status != 'pending' %}match-completed{% endif %}">
                     <td>{{ loop.index }}</td>
                     <td><strong>{{ match.p1_num }}-{{ match.p2_num }}</strong></td>
                     <td>{% if match.table %}M{{ match.table }}{% else %}-{% endif %}</td>
@@ -172,6 +172,20 @@
     opacity: 0.7;
 }
 
+@keyframes pulse-row {
+    0%, 100% { background-color: rgba(13, 110, 253, 0.2); }
+    50% { background-color: rgba(13, 110, 253, 0.35); }
+}
+
+.play-order-table .match-in-progress {
+    animation: pulse-row 1.5s ease-in-out infinite;
+}
+
+.play-order-table .match-in-progress td {
+    font-weight: 600;
+    color: #0d6efd;
+}
+
 /* Group Sheet Matrix */
 .group-sheet-matrix {
     border-collapse: collapse;
@@ -244,4 +258,11 @@ details[open] .details-arrow {
     transform: rotate(90deg);
 }
 </style>
+
+<!-- Auto-refresh every 10 seconds for live updates -->
+<script>
+    setTimeout(function() {
+        window.location.reload();
+    }, 10000);
+</script>
 {% endblock %}

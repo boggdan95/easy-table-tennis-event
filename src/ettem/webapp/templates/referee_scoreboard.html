@@ -42,9 +42,56 @@
             z-index: 100;
         }
 
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 40px;
+        }
+
+        .header-left {
+            width: 44px;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .header-center {
+            flex: 1;
+            text-align: center;
+        }
+
+        .header-right {
+            width: 44px;
+        }
+
         .header h1 {
             font-size: 1.25rem;
             font-weight: 600;
+            margin: 0;
+        }
+
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .back-btn:active {
+            background: rgba(255,255,255,0.4);
+            transform: scale(0.95);
         }
 
         .header .status {
@@ -120,6 +167,13 @@
             font-size: 0.75rem;
             color: var(--text-muted);
             margin-top: 0.5rem;
+        }
+
+        .player-country {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: normal;
+            margin-left: 0.25rem;
         }
 
         /* Score Display */
@@ -205,9 +259,23 @@
         .set-input-row {
             display: flex;
             gap: 1rem;
-            align-items: center;
+            align-items: flex-end;
             justify-content: center;
             margin-bottom: 1rem;
+        }
+
+        .set-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .set-input-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 0.5rem;
+            text-align: center;
         }
 
         .set-input {
@@ -346,6 +414,73 @@
             font-size: 0.875rem;
         }
 
+        /* Match Selection */
+        .match-option {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .match-option:last-child {
+            border-bottom: none;
+        }
+
+        .match-select-btn {
+            width: 100%;
+            padding: 1rem;
+            background: none;
+            border: none;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .match-select-btn:hover {
+            background: var(--bg-color);
+        }
+
+        .match-select-btn:active {
+            background: var(--border-color);
+        }
+
+        .match-players-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .match-player {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-color);
+        }
+
+        .match-vs {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .match-vs-row {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin: 0.25rem 0;
+        }
+
+        .match-country {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: normal;
+            margin-left: 0.25rem;
+        }
+
+        .match-meta-row {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
         /* Locked State */
         .locked-overlay {
             position: fixed;
@@ -381,11 +516,123 @@
         .hidden {
             display: none !important;
         }
+
+        /* Match Complete Modal */
+        .match-complete-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .match-complete-modal {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .match-complete-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .match-complete-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-color);
+        }
+
+        .match-complete-winner {
+            font-size: 1.125rem;
+            color: var(--success-color);
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .match-complete-score {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .final-score {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .final-score-p1 {
+            color: var(--primary-color);
+        }
+
+        .final-score-p2 {
+            color: var(--success-color);
+        }
+
+        .final-score-separator {
+            font-size: 2rem;
+            color: var(--text-muted);
+        }
+
+        .match-complete-sets {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        .confirm-btn {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            font-weight: 600;
+            background: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .confirm-btn:active {
+            transform: scale(0.98);
+        }
     </style>
 </head>
 <body>
     <header class="header">
-        <h1>{{ t('admin.referee.table_n', n=table.table_number) }}</h1>
+        <div class="header-row">
+            <div class="header-left">
+                {% if match %}
+                <button class="back-btn" onclick="clearMatch()">←</button>
+                {% endif %}
+            </div>
+            <div class="header-center">
+                <h1>{{ t('admin.referee.table_n', n=table.table_number) }}</h1>
+            </div>
+            <div class="header-right"></div>
+        </div>
         <div class="status">
             <span class="status-indicator status-online" id="status-indicator"></span>
             <span id="status-text">{{ t('admin.referee.synced') }}</span>
@@ -405,24 +652,60 @@
             </div>
         </div>
         {% elif not match %}
-        <!-- No Match Assigned -->
+        <!-- No Match Assigned - Show Available Matches -->
+        {% if available_matches %}
+        <div class="card">
+            <div class="card-header">{{ t('admin.referee.select_match') }}</div>
+            <div class="card-body" style="padding: 0;">
+                {% for m in available_matches %}
+                <form action="/mesa/{{ table.table_number }}/select" method="post" class="match-option">
+                    <input type="hidden" name="match_id" value="{{ m.id }}">
+                    <button type="submit" class="match-select-btn">
+                        <div class="match-players-row">
+                            <span class="match-player">{{ m.player1_name }}</span>
+                            {% if m.player1_country %}<span class="match-country">({{ m.player1_country }})</span>{% endif %}
+                        </div>
+                        <div class="match-vs-row">vs</div>
+                        <div class="match-players-row">
+                            <span class="match-player">{{ m.player2_name }}</span>
+                            {% if m.player2_country %}<span class="match-country">({{ m.player2_country }})</span>{% endif %}
+                        </div>
+                        <div class="match-meta-row">
+                            <span>{{ m.category }}</span>
+                            {% if m.round_name %}<span>• {{ m.round_name }}</span>{% endif %}
+                            {% if m.start_time %}<span>• {{ m.start_time }}</span>{% endif %}
+                        </div>
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
         <div class="no-match">
             <div class="no-match-icon">🏓</div>
             <h2>{{ t('admin.referee.no_match') }}</h2>
             <p>{{ t('admin.referee.no_match_msg') }}</p>
         </div>
+        {% endif %}
         {% else %}
         <!-- Match Info -->
         <div class="card">
             <div class="card-header">{{ t('admin.referee.current_match') }}</div>
             <div class="card-body">
                 <div class="match-info">
-                    <div class="player-name">{{ player1.full_name if player1 else 'TBD' }}</div>
+                    <div class="player-name">
+                        {% if player1 %}{{ player1.nombre or '' }} {{ player1.apellido or '' }}{% else %}TBD{% endif %}
+                        {% if player1 and player1.pais_cd %}<span class="player-country">({{ player1.pais_cd }})</span>{% endif %}
+                    </div>
                     <div class="vs">vs</div>
-                    <div class="player-name">{{ player2.full_name if player2 else 'TBD' }}</div>
+                    <div class="player-name">
+                        {% if player2 %}{{ player2.nombre or '' }} {{ player2.apellido or '' }}{% else %}TBD{% endif %}
+                        {% if player2 and player2.pais_cd %}<span class="player-country">({{ player2.pais_cd }})</span>{% endif %}
+                    </div>
                     <div class="match-meta">
-                        {{ match.category }} - {{ match.round_name or 'Grupo' }}
-                        {% if match.best_of %}| Bo{{ match.best_of }}{% endif %}
+                        <strong>{{ match.category or 'Partido' }}</strong>
+                        {% if match.round_name and match.round_name != 'None' %} • {{ match.round_name }}{% endif %}
+                        {% if match.best_of %} • Bo{{ match.best_of }}{% endif %}
                     </div>
                 </div>
             </div>
@@ -449,12 +732,12 @@
                 <div class="score-display">
                     <div class="player-score">
                         <div class="score-value" id="p1-points">{{ live_score.player1_points if live_score else 0 }}</div>
-                        <div class="score-label">{{ player1.apellido if player1 else 'J1' }}</div>
+                        <div class="score-label">{% if player1 %}{{ (player1.nombre or '')[:1] }}. {{ player1.apellido or '' }}{% else %}J1{% endif %}</div>
                     </div>
                     <div class="score-separator">-</div>
                     <div class="player-score">
                         <div class="score-value" id="p2-points">{{ live_score.player2_points if live_score else 0 }}</div>
-                        <div class="score-label">{{ player2.apellido if player2 else 'J2' }}</div>
+                        <div class="score-label">{% if player2 %}{{ (player2.nombre or '')[:1] }}. {{ player2.apellido or '' }}{% else %}J2{% endif %}</div>
                     </div>
                 </div>
                 <div class="point-controls">
@@ -475,11 +758,17 @@
         <div class="card">
             <div class="card-header">{{ t('admin.referee.enter_set_result') }}</div>
             <div class="card-body">
-                <form id="set-result-form" class="set-result-form" action="/mesa/{{ table.table_number }}/set" method="post">
+                <form id="set-result-form" class="set-result-form" onsubmit="return submitSetResult(event)">
                     <div class="set-input-row">
-                        <input type="number" name="p1_score" class="set-input" id="p1-score" min="0" max="99" required placeholder="0">
-                        <span style="font-size: 1.5rem; color: var(--text-muted);">-</span>
-                        <input type="number" name="p2_score" class="set-input" id="p2-score" min="0" max="99" required placeholder="0">
+                        <div class="set-input-group">
+                            <label class="set-input-label">{% if player1 %}{{ (player1.nombre or '')[:1] }}. {{ player1.apellido or '' }}{% else %}J1{% endif %}</label>
+                            <input type="number" name="p1_score" class="set-input" id="p1-score" min="0" max="99" required placeholder="0">
+                        </div>
+                        <span style="font-size: 1.5rem; color: var(--text-muted); align-self: flex-end; padding-bottom: 15px;">-</span>
+                        <div class="set-input-group">
+                            <label class="set-input-label">{% if player2 %}{{ (player2.nombre or '')[:1] }}. {{ player2.apellido or '' }}{% else %}J2{% endif %}</label>
+                            <input type="number" name="p2_score" class="set-input" id="p2-score" min="0" max="99" required placeholder="0">
+                        </div>
                     </div>
                     <button type="submit" class="submit-btn">
                         {{ t('admin.referee.save_set') }}
@@ -506,15 +795,25 @@
         </div>
         {% endif %}
 
-        <!-- Actions -->
-        <div class="card">
-            <div class="card-body">
-                <button type="button" class="action-btn action-btn-danger" onclick="confirmWalkover()">
-                    {{ t('admin.referee.walkover') }}
+        {% endif %}
+
+        <!-- Match Complete Modal (hidden by default) -->
+        <div id="match-complete-modal" class="match-complete-overlay hidden">
+            <div class="match-complete-modal">
+                <div class="match-complete-icon">🏆</div>
+                <div class="match-complete-title">{{ t('admin.referee.match_complete') }}</div>
+                <div class="match-complete-winner" id="winner-name"></div>
+                <div class="match-complete-score">
+                    <span class="final-score final-score-p1" id="final-p1-sets">0</span>
+                    <span class="final-score-separator">-</span>
+                    <span class="final-score final-score-p2" id="final-p2-sets">0</span>
+                </div>
+                <div class="match-complete-sets" id="sets-detail"></div>
+                <button class="confirm-btn" onclick="confirmAndReturn()">
+                    {{ t('admin.referee.confirm_return') }}
                 </button>
             </div>
         </div>
-        {% endif %}
     </main>
 
     <script>
@@ -523,6 +822,10 @@
         const TABLE_ID = {{ table.id }};
         const TABLE_NUMBER = {{ table.table_number }};
         const MATCH_ID = {{ match.id if match else 'null' }};
+
+        // Player names for match complete modal
+        const PLAYER1_NAME = '{% if player1 %}{{ player1.nombre or "" }} {{ player1.apellido or "" }}{% endif %}'.trim() || 'Jugador 1';
+        const PLAYER2_NAME = '{% if player2 %}{{ player2.nombre or "" }} {{ player2.apellido or "" }}{% endif %}'.trim() || 'Jugador 2';
 
         // Local state for point-by-point mode
         let localState = {
@@ -605,8 +908,7 @@
 
                     // Check if match is over
                     if (data.match_complete) {
-                        alert('{{ t("admin.referee.match_won") }}');
-                        window.location.reload();
+                        showMatchComplete(data.p1_sets, data.p2_sets);
                     } else {
                         updateDisplay();
                         window.location.reload(); // Refresh to get new set data
@@ -617,7 +919,72 @@
             })
             .catch(error => {
                 console.error('Error saving set:', error);
-                alert('Error de conexión');
+                // Check if server is still reachable
+                fetch('/api/table/' + TABLE_ID + '/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_token: SESSION_TOKEN })
+                })
+                .then(() => {
+                    // Server is up, data was likely saved - just reload
+                    window.location.reload();
+                })
+                .catch(() => {
+                    // Server is really down
+                    alert('Sin conexión al servidor. Verifica tu red.');
+                });
+            });
+        }
+
+        function submitSetResult(event) {
+            event.preventDefault();
+
+            const p1Score = parseInt(document.getElementById('p1-score').value) || 0;
+            const p2Score = parseInt(document.getElementById('p2-score').value) || 0;
+
+            if (p1Score === 0 && p2Score === 0) {
+                alert('Ingresa el resultado del set');
+                return false;
+            }
+
+            // Use the same saveSet function
+            saveSet(p1Score, p2Score);
+
+            // Clear inputs
+            document.getElementById('p1-score').value = '';
+            document.getElementById('p2-score').value = '';
+
+            return false;
+        }
+
+        function showMatchComplete(p1Sets, p2Sets) {
+            // Determine winner
+            const winnerName = p1Sets > p2Sets ? PLAYER1_NAME : PLAYER2_NAME;
+
+            // Update modal content
+            document.getElementById('winner-name').textContent = winnerName;
+            document.getElementById('final-p1-sets').textContent = p1Sets;
+            document.getElementById('final-p2-sets').textContent = p2Sets;
+            document.getElementById('sets-detail').textContent = 'Sets: ' + p1Sets + ' - ' + p2Sets;
+
+            // Show modal
+            document.getElementById('match-complete-modal').classList.remove('hidden');
+        }
+
+        function confirmAndReturn() {
+            // Clear match and return to menu
+            fetch('/mesa/' + TABLE_NUMBER + '/clear', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'session_token=' + SESSION_TOKEN
+            })
+            .then(() => {
+                window.location.reload();
+            })
+            .catch(() => {
+                window.location.reload();
             });
         }
 
@@ -647,6 +1014,32 @@
             });
         }
 
+        function clearMatch() {
+            if (confirm('¿Regresar al menú de partidos?')) {
+                fetch('/mesa/' + TABLE_NUMBER + '/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'session_token=' + SESSION_TOKEN
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('No se pudo regresar al menú. Por favor refresca la página.');
+                        window.location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                    window.location.reload();
+                });
+            }
+        }
+
         function setStatus(status) {
             const indicator = document.getElementById('status-indicator');
             const text = document.getElementById('status-text');
@@ -661,12 +1054,6 @@
             } else {
                 indicator.classList.add('status-syncing');
                 text.textContent = '{{ t("admin.referee.syncing") }}';
-            }
-        }
-
-        function confirmWalkover() {
-            if (confirm('{{ t("admin.referee.walkover_confirm") }}')) {
-                window.location.href = '/mesa/' + TABLE_NUMBER + '/walkover';
             }
         }
 

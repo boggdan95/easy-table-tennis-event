@@ -148,8 +148,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <code style="font-size: 0.85rem; background: var(--bg-secondary); padding: 0.25rem 0.5rem; border-radius: 4px;">/mesa/{{ table.table_number }}</code>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <code style="font-size: 0.8rem; background: var(--bg-secondary); padding: 0.25rem 0.5rem; border-radius: 4px;">{{ base_url }}/mesa/{{ table.table_number }}</code>
                                 <button type="button" class="btn btn-sm btn-secondary" onclick="copyUrl('{{ table.table_number }}')" title="{{ t('admin.table_config.copy_url') }}">
                                     📋
                                 </button>
@@ -217,11 +217,11 @@
         <p style="color: var(--text-muted); margin-bottom: 1rem;">
             Imprime los códigos QR y colócalos en cada mesa física. Los árbitros podrán escanearlos para acceder al marcador.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
             {% for table in tables %}
             <div style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
                 <div style="font-weight: bold; margin-bottom: 0.5rem;">{{ table.name or ('Mesa ' ~ table.table_number) }}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">/mesa/{{ table.table_number }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); word-break: break-all;">{{ base_url }}/mesa/{{ table.table_number }}</div>
             </div>
             {% endfor %}
         </div>
@@ -230,9 +230,10 @@
 {% endif %}
 
 <script>
+const SERVER_BASE_URL = '{{ base_url }}';
+
 function copyUrl(tableNumber) {
-    const baseUrl = window.location.origin;
-    const url = baseUrl + '/mesa/' + tableNumber;
+    const url = SERVER_BASE_URL + '/mesa/' + tableNumber;
     navigator.clipboard.writeText(url).then(() => {
         toast.success('{{ t("admin.table_config.url_copied") }}');
     }).catch(() => {

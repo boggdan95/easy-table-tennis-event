@@ -189,6 +189,7 @@ matches:
   back_to_matches: "Back to Matches"
   status:
     pending: "Pending"
+    in_progress: "In Progress"
     completed: "Completed"
     walkover: "Walkover"
   match_format: "Match Format"
@@ -507,8 +508,9 @@ admin:
   referee:
     title: "Referee Scoreboard"
     table_n: "Table {n}"
+    select_match: "Select a match"
     no_match: "No match assigned"
-    no_match_msg: "There is no active match on this table. Wait for the organizer to assign a match."
+    no_match_msg: "No matches scheduled for this table."
     current_match: "Current Match"
     next_match: "Next Match"
     start_match: "Start Match"
@@ -541,6 +543,8 @@ admin:
     invalid_score: "Invalid score"
     history: "History"
     no_sets_played: "No sets played"
+    match_complete: "Match Complete!"
+    confirm_return: "Confirm and Return"
 
   public_display:
     title: "Public Display"

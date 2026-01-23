@@ -1631,6 +1631,48 @@ class TableConfigRepository:
 
         return tables
 
+    def sync_tables(self, tournament_id: int, num_tables: int, default_mode: str = "result_per_set") -> list[TableConfigORM]:
+        """Synchronize table configs with num_tables.
+
+        - Creates missing tables if num_tables increased
+        - Deactivates extra tables if num_tables decreased (preserves config)
+        - Preserves existing table modes
+
+        Args:
+            tournament_id: Tournament ID
+            num_tables: Target number of active tables
+            default_mode: Default mode for new tables
+
+        Returns:
+            List of active TableConfigORM instances
+        """
+        existing_tables = self.get_by_tournament(tournament_id)
+        existing_by_number = {t.table_number: t for t in existing_tables}
+
+        # Create missing tables
+        for i in range(1, num_tables + 1):
+            if i not in existing_by_number:
+                table = TableConfigORM(
+                    tournament_id=tournament_id,
+                    table_number=i,
+                    name=f"Mesa {i}",
+                    mode=default_mode,
+                    is_active=True,
+                )
+                self.session.add(table)
+            else:
+                # Reactivate if was deactivated
+                existing_by_number[i].is_active = True
+
+        # Deactivate tables beyond num_tables
+        for table in existing_tables:
+            if table.table_number > num_tables:
+                table.is_active = False
+
+        self.session.flush()
+
+        return self.get_by_tournament(tournament_id, active_only=True)
+
 
 class TableLockRepository:
     """Repository for TableLock operations."""

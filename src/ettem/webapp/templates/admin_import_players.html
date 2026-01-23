@@ -37,10 +37,22 @@
         <h3 class="card-title">Importar desde CSV</h3>
     </div>
     <div class="card-body">
-        <form method="post" action="/admin/import-players/csv" enctype="multipart/form-data">
+        <form method="post" action="/admin/import-players/csv" enctype="multipart/form-data" id="csv-import-form">
             <div class="form-section">
                 <label class="form-label">Archivo CSV</label>
-                <input type="file" name="csv_file" accept=".csv" required class="form-control" style="max-width: 500px;">
+                <div class="dropzone" id="csv-dropzone">
+                    <input type="file" name="csv_file" accept=".csv" required class="dropzone-input" id="csv-file-input">
+                    <div class="dropzone-content">
+                        <span class="dropzone-icon">📄</span>
+                        <p class="dropzone-text">Arrastra tu archivo CSV aquí</p>
+                        <p class="dropzone-subtext">o haz clic para seleccionar</p>
+                    </div>
+                    <div class="dropzone-selected" id="dropzone-selected" style="display: none;">
+                        <span class="dropzone-file-icon">✓</span>
+                        <span class="dropzone-filename" id="dropzone-filename"></span>
+                        <button type="button" class="dropzone-clear" onclick="clearSelectedFile(event)">&times;</button>
+                    </div>
+                </div>
                 <p class="form-help">El archivo debe contener las columnas: id, nombre, apellido, genero, pais_cd, ranking_pts, categoria</p>
             </div>
 
@@ -75,10 +87,45 @@
                 </div>
             </div>
 
+            <!-- Preview Section (hidden initially) -->
+            <div id="csv-preview-section" style="display: none;">
+                <div class="alert alert-success mb-3">
+                    <span class="icon">✓</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Archivo cargado correctamente</div>
+                        <div id="csv-preview-summary"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-3" style="max-height: 400px; overflow: hidden;">
+                    <div class="card-header" style="padding: 0.75rem 1rem;">
+                        <h4 class="card-title" style="font-size: 1rem; margin: 0;">Vista previa de datos</h4>
+                    </div>
+                    <div class="card-body" style="padding: 0; overflow-y: auto; max-height: 340px;">
+                        <table class="table" id="csv-preview-table" style="margin: 0;">
+                            <thead id="csv-preview-header"></thead>
+                            <tbody id="csv-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="csv-validation-errors" class="alert alert-danger mb-3" style="display: none;">
+                    <span class="icon">⚠️</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Errores de validación</div>
+                        <ul id="csv-errors-list" style="margin: 0.5rem 0 0 1rem; padding: 0;"></ul>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success">
+                <button type="button" id="btn-preview-csv" class="btn btn-primary" onclick="previewCSV()">
+                    <span>👁️</span>
+                    <span>Ver Preview</span>
+                </button>
+                <button type="submit" id="btn-submit-csv" class="btn btn-success" style="display: none;">
                     <span>✓</span>
-                    <span>Importar Jugadores</span>
+                    <span>Confirmar Importación</span>
                 </button>
                 <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
                     <span>✕</span>
@@ -293,6 +340,114 @@
 </div>
 
 <style>
+/* Dropzone styles */
+.dropzone {
+    position: relative;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--bg-color);
+    max-width: 500px;
+}
+.dropzone:hover {
+    border-color: var(--info);
+    background: rgba(33, 150, 243, 0.05);
+}
+.dropzone.dragover {
+    border-color: var(--success);
+    background: rgba(76, 175, 80, 0.1);
+    transform: scale(1.02);
+}
+.dropzone-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+.dropzone-content {
+    pointer-events: none;
+}
+.dropzone-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+.dropzone-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+.dropzone-subtext {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+.dropzone-selected {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 8px;
+    pointer-events: auto;
+}
+.dropzone-file-icon {
+    color: var(--success);
+    font-size: 1.5rem;
+}
+.dropzone-filename {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.dropzone-clear {
+    background: var(--danger);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.dropzone-clear:hover {
+    background: #c62828;
+}
+
+/* Preview table styles */
+#csv-preview-table {
+    font-size: 0.85rem;
+}
+#csv-preview-table th {
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    z-index: 10;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+}
+#csv-preview-table td {
+    padding: 0.4rem 0.75rem;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+#csv-preview-table tbody tr:hover {
+    background: rgba(33, 150, 243, 0.1);
+}
+
 .modal {
     position: fixed;
     top: 0;
@@ -386,6 +541,216 @@
 </style>
 
 <script>
+// Dropzone functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const dropzone = document.getElementById('csv-dropzone');
+    const fileInput = document.getElementById('csv-file-input');
+    const dropzoneContent = dropzone.querySelector('.dropzone-content');
+    const dropzoneSelected = document.getElementById('dropzone-selected');
+    const filenameDisplay = document.getElementById('dropzone-filename');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // Highlight drop zone when dragging over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'), false);
+    });
+
+    // Handle dropped files
+    dropzone.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.name.endsWith('.csv')) {
+                fileInput.files = files;
+                showSelectedFile(file.name);
+            } else {
+                alert('Por favor selecciona un archivo CSV');
+            }
+        }
+    });
+
+    // Handle file input change
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            showSelectedFile(this.files[0].name);
+        }
+    });
+
+    function showSelectedFile(filename) {
+        dropzoneContent.style.display = 'none';
+        dropzoneSelected.style.display = 'flex';
+        filenameDisplay.textContent = filename;
+    }
+});
+
+function clearSelectedFile(event) {
+    event.stopPropagation();
+    const fileInput = document.getElementById('csv-file-input');
+    const dropzoneContent = document.querySelector('.dropzone-content');
+    const dropzoneSelected = document.getElementById('dropzone-selected');
+
+    fileInput.value = '';
+    dropzoneContent.style.display = 'block';
+    dropzoneSelected.style.display = 'none';
+    hidePreview();
+}
+
+// CSV Preview functionality
+let csvData = [];
+let csvHeaders = [];
+
+function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return { headers: [], data: [], errors: ['El archivo está vacío o no tiene datos'] };
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const requiredHeaders = ['id', 'nombre', 'apellido', 'genero', 'pais_cd', 'ranking_pts', 'categoria'];
+    const errors = [];
+
+    // Check for required headers
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+        errors.push('Columnas faltantes: ' + missingHeaders.join(', '));
+    }
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',').map(v => v.trim());
+        if (values.length !== headers.length) {
+            errors.push(`Fila ${i + 1}: número incorrecto de columnas (${values.length} vs ${headers.length})`);
+            continue;
+        }
+
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+
+        // Validate row data
+        if (!row.id || isNaN(parseInt(row.id))) {
+            errors.push(`Fila ${i + 1}: ID inválido "${row.id}"`);
+        }
+        if (!row.nombre) {
+            errors.push(`Fila ${i + 1}: Nombre vacío`);
+        }
+        if (!row.apellido) {
+            errors.push(`Fila ${i + 1}: Apellido vacío`);
+        }
+        if (!['M', 'F'].includes(row.genero?.toUpperCase())) {
+            errors.push(`Fila ${i + 1}: Género inválido "${row.genero}" (debe ser M o F)`);
+        }
+        if (!row.pais_cd || row.pais_cd.length !== 3) {
+            errors.push(`Fila ${i + 1}: Código de país inválido "${row.pais_cd}" (debe ser 3 letras)`);
+        }
+        if (row.ranking_pts && isNaN(parseFloat(row.ranking_pts))) {
+            errors.push(`Fila ${i + 1}: Ranking inválido "${row.ranking_pts}"`);
+        }
+        if (!row.categoria) {
+            errors.push(`Fila ${i + 1}: Categoría vacía`);
+        }
+
+        data.push(row);
+    }
+
+    return { headers, data, errors };
+}
+
+function previewCSV() {
+    const fileInput = document.getElementById('csv-file-input');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Por favor selecciona un archivo CSV primero');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const result = parseCSV(text);
+
+        csvHeaders = result.headers;
+        csvData = result.data;
+
+        // Show preview section
+        document.getElementById('csv-preview-section').style.display = 'block';
+
+        // Count categories
+        const categories = {};
+        result.data.forEach(row => {
+            const cat = row.categoria?.toUpperCase() || 'SIN CATEGORÍA';
+            categories[cat] = (categories[cat] || 0) + 1;
+        });
+        const catSummary = Object.entries(categories).map(([k, v]) => `${k}: ${v}`).join(', ');
+
+        // Show summary
+        document.getElementById('csv-preview-summary').innerHTML =
+            `<strong>${result.data.length}</strong> jugadores encontrados` +
+            (catSummary ? ` — Categorías: ${catSummary}` : '');
+
+        // Build preview table
+        const headerRow = '<tr>' + result.headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+        document.getElementById('csv-preview-header').innerHTML = headerRow;
+
+        const maxPreviewRows = Math.min(result.data.length, 20);
+        let bodyHtml = '';
+        for (let i = 0; i < maxPreviewRows; i++) {
+            const row = result.data[i];
+            bodyHtml += '<tr>' + result.headers.map(h => `<td>${row[h] || ''}</td>`).join('') + '</tr>';
+        }
+        if (result.data.length > 20) {
+            bodyHtml += `<tr><td colspan="${result.headers.length}" style="text-align: center; color: var(--text-muted); font-style: italic;">... y ${result.data.length - 20} más</td></tr>`;
+        }
+        document.getElementById('csv-preview-body').innerHTML = bodyHtml;
+
+        // Show validation errors if any
+        const errorsSection = document.getElementById('csv-validation-errors');
+        const errorsList = document.getElementById('csv-errors-list');
+        if (result.errors.length > 0) {
+            errorsList.innerHTML = result.errors.slice(0, 10).map(e => `<li>${e}</li>`).join('');
+            if (result.errors.length > 10) {
+                errorsList.innerHTML += `<li style="font-style: italic;">... y ${result.errors.length - 10} errores más</li>`;
+            }
+            errorsSection.style.display = 'block';
+        } else {
+            errorsSection.style.display = 'none';
+        }
+
+        // Toggle buttons
+        document.getElementById('btn-preview-csv').style.display = 'none';
+        document.getElementById('btn-submit-csv').style.display = 'inline-flex';
+
+        // Disable submit if there are critical errors (missing headers)
+        const hasCriticalErrors = result.errors.some(e => e.includes('Columnas faltantes'));
+        document.getElementById('btn-submit-csv').disabled = hasCriticalErrors;
+    };
+
+    reader.readAsText(file);
+}
+
+function hidePreview() {
+    document.getElementById('csv-preview-section').style.display = 'none';
+    document.getElementById('btn-preview-csv').style.display = 'inline-flex';
+    document.getElementById('btn-submit-csv').style.display = 'none';
+    csvData = [];
+    csvHeaders = [];
+}
+
 function showImportMethod(method) {
     hideImportSections();
     document.getElementById('btn-csv').className = 'btn btn-secondary';
@@ -405,6 +770,14 @@ function hideImportSections() {
     document.getElementById('import-manual-section').style.display = 'none';
     document.getElementById('btn-csv').className = 'btn btn-secondary';
     document.getElementById('btn-manual').className = 'btn btn-secondary';
+    // Reset CSV preview state
+    hidePreview();
+    const fileInput = document.getElementById('csv-file-input');
+    if (fileInput) {
+        fileInput.value = '';
+        document.querySelector('.dropzone-content').style.display = 'block';
+        document.getElementById('dropzone-selected').style.display = 'none';
+    }
 }
 
 function editPlayer(id, nombre, apellido, genero, pais, ranking, categoria, seed, originalId) {
