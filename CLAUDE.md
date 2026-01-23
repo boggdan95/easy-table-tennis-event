@@ -175,7 +175,7 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ---
 
-## Estado de Sesion (2026-01-21)
+## Estado de Sesion (2026-01-22)
 
 ### Rama Actual
 `feature/v2.2-live-display`
@@ -183,7 +183,21 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 ### Objetivo
 Implementar V2.2: Pantalla Pública + Marcador de Árbitro
 
-### Estado: IMPLEMENTACIÓN COMPLETA - PENDIENTE PRUEBAS MANUALES
+### Estado: PROBADO PARCIALMENTE - FALTA UI PUNTO POR PUNTO
+
+### Pruebas Realizadas (2026-01-22)
+- ✅ Ingreso de resultados desde teléfono (`/mesa/1`) - FUNCIONA
+- ✅ Modo resultado por set - FUNCIONA
+- ✅ Sincronización con servidor - FUNCIONA
+- ✅ Estado `in_progress` homologado en todas las vistas
+- ⏳ Modo punto por punto - UI PENDIENTE (requiere diseño diferente con +/-)
+
+### Cambios de Hoy
+- Homologación de estado `in_progress` con badge pulsante azul
+- Fix caché i18n (clear on reload)
+- Auto-refresh en vistas de partidos (10s)
+- Fix referee_scoreboard: botón back, displays None, formato nombres
+- Migración para categoría en partidos existentes
 
 ### Lo Implementado en V2.2
 
