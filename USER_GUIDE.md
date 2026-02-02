@@ -2,7 +2,7 @@
 
 **Easy Table Tennis Event Manager**
 
-Versión 2.1.0
+Versión 2.2.0
 
 ---
 
@@ -21,8 +21,11 @@ Versión 2.1.0
 11. [Ingresar Resultados de Knockout](#ingresar-resultados-de-knockout)
 12. [Scheduler (Mesas y Horarios)](#scheduler-mesas-y-horarios)
 13. [Centro de Impresión](#centro-de-impresión)
-14. [Configuración](#configuración)
-15. [Preguntas Frecuentes](#preguntas-frecuentes)
+14. [Configurar Mesas para Árbitros](#configurar-mesas-para-árbitros)
+15. [Marcador de Árbitro](#marcador-de-árbitro)
+16. [Pantalla Pública](#pantalla-pública)
+17. [Configuración](#configuración)
+18. [Preguntas Frecuentes](#preguntas-frecuentes)
 
 ---
 
@@ -82,6 +85,8 @@ En la barra lateral izquierda verás los días restantes de tu licencia.
 
 ## Panel Principal
 
+![Panel Principal](docs/screenshots/01_panel_principal.png)
+
 Al ingresar verás el **Dashboard** con:
 
 - Lista de categorías activas
@@ -120,6 +125,8 @@ La **barra lateral izquierda** te permite acceder a:
 ---
 
 ## Importar Jugadores
+
+![Importar Jugadores](docs/screenshots/04_importar_jugadores.png)
 
 ### Opción 1: Desde archivo CSV
 
@@ -164,6 +171,8 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ## Crear Grupos
 
+![Crear Grupos](docs/screenshots/05_crear_grupos.png)
+
 Una vez que tengas jugadores importados:
 
 1. Ve a la categoría
@@ -189,6 +198,8 @@ Esto asegura grupos balanceados.
 ---
 
 ## Ingresar Resultados de Grupos
+
+![Partidos de Grupo](docs/screenshots/08_categoria_grupos.png)
 
 1. Ve a la categoría → pestaña **Grupos**
 2. Selecciona un grupo
@@ -220,6 +231,8 @@ Si un jugador no se presenta:
 
 ## Ver Standings
 
+![Standings](docs/screenshots/09_categoria_standings.png)
+
 Los standings se calculan automáticamente:
 
 1. Ve a la categoría → pestaña **Standings**
@@ -244,6 +257,8 @@ Cuando hay empate en puntos, se aplica (solo entre los empatados):
 ---
 
 ## Generar Bracket (Llave)
+
+![Bracket](docs/screenshots/10_categoria_bracket.png)
 
 Cuando todos los partidos de grupos estén completos:
 
@@ -280,6 +295,8 @@ Cuando todos los partidos de grupos estén completos:
 
 ## Scheduler (Mesas y Horarios)
 
+![Scheduler](docs/screenshots/12_scheduler.png)
+
 El scheduler te permite organizar partidos por mesa y hora.
 
 ### Configurar Mesas
@@ -306,6 +323,12 @@ El scheduler te permite organizar partidos por mesa y hora.
 4. Selecciona el partido a asignar
 5. El partido aparecerá en la grilla
 
+### Resultados en Vivo (Admin)
+
+![Resultados en Vivo](docs/screenshots/13_resultados_en_vivo.png)
+
+Desde **Resultados en Vivo** en la barra lateral puedes monitorear todos los partidos en curso, agrupados por horario. Los partidos se actualizan automáticamente cuando los árbitros ingresan resultados desde sus celulares.
+
 ### Finalizar Sesión
 
 Cuando termines una sesión:
@@ -317,6 +340,8 @@ Cuando termines una sesión:
 ---
 
 ## Centro de Impresión
+
+![Centro de Impresión](docs/screenshots/14_centro_impresion.png)
 
 Accede desde **Impresión** en la barra lateral.
 
@@ -338,6 +363,133 @@ Accede desde **Impresión** en la barra lateral.
 5. Opcionalmente, descarga como PDF
 
 > **Tip:** Usa "Guardar como PDF" en el diálogo de impresión para crear archivos PDF.
+
+---
+
+## Configurar Mesas para Árbitros
+
+![Configurar Mesas](docs/screenshots/15_configurar_mesas.png)
+
+Desde la versión 2.2, puedes configurar mesas físicas para que los árbitros ingresen resultados desde sus celulares.
+
+### Inicializar Mesas
+
+1. Ve a **Configurar Mesas** en la barra lateral
+2. Indica cuántas mesas tienes
+3. Haz clic en **Inicializar**
+4. Cada mesa recibirá un número y una URL única
+
+### Modos de Árbitro
+
+Cada mesa puede funcionar en uno de dos modos:
+
+| Modo | Descripción |
+|------|-------------|
+| **Resultado por set** | El árbitro ingresa el marcador final de cada set (ej: 11-9) |
+| **Punto por punto** | El árbitro toca un botón por cada punto anotado |
+
+### Códigos QR
+
+![Códigos QR](docs/screenshots/16_qr_codes.png)
+
+1. Haz clic en **QR Codes** para ver los códigos de todas las mesas
+2. Imprime la página y coloca cada QR en la mesa correspondiente
+3. Los árbitros escanean el QR con su celular para acceder al marcador
+
+### Bloqueo de Mesas
+
+- Solo **un dispositivo** puede controlar cada mesa a la vez
+- Si un árbitro ya está usando una mesa, otro dispositivo verá un mensaje de "Mesa ocupada"
+- El administrador puede **desbloquear** una mesa desde el panel si es necesario
+
+---
+
+## Marcador de Árbitro
+
+![Marcador de Árbitro](docs/screenshots/17_marcador_arbitro.png)
+
+El marcador es una interfaz optimizada para celular que permite al árbitro controlar el partido.
+
+### Acceder al Marcador
+
+1. Escanea el **código QR** de la mesa, o
+2. Ingresa la URL directamente: `http://<IP-del-servidor>:8000/mesa/1`
+
+> **Nota:** El celular debe estar conectado a la **misma red WiFi** que la computadora del servidor.
+
+### Seleccionar Partido
+
+1. Al abrir la mesa, verás los partidos programados para hoy
+2. Selecciona el partido que vas a arbitrar
+3. El marcador se activará con los nombres de ambos jugadores
+
+### Marcador Activo
+
+![Marcador Activo](docs/screenshots/17b_marcador_activo.png)
+
+Una vez seleccionado el partido, verás el marcador con botones grandes para anotar puntos. El marcador muestra:
+
+- Nombre de ambos jugadores con colores diferenciados
+- Marcador de sets (arriba)
+- Puntos del set actual (centro)
+- Botones **+** para anotar punto y **-** para corregir
+- Botón **Intercambiar lados** para cambiar posición visual
+- Botón **Deshacer** para revertir el último punto
+
+### Ingresar Resultado por Set
+
+1. Al completar un set, ingresa el marcador (ej: 11-8)
+2. El sistema valida las reglas ITTF automáticamente
+3. Cuando el partido termine, el resultado se guarda y aparece en la pantalla pública
+
+### Walkover desde el Marcador
+
+![Walkover](docs/screenshots/18_walkover.png)
+
+Si un jugador no se presenta:
+
+1. Selecciona el partido
+2. Toca **Walkover**
+3. Elige al jugador **ganador**
+4. El partido se marca como completado
+
+---
+
+## Pantalla Pública
+
+![Pantalla Pública](docs/screenshots/19_pantalla_publica.png)
+
+La pantalla pública muestra los resultados en tiempo real, ideal para proyectar en un monitor o TV en la sede del torneo.
+
+### Acceder
+
+Abre `http://<IP-del-servidor>:8000/display` en el navegador del monitor/TV.
+
+### Información Mostrada
+
+- **Partidos en vivo:** Marcador actual de los partidos en progreso
+- **Resultados recientes:** Últimos partidos completados
+- **Próximos partidos:** Partidos programados pendientes
+
+### Características
+
+- **Auto-refresh:** Se actualiza automáticamente cada 5 segundos
+- **Tema oscuro:** Optimizado para pantallas grandes
+- **Responsive:** Se adapta a resoluciones Full HD (1080p) y 4K
+- **Rotación automática:** Alterna entre resultados y próximos partidos
+
+> **Tip:** Usa el modo de pantalla completa del navegador (F11) para aprovechar todo el espacio.
+
+### Configuración de Red
+
+Para que la pantalla pública y los celulares de los árbitros accedan al servidor:
+
+1. Asegúrate de que todos estén en la **misma red WiFi**
+2. En Windows, abre el puerto en el firewall:
+   ```cmd
+   netsh advfirewall firewall add rule name="ETTEM Server" dir=in action=allow protocol=TCP localport=8000
+   ```
+3. Encuentra tu IP local con `ipconfig` y busca la dirección IPv4
 
 ---
 
@@ -417,4 +569,4 @@ Sí, pero se eliminarán todos los jugadores, grupos, partidos y resultados de e
 
 ---
 
-*ETTEM v2.1.0 - Easy Table Tennis Event Manager*
+*ETTEM v2.2.0 - Easy Table Tennis Event Manager*

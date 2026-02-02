@@ -506,7 +506,7 @@ admin:
     url_copied: "URL copied"
 
   referee:
-    title: "Referee Scoreboard"
+    title: "Umpire Scoreboard"
     table_n: "Table {n}"
     select_match: "Select a match"
     no_match: "No match assigned"
@@ -520,6 +520,7 @@ admin:
     match_score: "Match Score"
     add_point: "+1"
     undo_point: "Undo"
+    swap_sides: "Swap sides"
     set_won: "Set won"
     match_won: "Match won"
     confirm_set: "Confirm end of set?"

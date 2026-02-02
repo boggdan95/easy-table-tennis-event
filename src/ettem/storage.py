@@ -93,6 +93,11 @@ class PlayerORM(Base):
     group_number = Column(Integer, nullable=True)  # 1-4 within group
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
 
+    @property
+    def full_name(self) -> str:
+        """Return player's full name."""
+        return f"{self.nombre} {self.apellido}"
+
     # Metadata
     checked_in = Column(Boolean, nullable=False, default=False)
     notes = Column(Text, nullable=True)

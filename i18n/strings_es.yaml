@@ -520,6 +520,7 @@ admin:
     match_score: "Marcador del Partido"
     add_point: "+1"
     undo_point: "Deshacer"
+    swap_sides: "Intercambiar lados"
     set_won: "Set ganado"
     match_won: "Partido ganado"
     confirm_set: "¿Confirmar fin de set?"

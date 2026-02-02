@@ -529,7 +529,7 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
             print(f"[DEBUG] Form values found: {form_values}")
             context["form_values"] = form_values
 
-    return templates.TemplateResponse(template_name, context)
+    return templates.TemplateResponse(context["request"], template_name, context)
 
 
 # ============================================================================
@@ -706,7 +706,7 @@ async def license_activate_page(request: Request):
         "submitted_key": None
     }
 
-    return templates.TemplateResponse("license_activation.html", context)
+    return templates.TemplateResponse(request, "license_activation.html", context)
 
 
 @app.post("/license/activate")
@@ -739,7 +739,7 @@ async def license_activate(request: Request, license_key: str = Form(...)):
             "expired_info": license_info if license_info and license_info.is_expired else None,
             "submitted_key": license_key
         }
-        return templates.TemplateResponse("license_activation.html", context)
+        return templates.TemplateResponse(request, "license_activation.html", context)
 
     # Save the valid license
     save_license(license_key)
@@ -8486,7 +8486,7 @@ def generate_session_token():
 @app.get("/mesa/{table_number}", response_class=HTMLResponse)
 async def referee_scoreboard(request: Request, table_number: int):
     """Referee scoreboard page for a specific table."""
-    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository, ScheduleSlotRepository
+    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository, ScheduleSlotRepository, SessionRepository
 
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
@@ -8565,14 +8565,26 @@ async def referee_scoreboard(request: Request, table_number: int):
 
         # If no match from lock, get all available matches for this table
         if not match:
-            # Find all matches scheduled for this table that are pending or in progress
+            # Get today's date for filtering sessions
+            from datetime import date
+            today = date.today()
+
+            # Get sessions for today only
+            session_repo = SessionRepository(session)
+            today_sessions = [s for s in session_repo.get_by_tournament(tournament.id)
+                              if s.date and s.date.date() == today]
+            today_session_ids = {s.id for s in today_sessions}
+
+            # Find all matches scheduled for this table that are pending or in progress (today only)
             all_slots = schedule_repo.get_all()
             for slot in all_slots:
-                if slot.table_number == table_number:
+                # Filter by table number and today's sessions
+                if slot.table_number == table_number and slot.session_id in today_session_ids:
                     m = match_repo.get_by_id(slot.match_id)
-                    if m and m.status in (MatchStatus.PENDING.value, MatchStatus.IN_PROGRESS.value, "pending", "in_progress"):
-                        p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
-                        p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+                    # Only show matches with both players assigned (no TBD/BYE)
+                    if m and m.player1_id and m.player2_id and m.status in (MatchStatus.PENDING.value, MatchStatus.IN_PROGRESS.value, "pending", "in_progress"):
+                        p1 = player_repo.get_by_id(m.player1_id)
+                        p2 = player_repo.get_by_id(m.player2_id)
 
                         # Get group/round info
                         round_name = m.round_name or ""
@@ -9120,13 +9132,33 @@ async def public_display(request: Request):
                 "time": schedule.start_time if schedule else None,
             })
 
+        # Rotate content every 5 seconds (matches the auto-refresh)
+        # This shows different results/upcoming if there are more than fit on screen
+        now = datetime.now()
+        rotation_cycle = (now.second // 5) % 3  # 0, 1, or 2
+
+        results_per_page = 5
+        upcoming_per_page = 5
+
+        # Rotate results if there are more than one page
+        results_offset = (rotation_cycle * results_per_page) % max(len(recent_results), 1)
+        results_to_show = recent_results[results_offset:results_offset + results_per_page]
+        if len(results_to_show) < results_per_page:
+            results_to_show = recent_results[:results_per_page]
+
+        # Rotate upcoming if there are more than one page
+        upcoming_offset = (rotation_cycle * upcoming_per_page) % max(len(upcoming_matches), 1)
+        upcoming_to_show = upcoming_matches[upcoming_offset:upcoming_offset + upcoming_per_page]
+        if len(upcoming_to_show) < upcoming_per_page:
+            upcoming_to_show = upcoming_matches[:upcoming_per_page]
+
         return render_template("public_display.html", {
             "request": request,
             "tournament": tournament,
-            "live_matches": live_matches,
-            "recent_results": recent_results,
-            "upcoming_matches": upcoming_matches,
-            "now": datetime.now(),
+            "live_matches": live_matches[:4],  # Max 4 live matches on display
+            "recent_results": results_to_show,
+            "upcoming_matches": upcoming_to_show,
+            "now": now,
         })
 
 
