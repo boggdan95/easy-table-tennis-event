@@ -8977,20 +8977,40 @@ async def referee_walkover_submit(request: Request, table_number: int, winner_id
 @app.post("/api/live-score/{match_id}")
 async def api_update_live_score(request: Request, match_id: int):
     """Update live score for public display (point-by-point mode)."""
-    from ettem.storage import LiveScoreRepository
+    from ettem.storage import LiveScoreRepository, TableLockRepository
 
     try:
         data = await request.json()
+        session_token = data.get("session_token")
         p1_points = data.get("p1_points", 0)
         p2_points = data.get("p2_points", 0)
 
         with get_db_session() as session:
             live_score_repo = LiveScoreRepository(session)
+            live_score = live_score_repo.get_by_match(match_id)
+
+            if not live_score:
+                return {"success": False, "error": "Live score not found"}
+
+            # Validate table lock token
+            if live_score.table_id:
+                table_lock_repo = TableLockRepository(session)
+                lock = table_lock_repo.get_by_table(live_score.table_id)
+
+                if not lock:
+                    return {"success": False, "error": "Mesa no está bloqueada"}
+
+                if not session_token:
+                    session_token = request.cookies.get(f"mesa_{live_score.table_id}_token")
+
+                if lock.session_token != session_token:
+                    return {"success": False, "error": "Token de sesión inválido"}
+
             result = live_score_repo.update_score(match_id, p1_points, p2_points)
 
             if result:
                 return {"success": True}
-            return {"success": False, "error": "Live score not found"}
+            return {"success": False, "error": "Failed to update score"}
 
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -9051,6 +9071,10 @@ async def public_display(request: Request):
         for score in live_scores:
             match = match_repo.get_by_id(score.match_id)
             if not match:
+                continue
+
+            # Filter by current tournament
+            if match.tournament_id != tournament.id:
                 continue
 
             player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
@@ -9168,6 +9192,8 @@ async def api_get_live_scores():
     from ettem.storage import LiveScoreRepository
 
     with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
         live_score_repo = LiveScoreRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
@@ -9178,6 +9204,10 @@ async def api_get_live_scores():
         for score in scores:
             match = match_repo.get_by_id(score.match_id)
             if not match:
+                continue
+
+            # Filter by current tournament
+            if tournament and match.tournament_id != tournament.id:
                 continue
 
             player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
