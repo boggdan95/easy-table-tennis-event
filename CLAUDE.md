@@ -175,7 +175,7 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ---
 
-## Estado de Sesion (2026-01-22)
+## Estado de Sesion (2026-01-24)
 
 ### Rama Actual
 `feature/v2.2-live-display`
@@ -183,21 +183,64 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 ### Objetivo
 Implementar V2.2: Pantalla Pública + Marcador de Árbitro
 
-### Estado: PROBADO PARCIALMENTE - FALTA UI PUNTO POR PUNTO
+### Estado: PRUEBAS EN PROGRESO - CASI LISTO PARA MERGE
 
-### Pruebas Realizadas (2026-01-22)
-- ✅ Ingreso de resultados desde teléfono (`/mesa/1`) - FUNCIONA
-- ✅ Modo resultado por set - FUNCIONA
-- ✅ Sincronización con servidor - FUNCIONA
-- ✅ Estado `in_progress` homologado en todas las vistas
-- ⏳ Modo punto por punto - UI PENDIENTE (requiere diseño diferente con +/-)
+### Pruebas Realizadas (2026-01-24)
 
-### Cambios de Hoy
-- Homologación de estado `in_progress` con badge pulsante azul
-- Fix caché i18n (clear on reload)
-- Auto-refresh en vistas de partidos (10s)
-- Fix referee_scoreboard: botón back, displays None, formato nombres
-- Migración para categoría en partidos existentes
+**Automatizadas:**
+- ✅ Tests unitarios: 63/64 pasando (1 skip esperado)
+- ✅ Modelos ORM V2.2 importan correctamente
+- ✅ Repositorios V2.2 funcionan
+- ✅ Todas las rutas V2.2 registradas
+- ✅ `/admin/table-config` - Carga correctamente
+- ✅ `/admin/table-config/qr-codes` - FUNCIONA (bug corregido)
+- ✅ `/display` - Display público funciona con auto-refresh
+- ✅ `/mesa/{n}` - Marcador de árbitro accesible
+- ✅ `/api/live-scores` - Devuelve JSON correcto
+- ✅ Cambiar modo de mesa (point_by_point/result_per_set)
+- ✅ Toggle activación de mesa
+- ✅ Unlock mesa desde admin
+- ✅ Envío de set result
+- ✅ Heartbeat (requiere session token - esperado)
+- ✅ Página de walkover accesible
+
+**Manuales:**
+- ✅ QR codes escaneados desde celular - FUNCIONA
+- ✅ Sincronización display en tiempo real - FUNCIONA
+- ⏳ Sistema de bloqueo (2 dispositivos) - Sin probar
+- ⏳ Walkover completo - Sin probar
+
+### Bugs Corregidos (2026-01-24)
+1. **QR Codes no se mostraban**: Template usaba `{% block print_content %}` pero base define `{% block preview_content %}`. Corregido en `admin_table_qr_codes.html`.
+
+### Mejoras Agregadas (2026-01-24)
+1. **Botón "Actualizar" en marcador**: Para refrescar lista de partidos sin recargar navegador manualmente
+2. **Filtro de partidos en marcador**: Solo muestra partidos con ambos jugadores asignados (no TBD/BYE)
+3. **Filtro por fecha del día**: Solo muestra partidos de sesiones del día actual
+4. **Fecha preseleccionada al crear sesión**: El campo fecha viene con el día de hoy por defecto
+
+### Cambios de Hoy (2026-01-24)
+- Fix bug QR codes (block name mismatch)
+- Botón "Actualizar" en pantalla de selección de partidos
+- Filtro: solo partidos con ambos jugadores (no TBD/BYE)
+- Filtro: solo partidos de sesiones del día actual
+- Fecha preseleccionada al crear nueva sesión
+- Sesiones de prueba actualizadas a fecha de hoy
+
+### Cambios Anteriores (2026-01-23)
+- UI punto por punto completa con botones +/- grandes
+- Animación flash al anotar punto
+- Fix race condition en reset de puntos (savingSet flag)
+- Cambio automático de lados basado en número de set
+- Historial de sets con colores (azul J1, verde J2)
+- Nombres simplificados en botones (solo colores)
+- Propiedad `full_name` agregada a PlayerORM
+- Display público responsive (TV 1080p, 4K)
+- Rotación automática de resultados/próximos cada 5s
+- Límite de 4 partidos en vivo en display
+- Traducción "Umpire" en lugar de "Referee" (EN)
+- Traducción "Intercambiar lados" agregada
+- Regla de firewall necesaria para acceso desde red local
 
 ### Lo Implementado en V2.2
 
@@ -254,32 +297,37 @@ i18n/strings_en.yaml                    # +91 líneas traducciones
 - Modelos de BD se crean correctamente
 
 ### Pruebas Manuales Pendientes
-1. `/admin/table-config` - Configurar mesas, cambiar modos, QR
-2. `/mesa/1` - Marcador de árbitro (ambos modos)
-3. `/display` - Pantalla pública con partidos en vivo
-4. Sistema de bloqueo - Abrir misma mesa en dos dispositivos
-5. Sincronización - Puntos aparezcan en pantalla pública
+1. `/admin/table-config` - Configurar mesas, cambiar modos, imprimir QR
+2. Sistema de bloqueo - Abrir `/mesa/1` en dos dispositivos diferentes
+3. Walkover - Probar flujo de walkover desde marcador
+4. Sincronización display - Verificar que puntos aparezcan en `/display` en tiempo real
 
 ### Cómo Probar
 ```bash
 # Iniciar servidor (accesible desde red local)
 python -m uvicorn ettem.webapp.app:app --host 0.0.0.0 --port 8000
 
+# Abrir puerto en firewall Windows (como admin)
+netsh advfirewall firewall add rule name="ETTEM Server" dir=in action=allow protocol=TCP localport=8000
+
 # Encontrar IP local
-ipconfig  # Windows
-# Buscar IPv4 de WiFi (ej: 192.168.1.X)
+ipconfig  # Windows - buscar IPv4 de WiFi
 
 # URLs para probar:
 # PC: http://127.0.0.1:8000/admin/table-config
 # PC: http://127.0.0.1:8000/display
-# Celular: http://192.168.1.X:8000/mesa/1
+# Celular: http://<tu-ip>:8000/mesa/1
 ```
 
 ### Siguiente Sesión
-1. Probar manualmente las funcionalidades de V2.2
-2. Corregir bugs encontrados
-3. Merge a main
-4. Crear release v2.2.0
+1. ~~Probar `/admin/table-config`~~ - HECHO
+2. ~~Probar QR codes~~ - HECHO (funciona desde celular)
+3. ~~Sincronización display~~ - HECHO (funciona)
+4. Probar sistema de bloqueo de mesas (2 dispositivos)
+5. Probar walkover completo
+6. Ejecutar tests para verificar que todo sigue pasando
+7. Merge a main
+8. Crear release v2.2.0
 
 ### Licencia de Prueba
 `ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)
