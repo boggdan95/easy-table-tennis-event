@@ -210,6 +210,10 @@ Implementar V2.2: Pantalla Pública + Marcador de Árbitro
 - ⏳ Sistema de bloqueo (2 dispositivos) - Sin probar
 - ⏳ Walkover completo - Sin probar
 
+### Bugs Corregidos (2026-02-02)
+1. **Live-score sin validación de token**: `/api/live-score/{match_id}` no validaba session_token contra table lock. Cualquier cliente en la red podía enviar scores falsos. Corregido: ahora valida token antes de aceptar updates.
+2. **Display mostraba partidos de otros torneos**: `/display` y `/api/live-scores` no filtraban por torneo actual. Corregido: ahora solo muestran scores del torneo activo.
+
 ### Bugs Corregidos (2026-01-24)
 1. **QR Codes no se mostraban**: Template usaba `{% block print_content %}` pero base define `{% block preview_content %}`. Corregido en `admin_table_qr_codes.html`.
 
@@ -219,7 +223,11 @@ Implementar V2.2: Pantalla Pública + Marcador de Árbitro
 3. **Filtro por fecha del día**: Solo muestra partidos de sesiones del día actual
 4. **Fecha preseleccionada al crear sesión**: El campo fecha viene con el día de hoy por defecto
 
-### Cambios de Hoy (2026-01-24)
+### Cambios de Hoy (2026-02-02)
+- Fix validación de session_token en `/api/live-score/{match_id}` (PR review feedback)
+- Filtrar live scores por torneo actual en `/display` y `/api/live-scores` (PR review feedback)
+
+### Cambios Anteriores (2026-01-24)
 - Fix bug QR codes (block name mismatch)
 - Botón "Actualizar" en pantalla de selección de partidos
 - Filtro: solo partidos con ambos jugadores (no TBD/BYE)
@@ -323,11 +331,13 @@ ipconfig  # Windows - buscar IPv4 de WiFi
 1. ~~Probar `/admin/table-config`~~ - HECHO
 2. ~~Probar QR codes~~ - HECHO (funciona desde celular)
 3. ~~Sincronización display~~ - HECHO (funciona)
-4. Probar sistema de bloqueo de mesas (2 dispositivos)
-5. Probar walkover completo
-6. Ejecutar tests para verificar que todo sigue pasando
-7. Merge a main
-8. Crear release v2.2.0
+4. ~~Fix PR review: token validation + tournament filter~~ - HECHO
+5. Probar sistema de bloqueo de mesas (2 dispositivos)
+6. Probar walkover completo
+7. Ejecutar tests para verificar que todo sigue pasando
+8. Nota: test_webapp_smoke.py falla por PIL/Pillow incompatible con Python 3.14 (no relacionado con V2.2)
+9. Merge a main
+10. Crear release v2.2.0
 
 ### Licencia de Prueba
 `ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)
