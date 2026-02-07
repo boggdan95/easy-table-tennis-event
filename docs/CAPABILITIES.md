@@ -23,8 +23,6 @@ Sistema integral de gestion de torneos de tenis de mesa. Funciona 100% offline c
 13. [Configuracion y Personalizacion](#13-configuracion-y-personalizacion)
 14. [Sistema de Licencias](#14-sistema-de-licencias)
 15. [Distribucion y Ejecucion](#15-distribucion-y-ejecucion)
-16. [Interfaz de Linea de Comandos (CLI)](#16-interfaz-de-linea-de-comandos-cli)
-
 ---
 
 ## 1. Gestion de Torneos y Categorias
@@ -433,25 +431,17 @@ El cambio de idioma es inmediato y afecta toda la interfaz.
 
 ## 14. Sistema de Licencias
 
-Sistema de activacion offline con claves firmadas digitalmente.
+Sistema de activacion con clave unica por cliente.
 
 | Funcion | Descripcion |
 |---------|-------------|
-| Formato de clave | `ETTEM-XXXX-MMYY-SSSSSSSS` |
+| Activacion simple | Ingresar clave de licencia una sola vez |
 | Validacion offline | No requiere conexion a internet para validar |
-| Firma HMAC-SHA256 | Claves firmadas criptograficamente, no falsificables |
-| Expiracion mensual | La licencia expira el ultimo dia del mes indicado |
+| Seguridad | Claves firmadas digitalmente, no falsificables |
+| Planes flexibles | Licencias mensuales, semestrales o anuales |
 | Indicador visual | Dias restantes visible en la barra lateral |
 | Alerta de expiracion | Advertencia visual cuando quedan menos de 7 dias |
-
-### Formato de Clave
-
-| Componente | Descripcion |
-|------------|-------------|
-| `ETTEM` | Prefijo fijo |
-| `XXXX` | Identificador de cliente |
-| `MMYY` | Mes y ano de expiracion |
-| `SSSSSSSS` | Firma HMAC-SHA256 (8 caracteres) |
+| Renovacion | Se ingresa una nueva clave al renovar, sin perder datos |
 
 ---
 
@@ -465,17 +455,8 @@ Sistema de activacion offline con claves firmadas digitalmente.
 | Requisitos | Windows 10/11, no requiere Python instalado |
 | Inicio | Doble clic abre el navegador automaticamente |
 | Base de datos | Se almacena en `.ettem/ettem.sqlite` |
-| Licencia | Se almacena en `.ettem/license.key` |
+| Licencia | Se activa una sola vez y queda guardada localmente |
 | Actualizacion | Reemplazar el .exe; los datos se conservan |
-
-### Desde Codigo Fuente
-
-| Caracteristica | Descripcion |
-|----------------|-------------|
-| Lenguaje | Python 3 |
-| Framework web | FastAPI + Jinja2 |
-| Base de datos | SQLite (via SQLAlchemy ORM) |
-| Inicio | `python -m ettem open-panel` |
 
 ### Acceso desde Red Local
 
@@ -484,22 +465,6 @@ Para que celulares y pantallas accedan al servidor:
 1. Servidor y dispositivos deben estar en la misma red WiFi
 2. Abrir el puerto 8000 en el firewall de Windows
 3. Acceder usando la IP local del servidor (ej: `http://192.168.1.100:8000`)
-
----
-
-## 16. Interfaz de Linea de Comandos (CLI)
-
-Todos los comandos del sistema tambien estan disponibles via linea de comandos.
-
-| Comando | Descripcion |
-|---------|-------------|
-| `ettem open-panel` | Abrir el panel web en el navegador |
-| `ettem import-players --csv archivo.csv --category U13BS` | Importar jugadores desde CSV |
-| `ettem build-groups --config config.yaml --category U13BS` | Crear grupos para una categoria |
-| `ettem compute-standings --category U13BS` | Calcular standings de una categoria |
-| `ettem build-bracket --category U13BS --config config.yaml` | Generar bracket eliminatorio |
-| `ettem export --what standings --format csv --out out/` | Exportar datos |
-| `ettem --help` | Ver todos los comandos disponibles |
 
 ---
 

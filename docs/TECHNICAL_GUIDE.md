@@ -581,7 +581,7 @@ Mantiene activo el bloqueo de una mesa. Debe enviarse periodicamente (cada ~30 s
 | `/mesa/{table_number}/walkover` | GET/POST | Registrar walkover |
 | `/mesa/{table_number}/clear` | POST | Liberar partido |
 
-*Ver capturas: `screenshots/19_referee_scoreboard.png`, `screenshots/17b_marcador_activo.png`*
+*Ver capturas: `screenshots/19_referee_scoreboard.png`*
 
 #### Pantalla Publica
 

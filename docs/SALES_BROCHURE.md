@@ -107,7 +107,7 @@ Dos modos de operacion:
 - **Punto por punto:** El arbitro registra cada punto. Ideal para partidos importantes.
 - **Resultado por set:** El arbitro ingresa el marcador final de cada set. Mas rapido para fases de grupo.
 
-![Marcador de arbitro en celular](screenshots/17b_marcador_activo.png)
+![Marcador de arbitro en celular](screenshots/19_referee_scoreboard.png)
 
 ---
 
