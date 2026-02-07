@@ -1408,6 +1408,116 @@
             margin: 0 auto;
             border-radius: 2px;
         }
+        /* ===== PRINT / PDF STYLES ===== */
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            body {
+                font-size: 10pt;
+            }
+
+            /* Remove fixed navbar - print as static */
+            .navbar {
+                position: static !important;
+                box-shadow: none !important;
+            }
+            .navbar-cta {
+                display: none !important;
+            }
+            .navbar-toggle {
+                display: none !important;
+            }
+
+            /* Hero: keep background, fit content */
+            .hero {
+                min-height: auto !important;
+                padding: 2.5rem 2rem 2rem !important;
+                page-break-after: always;
+            }
+            .hero::before,
+            .hero-circles {
+                display: none !important;
+            }
+            .hero-screenshot {
+                max-width: 75% !important;
+                margin-top: 1rem !important;
+            }
+
+            /* General sections: reduce padding */
+            section {
+                padding: 1.5rem 1.5rem !important;
+            }
+
+            /* Prevent page breaks inside small elements */
+            .pricing-card,
+            .why-card,
+            .audience-card,
+            .faq-item {
+                page-break-inside: avoid;
+            }
+
+            /* Features: compact layout, allow page breaks */
+            .feature-item {
+                gap: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
+            .feature-content {
+                page-break-inside: avoid;
+            }
+            .feature-image img {
+                max-width: 100% !important;
+                max-height: 180px !important;
+                object-fit: contain !important;
+            }
+            .feature-image {
+                page-break-before: avoid;
+            }
+
+            /* Pricing cards */
+            .pricing-grid {
+                gap: 0.5rem !important;
+            }
+            .pricing-card.featured {
+                transform: none !important;
+            }
+            .pricing-card {
+                padding: 1rem !important;
+            }
+
+            /* Remove hover effects and animations */
+            .why-card:hover,
+            .pricing-card:hover,
+            .feature-image:hover img,
+            .pricing-card.featured:hover {
+                transform: none !important;
+            }
+
+            /* Ensure FAQ answers are visible */
+            .faq-item[open] .faq-answer {
+                display: block !important;
+            }
+
+            /* Comparison table */
+            .comparison-table th,
+            .comparison-table td {
+                padding: 0.4rem !important;
+                font-size: 9pt !important;
+            }
+
+            /* Footer */
+            .footer {
+                padding: 0.5rem !important;
+            }
+
+            /* Links: don't show URLs */
+            a[href]:after {
+                content: none !important;
+            }
+        }
     </style>
 </head>
 <body>
