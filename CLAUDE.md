@@ -70,20 +70,30 @@ python tools/generate_license.py --client XX01 --months 12
 | U21BS / U21GS | Under 21 Boys/Girls Singles |
 | MS / WS | Men's / Women's Singles |
 
-### Ejecutable Windows
+### Ejecutable (Windows + macOS)
 
 **Construir:**
 ```bash
+python build.py --clean
+# O directamente:
 python -m PyInstaller ettem.spec --clean --noconfirm
 ```
 
-**Resultado:** `dist/ETTEM.exe` (~45 MB standalone)
+**Resultado:**
+- Windows: `dist/ETTEM.exe` (~45 MB standalone)
+- macOS: `dist/ETTEM.app` (bundle)
 
 **Características:**
 - No requiere Python instalado
 - Doble clic abre navegador automáticamente
-- Base de datos en `.ettem/ettem.sqlite`
-- Licencia en `.ettem/license.key`
+- Un solo `ettem.spec` cross-platform (detecta OS automáticamente)
+
+**Datos de usuario:**
+- Windows: `.ettem/` junto al ejecutable
+- macOS (frozen): `~/Library/Application Support/ETTEM/`
+- Dev mode (cualquier OS): `.ettem/` en directorio actual
+
+**Nota macOS:** Para distribución sin warnings de Gatekeeper, firmar con Apple Developer ID ($99/año)
 
 ### Arquitectura
 
@@ -133,8 +143,8 @@ pytest
 ruff check .
 black .
 
-# Construir ejecutable
-python -m PyInstaller ettem.spec --clean --noconfirm
+# Construir ejecutable (detecta OS automáticamente)
+python build.py --clean
 ```
 
 ### CSV de Jugadores
@@ -175,176 +185,49 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ---
 
-## Estado de Sesion (2026-01-24)
+## Estado de Sesion (2026-02-07)
 
 ### Rama Actual
-`feature/v2.2-live-display`
+`main`
 
-### Objetivo
-Implementar V2.2: Pantalla Pública + Marcador de Árbitro
+### Estado: V2.2 RELEASE COMPLETO + DOCUMENTACION COMPLETA
 
-### Estado: PRUEBAS EN PROGRESO - CASI LISTO PARA MERGE
+### Releases
+- **v2.2.0** - Taggeado y pusheado (2026-02-06)
+- Feature branch `feature/v2.2-live-display` mergeado a main
+- Documentation branch `docs/v2.2-documentation` mergeado a main
 
-### Pruebas Realizadas (2026-01-24)
+### Landing Page en Vivo
+- URL: http://ettem.boggdan.com
+- Hosting: Bluehost (carpeta `website_157ed56a`)
+- Contacto: ettem@boggdan.com
 
-**Automatizadas:**
-- ✅ Tests unitarios: 63/64 pasando (1 skip esperado)
-- ✅ Modelos ORM V2.2 importan correctamente
-- ✅ Repositorios V2.2 funcionan
-- ✅ Todas las rutas V2.2 registradas
-- ✅ `/admin/table-config` - Carga correctamente
-- ✅ `/admin/table-config/qr-codes` - FUNCIONA (bug corregido)
-- ✅ `/display` - Display público funciona con auto-refresh
-- ✅ `/mesa/{n}` - Marcador de árbitro accesible
-- ✅ `/api/live-scores` - Devuelve JSON correcto
-- ✅ Cambiar modo de mesa (point_by_point/result_per_set)
-- ✅ Toggle activación de mesa
-- ✅ Unlock mesa desde admin
-- ✅ Envío de set result
-- ✅ Heartbeat (requiere session token - esperado)
-- ✅ Página de walkover accesible
+### Precios Definidos
+- Mensual: $29 USD/mes
+- Semestral: $22 USD/mes (pago unico $132 USD)
+- Anual: $18 USD/mes (pago unico $216 USD)
+- Soporte opcional: $10 USD/mes adicional
+- Estrategia: price anchoring (equivalente mensual grande, total abajo)
 
-**Manuales:**
-- ✅ QR codes escaneados desde celular - FUNCIONA
-- ✅ Sincronización display en tiempo real - FUNCIONA
-- ⏳ Sistema de bloqueo (2 dispositivos) - Sin probar
-- ⏳ Walkover completo - Sin probar
+### Documentacion Completa (en docs/)
+- `landing_page.html` - Landing page profesional (HTML single-file)
+- `ETTEM_Brochure.pdf` - PDF pixel-perfect desde landing page
+- `SALES_BROCHURE.md` - Documento comercial fuente
+- `SALES_BROCHURE.docx` - Version Word editable
+- `CAPABILITIES.md` - Funcionalidades (client-safe, sin info interna)
+- `TECHNICAL_GUIDE.md` - Arquitectura, BD, API reference
+- `USER_GUIDE.md` - Manual de usuario final
+- `MVP_PLAN.md` - Plan original del MVP
+- `ettem_website.zip` - ZIP listo para deploy en hosting
+- `screenshots/` - 24 screenshots + landing previews
 
-### Bugs Corregidos (2026-02-02)
-1. **Live-score sin validación de token**: `/api/live-score/{match_id}` no validaba session_token contra table lock. Cualquier cliente en la red podía enviar scores falsos. Corregido: ahora valida token antes de aceptar updates.
-2. **Display mostraba partidos de otros torneos**: `/display` y `/api/live-scores` no filtraban por torneo actual. Corregido: ahora solo muestran scores del torneo activo.
-
-### Bugs Corregidos (2026-01-24)
-1. **QR Codes no se mostraban**: Template usaba `{% block print_content %}` pero base define `{% block preview_content %}`. Corregido en `admin_table_qr_codes.html`.
-
-### Mejoras Agregadas (2026-01-24)
-1. **Botón "Actualizar" en marcador**: Para refrescar lista de partidos sin recargar navegador manualmente
-2. **Filtro de partidos en marcador**: Solo muestra partidos con ambos jugadores asignados (no TBD/BYE)
-3. **Filtro por fecha del día**: Solo muestra partidos de sesiones del día actual
-4. **Fecha preseleccionada al crear sesión**: El campo fecha viene con el día de hoy por defecto
-
-### Cambios de Hoy (2026-02-02)
-- Fix validación de session_token en `/api/live-score/{match_id}` (PR review feedback)
-- Filtrar live scores por torneo actual en `/display` y `/api/live-scores` (PR review feedback)
-
-### Cambios Anteriores (2026-01-24)
-- Fix bug QR codes (block name mismatch)
-- Botón "Actualizar" en pantalla de selección de partidos
-- Filtro: solo partidos con ambos jugadores (no TBD/BYE)
-- Filtro: solo partidos de sesiones del día actual
-- Fecha preseleccionada al crear nueva sesión
-- Sesiones de prueba actualizadas a fecha de hoy
-
-### Cambios Anteriores (2026-01-23)
-- UI punto por punto completa con botones +/- grandes
-- Animación flash al anotar punto
-- Fix race condition en reset de puntos (savingSet flag)
-- Cambio automático de lados basado en número de set
-- Historial de sets con colores (azul J1, verde J2)
-- Nombres simplificados en botones (solo colores)
-- Propiedad `full_name` agregada a PlayerORM
-- Display público responsive (TV 1080p, 4K)
-- Rotación automática de resultados/próximos cada 5s
-- Límite de 4 partidos en vivo en display
-- Traducción "Umpire" en lugar de "Referee" (EN)
-- Traducción "Intercambiar lados" agregada
-- Regla de firewall necesaria para acceso desde red local
-
-### Lo Implementado en V2.2
-
-**1. Configuración de Mesas (`/admin/table-config`)**
-- Inicializar y configurar mesas para el torneo
-- Dos modos: `point_by_point` o `result_per_set`
-- Generar códigos QR para cada mesa
-- Activar/desactivar mesas
-- Ver estado de bloqueo
-
-**2. Marcador de Árbitro (`/mesa/{n}`)**
-- Interfaz móvil optimizada
-- Modo punto por punto con estado local
-- Modo resultado por set
-- Sincronización al servidor por set completado
-- Soporte para walkover
-
-**3. Pantalla Pública (`/display`)**
-- Vista optimizada para TV/monitores
-- Partidos en vivo con marcador actual
-- Resultados recientes (últimos 10)
-- Próximos partidos programados
-- Auto-refresh cada 5 segundos
-- Tema oscuro
-
-**4. Sistema de Bloqueo de Mesas**
-- Un dispositivo por mesa a la vez
-- Bloqueo basado en sesión con cookies
-- Admin puede desbloquear desde panel
-- Timeout automático por inactividad
-
-**5. API de Scores en Vivo**
-- `GET /api/live-scores` - todos los partidos activos
-- `POST /api/live-score/{id}` - actualizar score
-- `POST /api/table/{id}/heartbeat` - mantener lock activo
-
-### Archivos Nuevos/Modificados
-```
-src/ettem/storage.py                    # +3 ORM models, +3 repositories
-src/ettem/webapp/app.py                 # +774 líneas (rutas V2.2)
-src/ettem/webapp/templates/
-├── admin_table_config.html             # Configuración de mesas
-├── admin_table_qr_codes.html           # Imprimir QR codes
-├── referee_scoreboard.html             # Marcador de árbitro
-├── public_display.html                 # Pantalla pública
-└── base.html                           # +link navegación
-i18n/strings_es.yaml                    # +91 líneas traducciones
-i18n/strings_en.yaml                    # +91 líneas traducciones
-```
-
-### Tests Automatizados
-- 64 total: 63 passed, 1 skipped
-- App importa sin errores
-- Modelos de BD se crean correctamente
-
-### Pruebas Manuales Pendientes
-1. `/admin/table-config` - Configurar mesas, cambiar modos, imprimir QR
-2. Sistema de bloqueo - Abrir `/mesa/1` en dos dispositivos diferentes
-3. Walkover - Probar flujo de walkover desde marcador
-4. Sincronización display - Verificar que puntos aparezcan en `/display` en tiempo real
-
-### Cómo Probar
-```bash
-# Iniciar servidor (accesible desde red local)
-python -m uvicorn ettem.webapp.app:app --host 0.0.0.0 --port 8000
-
-# Abrir puerto en firewall Windows (como admin)
-netsh advfirewall firewall add rule name="ETTEM Server" dir=in action=allow protocol=TCP localport=8000
-
-# Encontrar IP local
-ipconfig  # Windows - buscar IPv4 de WiFi
-
-# URLs para probar:
-# PC: http://127.0.0.1:8000/admin/table-config
-# PC: http://127.0.0.1:8000/display
-# Celular: http://<tu-ip>:8000/mesa/1
-```
-
-### Siguiente Sesión
-1. ~~Probar `/admin/table-config`~~ - HECHO
-2. ~~Probar QR codes~~ - HECHO (funciona desde celular)
-3. ~~Sincronización display~~ - HECHO (funciona)
-4. ~~Fix PR review: token validation + tournament filter~~ - HECHO
-5. Probar sistema de bloqueo de mesas (2 dispositivos)
-6. Probar walkover completo
-7. Ejecutar tests para verificar que todo sigue pasando
-8. Nota: test_webapp_smoke.py falla por PIL/Pillow incompatible con Python 3.14 (no relacionado con V2.2)
-9. Merge a main
-10. Crear release v2.2.0
+### Tests (64 total)
+- Pasando: 63
+- Skipped: 1 (determinismo de bracket - esperado)
+- Nota: test_webapp_smoke.py puede fallar por PIL/Pillow incompatible con Python 3.14
 
 ### Licencia de Prueba
 `ETTEM-DEV1-0127-BC7CF281` (expira enero 2027)
-
-### Estado de Tests (64 total)
-- Pasando: 63
-- Skipped: 1 (determinismo de bracket - esperado)
 
 ### Sistema de Licencias
 Verificado y funcionando correctamente:
@@ -352,20 +235,85 @@ Verificado y funcionando correctamente:
 - Licencias pasadas: expiradas con mensaje de error
 - Expiracion: ultimo dia del mes (inclusive)
 
-### Documentacion Existente
-- `README.md` - Completo (tecnico)
-- `LICENSE_ADMIN.md` - Completo (admin)
-- `CLAUDE.md` - Completo (desarrollo)
-
-### Documentacion Faltante
-- `USER_GUIDE.md` - Manual para usuarios finales (organizadores)
-- Capturas de pantalla (usuario agregara progresivamente)
-
 ### Como Ejecutar
 ```bash
 cd "C:\Users\boggd\Documents\Boggdan - Projects\Code\projects\personal\easy-table-tennis-event"
 python -m uvicorn ettem.webapp.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### Licencia de Prueba
-`ETTEM-DEV1-0127-BC7CF281` (expira enero 2027, 375 dias restantes)
+### Pruebas Manuales Pendientes
+1. Sistema de bloqueo de mesas (2 dispositivos simultaneos)
+2. Walkover completo desde marcador
+
+### Siguiente Sesion
+1. **BUILD macOS** (ver instrucciones abajo)
+2. Considerar V2.3 segun ROADMAP.md (Roles de usuario, mejoras UX)
+3. Probar bloqueo de mesas y walkover pendientes
+4. Buscar clientes potenciales con landing page
+
+---
+
+## BUILD macOS - Instrucciones para crear ejecutable
+
+### Contexto
+El codigo ya es 100% cross-platform. Los cambios necesarios ya estan en la rama `feature/macos-support`:
+- `paths.py` detecta macOS y usa `~/Library/Application Support/ETTEM/` para datos
+- `launcher.py` maneja SIGTERM para cierre limpio del .app
+- `ettem.spec` es cross-platform (detecta OS, genera .exe o .app segun corresponda)
+- `build.py` script unificado para construir
+
+### Pasos en la Mac
+
+```bash
+# 1. Clonar repo
+git clone <repo-url>
+cd easy-table-tennis-event
+git checkout feature/macos-support
+
+# 2. Crear entorno virtual
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+pip install pyinstaller
+
+# 4. Verificar que funciona desde codigo fuente
+python -m pytest --ignore=tests/test_webapp_smoke.py
+python -m uvicorn ettem.webapp.app:app --host 127.0.0.1 --port 8000
+# Abrir http://127.0.0.1:8000 - verificar que todo funciona
+
+# 5. Construir .app
+python build.py --clean
+# Resultado esperado: dist/ETTEM.app
+
+# 6. Probar el .app
+open dist/ETTEM.app
+# Debe abrir navegador automaticamente
+# Verificar que la BD se crea en ~/Library/Application Support/ETTEM/
+# Probar: crear torneo, importar jugadores, crear grupos
+
+# 7. Licencia de prueba
+# ETTEM-DEV1-0127-BC7CF281 (expira enero 2027)
+```
+
+### Que verificar en la Mac
+- [ ] Tests pasan (`pytest --ignore=tests/test_webapp_smoke.py`)
+- [ ] App desde codigo fuente funciona (`python -m uvicorn ...`)
+- [ ] `build.py --clean` genera `dist/ETTEM.app` sin errores
+- [ ] Doble clic en ETTEM.app abre el navegador
+- [ ] Base de datos se crea en `~/Library/Application Support/ETTEM/ettem.sqlite`
+- [ ] Licencia funciona (activar con clave de prueba)
+- [ ] Crear torneo completo: importar CSV, grupos, partidos, standings, bracket
+- [ ] QR codes y marcador de arbitro funcionan desde celular en red local
+
+### Problemas conocidos
+- **Gatekeeper**: macOS puede bloquear la app por no estar firmada. Solucion temporal: `xattr -cr dist/ETTEM.app` o abrir desde Finder con clic derecho > Abrir
+- **Icono**: No hay icono .icns todavia. La app funciona sin el, pero se vera con icono generico
+- **Python 3.14**: Si usas Python 3.14, `test_webapp_smoke.py` falla por incompatibilidad pycparser/cffi. Usar `--ignore=tests/test_webapp_smoke.py`
+- **Apple Silicon**: El spec usa `target_arch=None` (nativo). Para universal binary cambiar a `target_arch='universal2'`
+
+### Despues del build exitoso
+1. Merge `feature/macos-support` a `main`
+2. Crear release v2.2.1 con ambos ejecutables (ETTEM.exe + ETTEM.app)
+3. (Opcional) Firmar con Apple Developer ID para distribucion profesional ($99/año)

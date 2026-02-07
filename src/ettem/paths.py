@@ -4,6 +4,7 @@ Path utilities for ETTEM - handles both development and PyInstaller frozen modes
 
 import sys
 import os
+import platform
 from pathlib import Path
 
 
@@ -59,9 +60,15 @@ def get_data_dir() -> Path:
     Get the user data directory for storing database and user files.
 
     Returns:
-        Path to .ettem/ directory in user's home or current directory
+        - Frozen macOS: ~/Library/Application Support/ETTEM/
+        - Frozen Windows: .ettem/ next to the executable
+        - Development (any OS): .ettem/ in current working directory
     """
-    # Always use .ettem in current working directory for portability
-    data_dir = Path.cwd() / ".ettem"
-    data_dir.mkdir(exist_ok=True)
+    if is_frozen() and platform.system() == "Darwin":
+        # macOS .app: use standard Application Support directory
+        data_dir = Path.home() / "Library" / "Application Support" / "ETTEM"
+    else:
+        # Windows exe or dev mode: use .ettem in current working directory
+        data_dir = Path.cwd() / ".ettem"
+    data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
