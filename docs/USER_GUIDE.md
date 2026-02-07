@@ -85,7 +85,7 @@ En la barra lateral izquierda verás los días restantes de tu licencia.
 
 ## Panel Principal
 
-![Panel Principal](docs/screenshots/01_panel_principal.png)
+![Panel Principal](screenshots/01_dashboard.png)
 
 Al ingresar verás el **Dashboard** con:
 
@@ -126,7 +126,7 @@ La **barra lateral izquierda** te permite acceder a:
 
 ## Importar Jugadores
 
-![Importar Jugadores](docs/screenshots/04_importar_jugadores.png)
+![Importar Jugadores](screenshots/05_import_players.png)
 
 ### Opción 1: Desde archivo CSV
 
@@ -171,7 +171,7 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ## Crear Grupos
 
-![Crear Grupos](docs/screenshots/05_crear_grupos.png)
+![Crear Grupos](screenshots/06_create_groups.png)
 
 Una vez que tengas jugadores importados:
 
@@ -199,7 +199,7 @@ Esto asegura grupos balanceados.
 
 ## Ingresar Resultados de Grupos
 
-![Partidos de Grupo](docs/screenshots/08_categoria_grupos.png)
+![Partidos de Grupo](screenshots/07_group_matches.png)
 
 1. Ve a la categoría → pestaña **Grupos**
 2. Selecciona un grupo
@@ -231,7 +231,7 @@ Si un jugador no se presenta:
 
 ## Ver Standings
 
-![Standings](docs/screenshots/09_categoria_standings.png)
+![Standings](screenshots/09_category_standings.png)
 
 Los standings se calculan automáticamente:
 
@@ -258,7 +258,7 @@ Cuando hay empate en puntos, se aplica (solo entre los empatados):
 
 ## Generar Bracket (Llave)
 
-![Bracket](docs/screenshots/10_categoria_bracket.png)
+![Bracket](screenshots/10_bracket.png)
 
 Cuando todos los partidos de grupos estén completos:
 
@@ -295,7 +295,7 @@ Cuando todos los partidos de grupos estén completos:
 
 ## Scheduler (Mesas y Horarios)
 
-![Scheduler](docs/screenshots/12_scheduler.png)
+![Scheduler](screenshots/13_scheduler.png)
 
 El scheduler te permite organizar partidos por mesa y hora.
 
@@ -325,7 +325,7 @@ El scheduler te permite organizar partidos por mesa y hora.
 
 ### Resultados en Vivo (Admin)
 
-![Resultados en Vivo](docs/screenshots/13_resultados_en_vivo.png)
+![Resultados en Vivo](screenshots/15_live_results.png)
 
 Desde **Resultados en Vivo** en la barra lateral puedes monitorear todos los partidos en curso, agrupados por horario. Los partidos se actualizan automáticamente cuando los árbitros ingresan resultados desde sus celulares.
 
@@ -341,7 +341,7 @@ Cuando termines una sesión:
 
 ## Centro de Impresión
 
-![Centro de Impresión](docs/screenshots/14_centro_impresion.png)
+![Centro de Impresión](screenshots/16_print_center.png)
 
 Accede desde **Impresión** en la barra lateral.
 
@@ -368,7 +368,7 @@ Accede desde **Impresión** en la barra lateral.
 
 ## Configurar Mesas para Árbitros
 
-![Configurar Mesas](docs/screenshots/15_configurar_mesas.png)
+![Configurar Mesas](screenshots/17_table_config.png)
 
 Desde la versión 2.2, puedes configurar mesas físicas para que los árbitros ingresen resultados desde sus celulares.
 
@@ -390,7 +390,7 @@ Cada mesa puede funcionar en uno de dos modos:
 
 ### Códigos QR
 
-![Códigos QR](docs/screenshots/16_qr_codes.png)
+![Códigos QR](screenshots/18_qr_codes.png)
 
 1. Haz clic en **QR Codes** para ver los códigos de todas las mesas
 2. Imprime la página y coloca cada QR en la mesa correspondiente
@@ -406,7 +406,7 @@ Cada mesa puede funcionar en uno de dos modos:
 
 ## Marcador de Árbitro
 
-![Marcador de Árbitro](docs/screenshots/17_marcador_arbitro.png)
+![Marcador de Árbitro](screenshots/19_referee_scoreboard.png)
 
 El marcador es una interfaz optimizada para celular que permite al árbitro controlar el partido.
 
@@ -425,7 +425,7 @@ El marcador es una interfaz optimizada para celular que permite al árbitro cont
 
 ### Marcador Activo
 
-![Marcador Activo](docs/screenshots/17b_marcador_activo.png)
+![Marcador Activo](screenshots/19_referee_scoreboard.png)
 
 Una vez seleccionado el partido, verás el marcador con botones grandes para anotar puntos. El marcador muestra:
 
@@ -444,7 +444,7 @@ Una vez seleccionado el partido, verás el marcador con botones grandes para ano
 
 ### Walkover desde el Marcador
 
-![Walkover](docs/screenshots/18_walkover.png)
+![Walkover](screenshots/19_referee_scoreboard.png)
 
 Si un jugador no se presenta:
 
@@ -457,7 +457,7 @@ Si un jugador no se presenta:
 
 ## Pantalla Pública
 
-![Pantalla Pública](docs/screenshots/19_pantalla_publica.png)
+![Pantalla Pública](screenshots/20_public_display.png)
 
 La pantalla pública muestra los resultados en tiempo real, ideal para proyectar en un monitor o TV en la sede del torneo.
 

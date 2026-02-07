@@ -1,7 +1,7 @@
 # ETTEM - Roadmap de Desarrollo
 
-> Última actualización: 2026-01-21
-> Versión actual: 2.1.0
+> Última actualización: 2026-02-06
+> Versión actual: 2.2.0
 
 ---
 
@@ -15,7 +15,7 @@ Priorizar funcionalidades que:
 
 ---
 
-## V2.2 - Pantalla Pública + Marcador de Árbitro (Próxima versión)
+## V2.2 - Pantalla Pública + Marcador de Árbitro (Completada - 2026-02-06)
 
 **Objetivo:** Sistema completo de resultados en tiempo real
 
@@ -391,9 +391,9 @@ Ideas para evaluar en el futuro:
 
 | Versión | Enfoque | Estado |
 |---------|---------|--------|
-| 2.1.0 | MVP Comercial | **Actual** |
-| 2.2.0 | Pantalla Pública + Marcador Árbitro | Próxima |
-| 2.3.0 | Reportes Personalizables | Planeada |
+| 2.1.0 | MVP Comercial | Completada |
+| 2.2.0 | Pantalla Pública + Marcador Árbitro | **Actual** |
+| 2.3.0 | Reportes Personalizables | Próxima |
 | 2.4.0 | Portal Público para Jugadores | Planeada |
 | 2.5.0 | Check-in de Jugadores | Planeada |
 | 3.0.0 | Notificaciones (WhatsApp/SMS) | Futura |

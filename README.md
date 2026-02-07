@@ -295,6 +295,7 @@ easy-table-tennis-event/
 
 ## Version History
 
+- **V2.2** - Public display for TV/monitors, mobile referee scoreboard with QR codes, table locking system, live scoring API, point-by-point and result-per-set modes
 - **V2.1** - License system, i18n (ES/EN), dark theme, print center, bracket tree view, scheduler print, live results panel, Windows executable (PyInstaller)
 - **V2.0** - Scheduler system with table/time assignments, session management
 - **V1.1** - Complete UI management (import, groups, standings, bracket), configurable match format (Bo3/Bo5/Bo7)
@@ -308,7 +309,7 @@ Ver [ROADMAP.md](ROADMAP.md) para el plan detallado de desarrollo.
 
 | Versión | Enfoque |
 |---------|---------|
-| 2.2 | Pantalla pública + Marcador de árbitro (resultados en vivo) |
+| 2.2 | Pantalla pública + Marcador de árbitro (resultados en vivo) - **Actual** |
 | 2.3 | Reportes personalizables (logo, bandera, certificados) |
 | 2.4 | Portal público para jugadores (horarios desde el celular) |
 | 2.5 | Check-in de jugadores |
