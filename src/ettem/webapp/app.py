@@ -25,7 +25,10 @@ from ettem.storage import (
     TournamentRepository,
 )
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
-from ettem.i18n import load_strings, get_language_from_env
+from ettem.i18n import load_strings, get_language_from_env, clear_cache as clear_i18n_cache
+
+# Clear i18n cache on app reload to pick up translation changes
+clear_i18n_cache()
 from ettem import pdf_generator
 from ettem.paths import get_templates_dir, get_static_dir
 from ettem.licensing import get_current_license, validate_license_key, save_license, LicenseInfo
@@ -374,17 +377,59 @@ def migrate_matches_add_best_of():
     session.close()
 
 
+def migrate_matches_fill_category_from_group():
+    """Fill category for matches that don't have it but belong to a group."""
+    from sqlalchemy import text
+    session = db_manager.get_session()
+
+    try:
+        # Find matches without category that have a group_id
+        result = session.execute(text("""
+            UPDATE matches
+            SET category = (SELECT category FROM groups WHERE groups.id = matches.group_id)
+            WHERE matches.category IS NULL
+            AND matches.group_id IS NOT NULL
+            AND EXISTS (SELECT 1 FROM groups WHERE groups.id = matches.group_id AND groups.category IS NOT NULL)
+        """))
+        session.commit()
+        updated = result.rowcount
+        if updated > 0:
+            print(f"[MIGRATION] Updated {updated} matches with category from their group")
+        else:
+            print("[MIGRATION] All matches already have category assigned")
+    except Exception as e:
+        print(f"[MIGRATION] Error filling match categories: {e}")
+        session.rollback()
+
+    session.close()
+
+
 # Run migrations on startup (order matters!)
 migrate_matches_add_category()
 migrate_matches_add_tournament_id()  # Add tournament_id to matches
 migrate_matches_add_best_of()  # Add best_of format to matches
 migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
 migrate_bracket_slots_add_tournament_id()
+migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
 
 def get_db_session():
     """Get database session."""
     return db_manager.get_session()
+
+
+def get_local_ip() -> str:
+    """Get the local IP address for network access."""
+    import socket
+    try:
+        # Create a socket to determine the local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 
 def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse:
@@ -484,7 +529,7 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
             print(f"[DEBUG] Form values found: {form_values}")
             context["form_values"] = form_values
 
-    return templates.TemplateResponse(template_name, context)
+    return templates.TemplateResponse(context["request"], template_name, context)
 
 
 # ============================================================================
@@ -661,7 +706,7 @@ async def license_activate_page(request: Request):
         "submitted_key": None
     }
 
-    return templates.TemplateResponse("license_activation.html", context)
+    return templates.TemplateResponse(request, "license_activation.html", context)
 
 
 @app.post("/license/activate")
@@ -694,7 +739,7 @@ async def license_activate(request: Request, license_key: str = Form(...)):
             "expired_info": license_info if license_info and license_info.is_expired else None,
             "submitted_key": license_key
         }
-        return templates.TemplateResponse("license_activation.html", context)
+        return templates.TemplateResponse(request, "license_activation.html", context)
 
     # Save the valid license
     save_license(license_key)
@@ -2815,7 +2860,7 @@ async def admin_create_groups_execute(
             for match in matches:
                 if match.player1_id in group.player_ids and match.player2_id in group.player_ids:
                     match.group_id = group_orm.id
-                    match_repo.create(match, best_of=best_of)
+                    match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of)
 
         # Create empty bracket structure for scheduling
         # Default: 2 players advance per group (1st and 2nd place)
@@ -7243,6 +7288,8 @@ async def save_scheduler_config(
     min_rest_time: int = Form(...)
 ):
     """Save scheduler configuration for the tournament."""
+    from ettem.storage import TableConfigRepository
+
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
         tournament = tournament_repo.get_current()
@@ -7255,9 +7302,14 @@ async def save_scheduler_config(
         tournament.num_tables = num_tables
         tournament.default_match_duration = default_match_duration
         tournament.min_rest_time = min_rest_time
+
+        # Sync TableConfig with num_tables
+        table_config_repo = TableConfigRepository(session)
+        table_config_repo.sync_tables(tournament.id, num_tables)
+
         session.commit()
 
-        request.session["flash_message"] = "Configuración guardada"
+        request.session["flash_message"] = "Configuración guardada y mesas sincronizadas"
         request.session["flash_type"] = "success"
         return RedirectResponse(url="/admin/scheduler", status_code=303)
 
@@ -8217,6 +8269,973 @@ async def admin_live_results(request: Request, category: Optional[str] = None):
 
     finally:
         session.close()
+
+
+# ============================================================================
+# Table Configuration Routes (V2.2 - Live Display / Referee Scoreboard)
+# ============================================================================
+
+
+@app.get("/admin/table-config", response_class=HTMLResponse)
+async def admin_table_config(request: Request):
+    """Table configuration page - configure tables for referees and public display."""
+    from ettem.storage import TableConfigRepository, TableLockRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        table_lock_repo = TableLockRepository(session)
+
+        tables = table_config_repo.get_by_tournament(tournament.id)
+
+        # Count available vs locked tables
+        available_count = 0
+        locked_count = 0
+        for table in tables:
+            if not table.is_active:
+                continue
+            if table.lock:
+                locked_count += 1
+            else:
+                available_count += 1
+
+        # Get base URL with local IP for network access
+        local_ip = get_local_ip()
+        port = request.url.port or 8000
+        base_url = f"http://{local_ip}:{port}"
+
+        context = {
+            "request": request,
+            "tournament": tournament,
+            "tables": tables,
+            "available_count": available_count,
+            "locked_count": locked_count,
+            "base_url": base_url,
+        }
+
+        flash_message = request.session.pop("flash_message", None)
+        if flash_message:
+            context["flash_message"] = flash_message
+            context["flash_type"] = request.session.pop("flash_type", "info")
+
+        return render_template("admin_table_config.html", context)
+
+
+@app.post("/admin/table-config/initialize")
+async def admin_table_config_initialize(request: Request, num_tables: int = Form(...), default_mode: str = Form("result_per_set")):
+    """Initialize tables for the tournament."""
+    from ettem.storage import TableConfigRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        table_config_repo.initialize_tables(tournament.id, num_tables, default_mode)
+
+        request.session["flash_message"] = "Mesas inicializadas correctamente"
+        request.session["flash_type"] = "success"
+
+    return RedirectResponse(url="/admin/table-config", status_code=303)
+
+
+@app.post("/admin/table-config/add")
+async def admin_table_config_add(request: Request, name: str = Form(None), mode: str = Form("result_per_set")):
+    """Add a new table."""
+    from ettem.storage import TableConfigRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        existing_tables = table_config_repo.get_by_tournament(tournament.id)
+
+        # Determine next table number
+        next_number = 1
+        if existing_tables:
+            next_number = max(t.table_number for t in existing_tables) + 1
+
+        table_config_repo.create(tournament.id, next_number, name or f"Mesa {next_number}", mode)
+
+        request.session["flash_message"] = f"Mesa {next_number} creada"
+        request.session["flash_type"] = "success"
+
+    return RedirectResponse(url="/admin/table-config", status_code=303)
+
+
+@app.post("/admin/table-config/{table_id}/mode")
+async def admin_table_config_mode(request: Request, table_id: int, mode: str = Form(...)):
+    """Update table mode."""
+    from ettem.storage import TableConfigRepository
+
+    with get_db_session() as session:
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_id(table_id)
+
+        if table:
+            table.mode = mode
+            table_config_repo.update(table)
+            request.session["flash_message"] = "Modo actualizado"
+            request.session["flash_type"] = "success"
+
+    return RedirectResponse(url="/admin/table-config", status_code=303)
+
+
+@app.post("/admin/table-config/{table_id}/unlock")
+async def admin_table_config_unlock(request: Request, table_id: int):
+    """Force unlock a table (admin action)."""
+    from ettem.storage import TableLockRepository
+
+    with get_db_session() as session:
+        table_lock_repo = TableLockRepository(session)
+        if table_lock_repo.force_release(table_id):
+            request.session["flash_message"] = "Mesa desbloqueada"
+            request.session["flash_type"] = "success"
+        else:
+            request.session["flash_message"] = "La mesa no estaba bloqueada"
+            request.session["flash_type"] = "info"
+
+    return RedirectResponse(url="/admin/table-config", status_code=303)
+
+
+@app.post("/admin/table-config/{table_id}/toggle")
+async def admin_table_config_toggle(request: Request, table_id: int):
+    """Toggle table active status."""
+    from ettem.storage import TableConfigRepository
+
+    with get_db_session() as session:
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_id(table_id)
+
+        if table:
+            table.is_active = not table.is_active
+            table_config_repo.update(table)
+            status = "activada" if table.is_active else "desactivada"
+            request.session["flash_message"] = f"Mesa {status}"
+            request.session["flash_type"] = "success"
+
+    return RedirectResponse(url="/admin/table-config", status_code=303)
+
+
+@app.get("/admin/table-config/qr-codes", response_class=HTMLResponse)
+async def admin_table_config_qr_codes(request: Request):
+    """Print page for QR codes."""
+    from ettem.storage import TableConfigRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        tables = table_config_repo.get_by_tournament(tournament.id, active_only=True)
+
+        # Generate base URL for QR codes using local IP for network access
+        local_ip = get_local_ip()
+        port = request.url.port or 8000
+        base_url = f"http://{local_ip}:{port}"
+
+        tables_data = []
+        for table in tables:
+            tables_data.append({
+                "table": table,
+                "url": f"{base_url}/mesa/{table.table_number}",
+            })
+
+        return render_template("admin_table_qr_codes.html", {
+            "request": request,
+            "tournament": tournament,
+            "tables": tables_data,
+            "base_url": base_url,
+        })
+
+
+# ============================================================================
+# Referee Scoreboard Routes (V2.2 - /mesa/{n})
+# ============================================================================
+
+
+def generate_session_token():
+    """Generate a unique session token for table lock."""
+    import secrets
+    return secrets.token_hex(32)
+
+
+@app.get("/mesa/{table_number}", response_class=HTMLResponse)
+async def referee_scoreboard(request: Request, table_number: int):
+    """Referee scoreboard page for a specific table."""
+    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository, ScheduleSlotRepository, SessionRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return render_template("referee_scoreboard.html", {
+                "request": request,
+                "error": "No hay torneo activo",
+                "table": None,
+                "match": None,
+            })
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return render_template("referee_scoreboard.html", {
+                "request": request,
+                "error": f"Mesa {table_number} no encontrada",
+                "table": None,
+                "match": None,
+            })
+
+        if not table.is_active:
+            return render_template("referee_scoreboard.html", {
+                "request": request,
+                "error": "Esta mesa está desactivada",
+                "table": table,
+                "match": None,
+            })
+
+        # Try to acquire lock or check existing lock
+        table_lock_repo = TableLockRepository(session)
+
+        # Get or create session token from cookie
+        session_token = request.cookies.get(f"mesa_{table_number}_token")
+        if not session_token:
+            session_token = generate_session_token()
+
+        # Try to acquire lock
+        device_info = request.headers.get("User-Agent", "Unknown")[:200]
+        lock = table_lock_repo.acquire_lock(table.id, session_token, device_info)
+
+        if not lock:
+            # Table is locked by another device
+            return render_template("referee_scoreboard.html", {
+                "request": request,
+                "table": table,
+                "match": None,
+                "locked": True,
+                "session_token": session_token,
+            })
+
+        # Find current match for this table
+        match = None
+        player1 = None
+        player2 = None
+        live_score = None
+        completed_sets = []
+        available_matches = []
+
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        schedule_repo = ScheduleSlotRepository(session)
+        group_repo = GroupRepository(session)
+
+        # First check if there's a match assigned via lock
+        if lock.current_match_id:
+            match = match_repo.get_by_id(lock.current_match_id)
+            # If match is completed, clear it from lock
+            if match and match.status in (MatchStatus.COMPLETED.value, MatchStatus.WALKOVER.value, "completed", "walkover"):
+                lock.current_match_id = None
+                table_lock_repo.update_activity(table.id, session_token)
+                match = None
+
+        # If no match from lock, get all available matches for this table
+        if not match:
+            # Get today's date for filtering sessions
+            from datetime import date
+            today = date.today()
+
+            # Get sessions for today only
+            session_repo = SessionRepository(session)
+            today_sessions = [s for s in session_repo.get_by_tournament(tournament.id)
+                              if s.date and s.date.date() == today]
+            today_session_ids = {s.id for s in today_sessions}
+
+            # Find all matches scheduled for this table that are pending or in progress (today only)
+            all_slots = schedule_repo.get_all()
+            for slot in all_slots:
+                # Filter by table number and today's sessions
+                if slot.table_number == table_number and slot.session_id in today_session_ids:
+                    m = match_repo.get_by_id(slot.match_id)
+                    # Only show matches with both players assigned (no TBD/BYE)
+                    if m and m.player1_id and m.player2_id and m.status in (MatchStatus.PENDING.value, MatchStatus.IN_PROGRESS.value, "pending", "in_progress"):
+                        p1 = player_repo.get_by_id(m.player1_id)
+                        p2 = player_repo.get_by_id(m.player2_id)
+
+                        # Get group/round info
+                        round_name = m.round_name or ""
+                        if m.group_id:
+                            group = group_repo.get_by_id(m.group_id)
+                            if group:
+                                round_name = f"Grupo {group.name}"
+
+                        available_matches.append({
+                            "id": m.id,
+                            "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                            "player1_country": p1.pais_cd if p1 else "",
+                            "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                            "player2_country": p2.pais_cd if p2 else "",
+                            "category": m.category or "",
+                            "round_name": round_name,
+                            "start_time": slot.start_time,
+                        })
+
+        if match:
+            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+
+            # If match doesn't have category, try to get it from the group
+            if not match.category and match.group_id:
+                group = group_repo.get_by_id(match.group_id)
+                if group and group.category:
+                    match.category = group.category
+
+            # Get live score
+            live_score_repo = LiveScoreRepository(session)
+            live_score = live_score_repo.get_by_match(match.id)
+
+            # If no live score exists and match is pending, create one
+            if not live_score and match.status in (MatchStatus.PENDING.value, "pending"):
+                live_score = live_score_repo.create(match.id, table.id)
+                # Update match status to in_progress
+                match.status = MatchStatus.IN_PROGRESS.value
+                match_repo.update(match)
+
+            # Get completed sets from match
+            if match.sets:
+                for s in match.sets:
+                    completed_sets.append({
+                        "set_number": s.get("set_number", len(completed_sets) + 1),
+                        "player1_points": s.get("player1_points", 0),
+                        "player2_points": s.get("player2_points", 0),
+                    })
+
+        response = render_template("referee_scoreboard.html", {
+            "request": request,
+            "table": table,
+            "match": match,
+            "player1": player1,
+            "player2": player2,
+            "live_score": live_score,
+            "completed_sets": completed_sets,
+            "session_token": session_token,
+            "locked": False,
+            "available_matches": available_matches,
+        })
+
+        # Set cookie with session token
+        response.set_cookie(f"mesa_{table_number}_token", session_token, max_age=86400)  # 24 hours
+        return response
+
+
+@app.post("/mesa/{table_number}/select")
+async def referee_select_match(request: Request, table_number: int, match_id: int = Form(...)):
+    """Select a match to referee."""
+    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        # Get session token from cookie
+        session_token = request.cookies.get(f"mesa_{table_number}_token")
+        if not session_token:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        # Verify lock ownership
+        table_lock_repo = TableLockRepository(session)
+        lock = table_lock_repo.get_by_table(table.id)
+
+        if not lock or lock.session_token != session_token:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        # Verify match exists and is pending
+        match_repo = MatchRepository(session)
+        match = match_repo.get_by_id(match_id)
+
+        if not match or match.status not in (MatchStatus.PENDING.value, MatchStatus.IN_PROGRESS.value, "pending", "in_progress"):
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        # Set current match on lock
+        table_lock_repo.set_current_match(table.id, session_token, match_id)
+
+        # Create live score if needed
+        live_score_repo = LiveScoreRepository(session)
+        live_score = live_score_repo.get_by_match(match_id)
+        if not live_score:
+            live_score_repo.create(match_id, table.id)
+
+        # Update match status
+        if match.status in (MatchStatus.PENDING.value, "pending"):
+            match.status = MatchStatus.IN_PROGRESS.value
+            match_repo.update(match)
+
+    return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+
+@app.post("/mesa/{table_number}/clear")
+async def referee_clear_match(request: Request, table_number: int, session_token: str = Form(None)):
+    """Clear current match and return to match selection."""
+    from datetime import datetime
+    from ettem.storage import TableConfigRepository, TableLockRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return {"success": False}
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return {"success": False}
+
+        # Get session token from form or cookie
+        if not session_token:
+            session_token = request.cookies.get(f"mesa_{table_number}_token")
+
+        if not session_token:
+            return {"success": False}
+
+        # Verify lock ownership
+        table_lock_repo = TableLockRepository(session)
+        lock = table_lock_repo.get_by_table(table.id)
+
+        if not lock or lock.session_token != session_token:
+            return {"success": False}
+
+        # Clear current match from lock
+        lock.current_match_id = None
+        lock.last_activity = datetime.utcnow()
+        session.commit()
+
+    return {"success": True}
+
+
+@app.post("/mesa/{table_number}/set")
+async def referee_save_set(
+    request: Request,
+    table_number: int,
+    p1_score: int = Form(...),
+    p2_score: int = Form(...),
+    session_token: str = Form(None)
+):
+    """Save a completed set result."""
+    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository
+    from ettem.validation import validate_tt_set
+    import json
+
+    # Validate set score
+    is_valid, error = validate_tt_set(p1_score, p2_score)
+    if not is_valid:
+        return {"success": False, "error": error}
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return {"success": False, "error": "No hay torneo activo"}
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return {"success": False, "error": "Mesa no encontrada"}
+
+        # Verify session token
+        table_lock_repo = TableLockRepository(session)
+        lock = table_lock_repo.get_by_table(table.id)
+
+        if not lock:
+            return {"success": False, "error": "Mesa no está bloqueada"}
+
+        # Get token from form or cookie
+        if not session_token:
+            session_token = request.cookies.get(f"mesa_{table_number}_token")
+
+        if lock.session_token != session_token:
+            return {"success": False, "error": "Token de sesión inválido"}
+
+        if not lock.current_match_id:
+            return {"success": False, "error": "No hay partido activo"}
+
+        # Get match and update
+        match_repo = MatchRepository(session)
+        match = match_repo.get_by_id(lock.current_match_id)
+
+        if not match:
+            return {"success": False, "error": "Partido no encontrado"}
+
+        # Get current sets
+        current_sets = match.sets or []
+        set_number = len(current_sets) + 1
+
+        # Add new set
+        new_set = {
+            "set_number": set_number,
+            "player1_points": p1_score,
+            "player2_points": p2_score,
+        }
+        current_sets.append(new_set)
+
+        # Update match
+        match.sets_json = json.dumps(current_sets)
+
+        # Count sets won
+        p1_sets = sum(1 for s in current_sets if s["player1_points"] > s["player2_points"])
+        p2_sets = sum(1 for s in current_sets if s["player2_points"] > s["player1_points"])
+
+        # Check if match is complete
+        sets_to_win = (match.best_of // 2) + 1
+        match_complete = False
+
+        if p1_sets >= sets_to_win:
+            match.winner_id = match.player1_id
+            match.status = MatchStatus.COMPLETED.value
+            match_complete = True
+        elif p2_sets >= sets_to_win:
+            match.winner_id = match.player2_id
+            match.status = MatchStatus.COMPLETED.value
+            match_complete = True
+
+        match_repo.update(match)
+
+        # Update live score
+        live_score_repo = LiveScoreRepository(session)
+        live_score = live_score_repo.get_by_match(match.id)
+
+        if live_score:
+            if match_complete:
+                # Delete live score when match is complete
+                live_score_repo.delete(match.id)
+            else:
+                # Update live score for next set
+                live_score_repo.complete_set(match.id, p1_score, p2_score)
+
+        # If match complete, clear current match from lock
+        if match_complete:
+            lock.current_match_id = None
+            table_lock_repo.update_activity(table.id, session_token)
+
+        return {
+            "success": True,
+            "match_complete": match_complete,
+            "p1_sets": p1_sets,
+            "p2_sets": p2_sets,
+        }
+
+
+@app.get("/mesa/{table_number}/walkover", response_class=HTMLResponse)
+async def referee_walkover_page(request: Request, table_number: int):
+    """Walkover confirmation page."""
+    from ettem.storage import TableConfigRepository, TableLockRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        table_lock_repo = TableLockRepository(session)
+        lock = table_lock_repo.get_by_table(table.id)
+
+        if not lock or not lock.current_match_id:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        match_repo = MatchRepository(session)
+        match = match_repo.get_by_id(lock.current_match_id)
+
+        player_repo = PlayerRepository(session)
+        player1 = player_repo.get_by_id(match.player1_id) if match and match.player1_id else None
+        player2 = player_repo.get_by_id(match.player2_id) if match and match.player2_id else None
+
+        # Simple walkover selection page
+        return HTMLResponse(f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Walkover - Mesa {table_number}</title>
+            <style>
+                body {{ font-family: sans-serif; padding: 1rem; max-width: 500px; margin: 0 auto; }}
+                h1 {{ font-size: 1.25rem; }}
+                .btn {{ display: block; width: 100%; padding: 1rem; margin: 0.5rem 0; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; }}
+                .btn-primary {{ background: #2563eb; color: white; }}
+                .btn-secondary {{ background: #e5e7eb; color: #1f2937; }}
+            </style>
+        </head>
+        <body>
+            <h1>Seleccionar Ganador por Walkover</h1>
+            <p>Selecciona quién gana porque el oponente no se presentó:</p>
+            <form action="/mesa/{table_number}/walkover" method="post">
+                <button type="submit" name="winner_id" value="{match.player1_id}" class="btn btn-primary">
+                    {player1.full_name if player1 else 'Jugador 1'} gana
+                </button>
+                <button type="submit" name="winner_id" value="{match.player2_id}" class="btn btn-primary">
+                    {player2.full_name if player2 else 'Jugador 2'} gana
+                </button>
+                <a href="/mesa/{table_number}" class="btn btn-secondary" style="text-align: center; text-decoration: none;">Cancelar</a>
+            </form>
+        </body>
+        </html>
+        """)
+
+
+@app.post("/mesa/{table_number}/walkover")
+async def referee_walkover_submit(request: Request, table_number: int, winner_id: int = Form(...)):
+    """Submit walkover result."""
+    from ettem.storage import TableConfigRepository, TableLockRepository, LiveScoreRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        table_config_repo = TableConfigRepository(session)
+        table = table_config_repo.get_by_tournament_and_number(tournament.id, table_number)
+
+        if not table:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        table_lock_repo = TableLockRepository(session)
+        lock = table_lock_repo.get_by_table(table.id)
+
+        if not lock or not lock.current_match_id:
+            return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+        match_repo = MatchRepository(session)
+        match = match_repo.get_by_id(lock.current_match_id)
+
+        if match:
+            # Update match as walkover
+            match.winner_id = winner_id
+            match.status = MatchStatus.WALKOVER.value
+            match_repo.update(match)
+
+            # Delete live score
+            live_score_repo = LiveScoreRepository(session)
+            live_score_repo.delete(match.id)
+
+            # Clear current match from lock
+            lock.current_match_id = None
+            table_lock_repo.update_activity(table.id, lock.session_token)
+
+    return RedirectResponse(url=f"/mesa/{table_number}", status_code=303)
+
+
+# ============================================================================
+# Live Score API Routes (V2.2)
+# ============================================================================
+
+
+@app.post("/api/live-score/{match_id}")
+async def api_update_live_score(request: Request, match_id: int):
+    """Update live score for public display (point-by-point mode)."""
+    from ettem.storage import LiveScoreRepository, TableLockRepository
+
+    try:
+        data = await request.json()
+        session_token = data.get("session_token")
+        p1_points = data.get("p1_points", 0)
+        p2_points = data.get("p2_points", 0)
+
+        with get_db_session() as session:
+            live_score_repo = LiveScoreRepository(session)
+            live_score = live_score_repo.get_by_match(match_id)
+
+            if not live_score:
+                return {"success": False, "error": "Live score not found"}
+
+            # Validate table lock token
+            if live_score.table_id:
+                table_lock_repo = TableLockRepository(session)
+                lock = table_lock_repo.get_by_table(live_score.table_id)
+
+                if not lock:
+                    return {"success": False, "error": "Mesa no está bloqueada"}
+
+                if not session_token:
+                    session_token = request.cookies.get(f"mesa_{live_score.table_id}_token")
+
+                if lock.session_token != session_token:
+                    return {"success": False, "error": "Token de sesión inválido"}
+
+            result = live_score_repo.update_score(match_id, p1_points, p2_points)
+
+            if result:
+                return {"success": True}
+            return {"success": False, "error": "Failed to update score"}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/table/{table_id}/heartbeat")
+async def api_table_heartbeat(request: Request, table_id: int):
+    """Keep table lock alive."""
+    from ettem.storage import TableLockRepository
+
+    try:
+        data = await request.json()
+        session_token = data.get("session_token")
+
+        if not session_token:
+            return {"success": False, "error": "No session token"}
+
+        with get_db_session() as session:
+            table_lock_repo = TableLockRepository(session)
+            if table_lock_repo.update_activity(table_id, session_token):
+                return {"success": True}
+            return {"success": False, "error": "Lock not found or token mismatch"}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/display", response_class=HTMLResponse)
+async def public_display(request: Request):
+    """Public display page for TV/monitors."""
+    from ettem.storage import LiveScoreRepository, ScheduleSlotRepository, TableConfigRepository
+    from datetime import datetime
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return render_template("public_display.html", {
+                "request": request,
+                "tournament": None,
+                "live_matches": [],
+                "recent_results": [],
+                "upcoming_matches": [],
+                "now": datetime.now(),
+            })
+
+        live_score_repo = LiveScoreRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        table_config_repo = TableConfigRepository(session)
+
+        # Get live matches
+        live_scores = live_score_repo.get_all_active()
+        live_matches = []
+
+        for score in live_scores:
+            match = match_repo.get_by_id(score.match_id)
+            if not match:
+                continue
+
+            # Filter by current tournament
+            if match.tournament_id != tournament.id:
+                continue
+
+            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+
+            # Get table number
+            table_number = None
+            if score.table_id:
+                table = table_config_repo.get_by_id(score.table_id)
+                if table:
+                    table_number = table.table_number
+
+            live_matches.append({
+                "match_id": match.id,
+                "table_number": table_number or match.table_number,
+                "player1": {
+                    "name": player1.full_name if player1 else "TBD",
+                    "country": player1.pais_cd if player1 else "",
+                },
+                "player2": {
+                    "name": player2.full_name if player2 else "TBD",
+                    "country": player2.pais_cd if player2 else "",
+                },
+                "p1_sets": score.player1_sets,
+                "p2_sets": score.player2_sets,
+                "p1_points": score.player1_points,
+                "p2_points": score.player2_points,
+                "current_set": score.current_set,
+                "category": match.category or "",
+                "round": match.round_name,
+            })
+
+        # Get recent results (last 10 completed matches)
+        all_matches = match_repo.get_all()
+        completed = [m for m in all_matches if m.status in (MatchStatus.COMPLETED.value, MatchStatus.WALKOVER.value, "completed", "walkover")]
+        completed.sort(key=lambda m: m.updated_at if m.updated_at else m.created_at, reverse=True)
+        recent_results = []
+
+        for match in completed[:10]:
+            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+
+            # Calculate score
+            sets = match.sets or []
+            p1_sets = sum(1 for s in sets if s.get("player1_points", 0) > s.get("player2_points", 0))
+            p2_sets = sum(1 for s in sets if s.get("player2_points", 0) > s.get("player1_points", 0))
+
+            recent_results.append({
+                "match_id": match.id,
+                "player1_id": match.player1_id,
+                "player2_id": match.player2_id,
+                "player1_name": player1.full_name if player1 else "TBD",
+                "player2_name": player2.full_name if player2 else "TBD",
+                "winner_id": match.winner_id,
+                "score": f"{p1_sets}-{p2_sets}",
+                "category": match.category or "",
+                "round": match.round_name,
+            })
+
+        # Get upcoming matches (pending, scheduled)
+        schedule_repo = ScheduleSlotRepository(session)
+        pending = [m for m in all_matches if m.status in (MatchStatus.PENDING.value, "pending")]
+        upcoming_matches = []
+
+        for match in pending[:15]:
+            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+
+            # Get schedule info
+            schedule = schedule_repo.get_by_match(match.id)
+
+            upcoming_matches.append({
+                "match_id": match.id,
+                "player1_name": player1.full_name if player1 else "TBD",
+                "player2_name": player2.full_name if player2 else "TBD",
+                "category": match.category or "",
+                "round": match.round_name,
+                "table_number": schedule.table_number if schedule else None,
+                "time": schedule.start_time if schedule else None,
+            })
+
+        # Rotate content every 5 seconds (matches the auto-refresh)
+        # This shows different results/upcoming if there are more than fit on screen
+        now = datetime.now()
+        rotation_cycle = (now.second // 5) % 3  # 0, 1, or 2
+
+        results_per_page = 5
+        upcoming_per_page = 5
+
+        # Rotate results if there are more than one page
+        results_offset = (rotation_cycle * results_per_page) % max(len(recent_results), 1)
+        results_to_show = recent_results[results_offset:results_offset + results_per_page]
+        if len(results_to_show) < results_per_page:
+            results_to_show = recent_results[:results_per_page]
+
+        # Rotate upcoming if there are more than one page
+        upcoming_offset = (rotation_cycle * upcoming_per_page) % max(len(upcoming_matches), 1)
+        upcoming_to_show = upcoming_matches[upcoming_offset:upcoming_offset + upcoming_per_page]
+        if len(upcoming_to_show) < upcoming_per_page:
+            upcoming_to_show = upcoming_matches[:upcoming_per_page]
+
+        return render_template("public_display.html", {
+            "request": request,
+            "tournament": tournament,
+            "live_matches": live_matches[:4],  # Max 4 live matches on display
+            "recent_results": results_to_show,
+            "upcoming_matches": upcoming_to_show,
+            "now": now,
+        })
+
+
+@app.get("/api/live-scores")
+async def api_get_live_scores():
+    """Get all live scores for public display."""
+    from ettem.storage import LiveScoreRepository
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+        live_score_repo = LiveScoreRepository(session)
+        match_repo = MatchRepository(session)
+        player_repo = PlayerRepository(session)
+
+        scores = live_score_repo.get_all_active()
+
+        result = []
+        for score in scores:
+            match = match_repo.get_by_id(score.match_id)
+            if not match:
+                continue
+
+            # Filter by current tournament
+            if tournament and match.tournament_id != tournament.id:
+                continue
+
+            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+
+            result.append({
+                "match_id": score.match_id,
+                "table_id": score.table_id,
+                "player1": {
+                    "id": player1.id if player1 else None,
+                    "name": player1.full_name if player1 else "TBD",
+                    "country": player1.pais_cd if player1 else None,
+                },
+                "player2": {
+                    "id": player2.id if player2 else None,
+                    "name": player2.full_name if player2 else "TBD",
+                    "country": player2.pais_cd if player2 else None,
+                },
+                "current_set": score.current_set,
+                "p1_points": score.player1_points,
+                "p2_points": score.player2_points,
+                "p1_sets": score.player1_sets,
+                "p2_sets": score.player2_sets,
+                "category": match.category,
+                "round": match.round_name or match.round_type,
+            })
+
+        return {"scores": result}
 
 
 if __name__ == "__main__":

@@ -1,0 +1,134 @@
+{% extends "print/preview.html" %}
+
+{% block title %}QR Codes - Mesas{% endblock %}
+
+{% block page_title %}Códigos QR para Mesas{% endblock %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" onclick="window.print()">
+    🖨️ Imprimir
+</button>
+<a href="/admin/table-config" class="btn btn-secondary btn-sm">
+    {{ t('common.back') }}
+</a>
+{% endblock %}
+
+{% block preview_content %}
+<style>
+    @media print {
+        .qr-grid {
+            page-break-inside: avoid;
+        }
+        .qr-card {
+            page-break-inside: avoid;
+        }
+    }
+
+    .qr-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 2rem;
+        padding: 1rem;
+    }
+
+    .qr-card {
+        border: 2px solid #333;
+        border-radius: 8px;
+        padding: 1.5rem;
+        text-align: center;
+        background: white;
+    }
+
+    .qr-card-header {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .qr-placeholder {
+        width: 150px;
+        height: 150px;
+        margin: 1rem auto;
+        border: 2px dashed #999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        color: #666;
+        background: #f5f5f5;
+    }
+
+    .qr-url {
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #333;
+        word-break: break-all;
+        margin-top: 0.5rem;
+    }
+
+    .qr-instructions {
+        font-size: 0.75rem;
+        color: #666;
+        margin-top: 0.5rem;
+    }
+
+    .print-instructions {
+        padding: 1rem;
+        background: #f0f0f0;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+    }
+
+    @media print {
+        .print-instructions {
+            display: none;
+        }
+    }
+</style>
+
+<div class="print-instructions">
+    <h4 style="margin-top: 0;">Instrucciones</h4>
+    <p style="margin: 0;">
+        Recorta cada código QR y pégalo en la mesa correspondiente. Los árbitros podrán escanear
+        el código con su celular para acceder al marcador digital.
+    </p>
+    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: #666;">
+        <strong>Nota:</strong> Para generar códigos QR reales, puedes usar un servicio como
+        <a href="https://api.qrserver.com/v1/create-qr-code/" target="_blank">qrserver.com</a>
+        o instalar una librería de QR.
+    </p>
+</div>
+
+<div class="qr-grid">
+    {% for item in tables %}
+    <div class="qr-card">
+        <div class="qr-card-header">
+            {{ item.table.name or ('Mesa ' ~ item.table.table_number) }}
+        </div>
+
+        <!-- QR Code placeholder - in production, use a QR library -->
+        <div class="qr-placeholder">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ item.url | urlencode }}"
+                 alt="QR Code para {{ item.table.name }}"
+                 style="width: 100%; height: 100%;"
+                 onerror="this.style.display='none'; this.parentElement.innerHTML='QR: {{ item.url }}';">
+        </div>
+
+        <div class="qr-url">{{ item.url }}</div>
+
+        <div class="qr-instructions">
+            Escanea para acceder al marcador
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not tables %}
+<div style="text-align: center; padding: 3rem; color: #666;">
+    <p>No hay mesas activas para generar códigos QR.</p>
+    <a href="/admin/table-config">Configurar mesas</a>
+</div>
+{% endif %}
+{% endblock %}

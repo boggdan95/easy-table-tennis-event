@@ -164,6 +164,19 @@ details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
 details[open] .details-arrow { transform: rotate(90deg); }
 details summary::-webkit-details-marker { display: none; }
 details summary { user-select: none; }
+
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.badge-in-progress {
+    background-color: #0d6efd !important;
+    color: white !important;
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+.row-in-progress {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
 </style>
 
 <script>
@@ -261,13 +274,12 @@ details summary { user-select: none; }
                         <tbody>
                             {% for match in round_data.matches %}
                             {% set is_pending = match.is_ready and match.status != 'completed' %}
-                            <tr class="bracket-match-row"
+                            <tr class="bracket-match-row {% if match.status == 'completed' %}row-completed{% elif match.status == 'in_progress' %}row-in-progress{% endif %}"
                                 data-category="{{ category }}"
                                 data-round="{{ round_type }}"
                                 data-ready="{{ 'true' if match.is_ready else 'false' }}"
                                 data-pending="{{ 'true' if is_pending else 'false' }}"
-                                style="{% if not match.is_ready %}opacity: 0.6;{% endif %}"
-                                class="{% if match.status == 'completed' %}row-completed{% endif %}">
+                                style="{% if not match.is_ready %}opacity: 0.6;{% endif %}">
                                 <td style="width: 40px; text-align: center;">
                                     <input type="checkbox"
                                            name="match_ids"
@@ -284,6 +296,8 @@ details summary { user-select: none; }
                                 <td style="width: 100px;">
                                     {% if match.status == 'completed' %}
                                     <span class="badge badge-success">✓ Jugado</span>
+                                    {% elif match.status == 'in_progress' %}
+                                    <span class="badge badge-in-progress">🏓 En Juego</span>
                                     {% elif match.is_ready %}
                                     <span class="badge badge-warning">Pendiente</span>
                                     {% else %}

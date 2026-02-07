@@ -808,6 +808,17 @@ tr:last-child td {
     color: #2D3748;
 }
 
+.badge-in-progress {
+    background-color: #3182CE;
+    color: white;
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 1.5rem;
