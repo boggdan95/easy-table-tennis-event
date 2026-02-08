@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# API routing
+RewriteRule ^api/activate$ api/activate.php [L,QSA]
+RewriteRule ^api/validate$ api/validate.php [L,QSA]
+RewriteRule ^api/deactivate$ api/deactivate.php [L,QSA]
+
+# Protect config files
+<FilesMatch "config\.php$">
+    Deny from all
+</FilesMatch>
+
+# Protect admin with basic auth (optional, admin has its own login)
+# <Files "admin/*">
+#     AuthType Basic
+#     AuthName "ETTEM Admin"
+# </Files>

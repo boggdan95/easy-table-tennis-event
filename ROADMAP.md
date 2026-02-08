@@ -32,18 +32,18 @@ Priorizar funcionalidades que:
 
 **Vista móvil para árbitros - reemplaza el marcador físico**
 
-- [ ] URL simple por mesa: `/mesa/1`, `/mesa/2`, etc.
-- [ ] Código QR en cada mesa física (imprimible)
-- [ ] Sin login complejo (PIN simple por sesión o solo acceso por QR)
-- [ ] Solo muestra partidos asignados a esa mesa
+- [x] URL simple por mesa: `/mesa/1`, `/mesa/2`, etc.
+- [x] Código QR en cada mesa física (imprimible)
+- [x] Sin login complejo (PIN simple por sesión o solo acceso por QR)
+- [x] Solo muestra partidos asignados a esa mesa
 
 **Control de acceso por mesa:**
-- [ ] Una mesa = un dispositivo activo a la vez
-- [ ] Al abrir mesa → se bloquea para otros
-- [ ] Si alguien intenta abrir mesa en uso → mensaje "Mesa ocupada"
-- [ ] Timeout automático por inactividad (configurable, ej: 10 min)
-- [ ] Admin puede forzar desbloqueo desde panel si es necesario
-- [ ] Indicador visual en admin de qué mesas están activas
+- [x] Una mesa = un dispositivo activo a la vez
+- [x] Al abrir mesa → se bloquea para otros
+- [x] Si alguien intenta abrir mesa en uso → mensaje "Mesa ocupada"
+- [x] Timeout automático por inactividad (configurable, ej: 10 min)
+- [x] Admin puede forzar desbloqueo desde panel si es necesario
+- [x] Indicador visual en admin de qué mesas están activas
 
 **Dos modos de operación (configurable por mesa):**
 
@@ -64,65 +64,65 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 ```
 
 **Modo Punto por Punto:**
-- [ ] Botones grandes +1 para cada jugador
-- [ ] Score del set actual en tiempo real
-- [ ] Detecta automáticamente fin de set (11 pts o deuce +2)
-- [ ] Botón "Deshacer" último punto
-- [ ] Sync automático al terminar set
+- [x] Botones grandes +1 para cada jugador
+- [x] Score del set actual en tiempo real
+- [x] Detecta automáticamente fin de set (11 pts o deuce +2)
+- [x] Botón "Deshacer" último punto
+- [x] Sync automático al terminar set
 
 **Modo Resultado por Set:**
-- [ ] Árbitro ingresa score final del set (ej: 11-9)
-- [ ] Validación de reglas ITTF
-- [ ] Más rápido si árbitro usa marcador físico
-- [ ] Sync al guardar cada set
+- [x] Árbitro ingresa score final del set (ej: 11-9)
+- [x] Validación de reglas ITTF
+- [x] Más rápido si árbitro usa marcador físico
+- [x] Sync al guardar cada set
 
 **Configuración de Mesas (nuevo tab o sección):**
-- [ ] Separado del Scheduler (config fija vs asignaciones del día)
-- [ ] Por cada mesa:
+- [x] Separado del Scheduler (config fija vs asignaciones del día)
+- [x] Por cada mesa:
   - Nombre/número
   - Modo de árbitro (punto por punto / resultado por set)
   - Generar/imprimir código QR
   - Estado (activa/inactiva)
-- [ ] Default global para nuevas mesas
-- [ ] Puede modificarse durante el torneo
+- [x] Default global para nuevas mesas
+- [x] Puede modificarse durante el torneo
 
 **Funciones comunes (ambos modos):**
-- [ ] Funciona offline (no requiere conexión constante)
-- [ ] Si no hay conexión → guarda local y reintenta
-- [ ] Indicador visual de estado de conexión
-- [ ] Historial de sets jugados
-- [ ] Opción de walkover
-- [ ] Ver siguiente partido de la mesa
+- [x] Funciona offline (no requiere conexión constante)
+- [x] Si no hay conexión → guarda local y reintenta
+- [x] Indicador visual de estado de conexión
+- [x] Historial de sets jugados
+- [x] Opción de walkover
+- [x] Ver siguiente partido de la mesa
 
 ### 2.2.2 - Pantalla Pública (`/display`)
 
 **Display para TV/monitor - espectadores y jugadores**
 
-- [ ] Ruta `/display` optimizada para TV (fullscreen, auto-refresh)
-- [ ] Diseño grande y legible (visible desde 5+ metros)
-- [ ] Tema oscuro por defecto (mejor contraste)
-- [ ] Modo kiosko (sin controles de navegación)
+- [x] Ruta `/display` optimizada para TV (fullscreen, auto-refresh)
+- [x] Diseño grande y legible (visible desde 5+ metros)
+- [x] Tema oscuro por defecto (mejor contraste)
+- [x] Modo kiosko (sin controles de navegación)
 
 **Vistas con rotación automática:**
-- [ ] **Partidos en curso:** Mesa, jugadores, score actual (ej: "Mesa 1: Juan 2-1 Pedro")
-- [ ] **Resultados recientes:** Últimos 5-10 partidos terminados
-- [ ] **Llamado a mesa:** Próximos partidos con countdown
-- [ ] Tiempo configurable por vista (ej: 10 seg cada una)
+- [x] **Partidos en curso:** Mesa, jugadores, score actual (ej: "Mesa 1: Juan 2-1 Pedro")
+- [x] **Resultados recientes:** Últimos 5-10 partidos terminados
+- [x] **Llamado a mesa:** Próximos partidos programados
+- [x] Rotación automática cada 5 segundos
 
 **Estados de partido:**
-- [ ] "Prepararse" → jugadores deben acercarse
-- [ ] "A mesa" → partido por comenzar
-- [ ] "En juego" → mostrando score en vivo
-- [ ] "Finalizado" → resultado final
+- [x] "En juego" → mostrando score en vivo
+- [x] "Finalizado" → resultado final
+- [ ] "Prepararse" → jugadores deben acercarse (futuro)
+- [ ] "A mesa" → partido por comenzar (futuro)
 
-### 2.2.3 - Llamado a Mesa
+### 2.2.3 - Llamado a Mesa (Pendiente - mover a V2.4+)
 
 - [ ] Lista de próximos partidos ordenada por prioridad
 - [ ] Countdown visual ("Partido en 5 minutos")
 - [ ] Alerta visual si jugador no se presenta (parpadeo rojo)
 - [ ] Sonido opcional de llamado (configurable, para usar con parlantes)
 
-### 2.2.4 - Vista de Mesa Individual (Opcional)
+### 2.2.4 - Vista de Mesa Individual (Pendiente - mover a V2.4+)
 
 **Para pantalla/tablet en cada mesa física**
 
@@ -130,22 +130,18 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 - [ ] Score grande del partido actual
 - [ ] Ideal para segunda pantalla junto al árbitro
 
-### Consideraciones Técnicas
+### Consideraciones Técnicas (Implementado)
 
 **Arquitectura:**
 - Polling cada 5 segundos (simple, sin websockets)
 - LocalStorage para persistencia offline del árbitro
-- Service Worker para funcionar sin conexión (PWA)
-
-**Rendimiento:**
-- Endpoint liviano `/api/live-scores` con solo datos necesarios
-- Cache de 5 segundos en servidor
-- Compresión gzip
+- Validación de session token en live-score API
+- Filtro por torneo activo en display
 
 **Compatibilidad:**
-- Árbitro: cualquier celular con navegador moderno
-- Display: Chrome/Edge en modo kiosko (F11)
-- Responsive para diferentes tamaños de pantalla
+- Árbitro: cualquier celular con navegador moderno (probado)
+- Display: Chrome/Edge en modo kiosko F11 (probado)
+- Responsive para TV 1080p y 4K
 
 ---
 
@@ -392,8 +388,8 @@ Ideas para evaluar en el futuro:
 | Versión | Enfoque | Estado |
 |---------|---------|--------|
 | 2.1.0 | MVP Comercial | Completada |
-| 2.2.0 | Pantalla Pública + Marcador Árbitro | **Actual** |
-| 2.3.0 | Reportes Personalizables | Próxima |
+| 2.2.0 | Pantalla Pública + Marcador Árbitro | Completada |
+| 2.3.0 | Reportes Personalizables | **Próxima** |
 | 2.4.0 | Portal Público para Jugadores | Planeada |
 | 2.5.0 | Check-in de Jugadores | Planeada |
 | 3.0.0 | Notificaciones (WhatsApp/SMS) | Futura |

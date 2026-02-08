@@ -127,6 +127,14 @@
                     {% else %}
                     <span class="license-ok">{{ license_info.days_remaining }}d</span>
                     {% endif %}
+                    {% if license_info.online_status == 'ok' %}
+                    <span title="{{ t('license.online_ok') }}" style="color: var(--success);">&#x2713;</span>
+                    {% elif license_info.online_status == 'grace_period' %}
+                    <span title="{{ t('license.grace_period') }}" style="color: var(--warning);">&#x26A0;</span>
+                    {% endif %}
+                    {% if license_info.machine_slot %}
+                    <span title="{{ t('license.machine_slot') }}" style="opacity:0.6; font-size:0.8em;">{{ license_info.machine_slot }}</span>
+                    {% endif %}
                 </div>
                 {% endif %}
                 <div class="sidebar-text">{{ t('app.short_title') }} v2.1.0</div>
