@@ -1,0 +1,8 @@
+# ETTEM Admin Panel - Apache config
+# Ensure PHP processes files in this directory
+DirectoryIndex index.php
+
+# Block direct access to sensitive files
+<FilesMatch "\.(example|md|sql)$">
+    Require all denied
+</FilesMatch>

@@ -31,7 +31,7 @@ from ettem.i18n import load_strings, get_language_from_env, clear_cache as clear
 clear_i18n_cache()
 from ettem import pdf_generator
 from ettem.paths import get_templates_dir, get_static_dir
-from ettem.licensing import get_current_license, validate_license_key, save_license, LicenseInfo
+from ettem.licensing import get_current_license, get_current_license_with_online, validate_license_key, save_license, load_license, clear_license, LicenseInfo
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -56,8 +56,8 @@ async def license_middleware(request: Request, call_next):
     if any(path.startswith(p) for p in allowed_paths):
         return await call_next(request)
 
-    # Check license validity
-    is_valid, license_info, error = get_current_license()
+    # Check license validity (with online validation when needed)
+    is_valid, license_info, error = get_current_license_with_online()
 
     if not is_valid:
         # Redirect to license activation page
@@ -744,13 +744,57 @@ async def license_activate(request: Request, license_key: str = Form(...)):
     # Save the valid license
     save_license(license_key)
 
+    # Try online activation (non-blocking: if it fails, offline still works)
+    online_warning = None
+    try:
+        from ettem.license_online import activate_online
+        ok, online_error, extra = activate_online(license_key)
+        if not ok:
+            if extra and extra.get("machines"):
+                # Machine limit reached - show error with machine list
+                context = {
+                    "request": request,
+                    "t": t,
+                    "lang": lang,
+                    "error": online_error,
+                    "expired_info": None,
+                    "submitted_key": license_key,
+                    "machine_limit_info": extra,
+                }
+                return templates.TemplateResponse(request, "license_activation.html", context)
+            online_warning = t("license.online_warning")
+    except Exception:
+        pass  # Online module unavailable, proceed offline
+
     # Set success flash message
     if hasattr(request, "session"):
-        request.session["flash_message"] = t("license.activation_success")
-        request.session["flash_type"] = "success"
+        msg = t("license.activation_success")
+        if online_warning:
+            request.session["flash_message"] = f"{msg} ({online_warning})"
+            request.session["flash_type"] = "warning"
+        else:
+            request.session["flash_message"] = msg
+            request.session["flash_type"] = "success"
 
     # Redirect to home page
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/license/deactivate-online")
+async def license_deactivate_online(request: Request):
+    """Deactivate this machine from online license (free a slot)."""
+    try:
+        from ettem.license_online import deactivate_online
+        key = load_license()
+        if key:
+            deactivate_online(key)
+    except Exception:
+        pass
+
+    # Clear local license
+    clear_license()
+
+    return RedirectResponse(url="/license/activate", status_code=303)
 
 
 # ============================================================================

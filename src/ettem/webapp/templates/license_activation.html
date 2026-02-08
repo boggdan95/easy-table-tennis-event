@@ -208,6 +208,18 @@
             </div>
             {% endif %}
 
+            {% if machine_limit_info %}
+            <div class="license-error" style="text-align: left;">
+                <strong>{{ t('license.machine_limit_title') }}</strong>
+                <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+                {% for m in machine_limit_info.machines %}
+                    <li>{{ m.machine_label }} — {{ t('license.last_seen') }}: {{ m.last_validated }}</li>
+                {% endfor %}
+                </ul>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">{{ t('license.deactivate_hint') }}</p>
+            </div>
+            {% endif %}
+
             <form class="license-form" method="POST" action="/license/activate">
                 <div class="license-input-group">
                     <label for="license_key">{{ t('license.key_label') }}</label>
