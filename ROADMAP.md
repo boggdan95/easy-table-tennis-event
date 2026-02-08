@@ -1,7 +1,7 @@
 # ETTEM - Roadmap de Desarrollo
 
-> Última actualización: 2026-02-06
-> Versión actual: 2.2.0
+> Última actualización: 2026-02-08
+> Versión actual: 2.3.0
 
 ---
 
@@ -145,42 +145,95 @@ MODO PUNTO POR PUNTO              MODO RESULTADO POR SET
 
 ---
 
-## V2.3 - Reportes Personalizables
+## V2.3 - Validación Online de Licencias (Completada - 2026-02-08)
+
+**Objetivo:** Control de licencias por máquina con validación online periódica
+
+```
+DESKTOP APP                    SERVIDOR (Bluehost)           ADMIN PANEL
+┌──────────────┐              ┌──────────────────┐          ┌──────────────┐
+│ Activar      │  ──POST──►   │ Registra         │          │ Ver licencias│
+│ licencia     │              │ máquina          │  ◄────   │ Gestionar    │
+│              │  ◄──JSON──   │ (máx 2 slots)    │          │ máquinas     │
+│ Validar      │  cada 30d    │                  │          │ Ver logs     │
+│ periódico    │  ──POST──►   │ Verificar        │          └──────────────┘
+└──────────────┘              └──────────────────┘
+```
+
+### 2.3.1 - API de Licencias (Servidor PHP + MySQL)
+- [x] `POST /api/activate` — Registrar máquina al activar licencia
+- [x] `POST /api/validate` — Validación periódica cada 30 días
+- [x] `POST /api/deactivate` — Liberar slot de máquina
+- [x] Límite de 2 máquinas simultáneas por licencia
+- [x] HMAC re-verificación en servidor
+- [x] Rate limiting (20 req/min por IP)
+- [x] API key auth + HTTPS
+
+### 2.3.2 - Cliente Python
+- [x] `machine_id.py` — ID único de hardware (Windows + macOS)
+- [x] `license_online.py` — Cliente HTTP (urllib.request, sin dependencias)
+- [x] Validación online cada 30 días con gracia de 30 días adicionales
+- [x] Backwards compatible: sin `.meta` = modo offline puro
+- [x] Fallback: errores online NUNCA rompen el flujo offline
+
+### 2.3.3 - Panel Admin (`ettem.boggdan.com/admin/`)
+- [x] Dashboard con lista de licencias y estadísticas
+- [x] Detalle por licencia: máquinas registradas, logs de validación
+- [x] Activar/desactivar licencias y máquinas remotamente
+- [x] Historial de validaciones filtrable con paginación
+- [x] Auth con cookie firmada HMAC (compatible Bluehost)
+
+### 2.3.4 - Gestor Local de Licencias
+- [x] GUI con tkinter: generar licencias con nombre/email del cliente
+- [x] Auto-guardado en Excel (`tools/licencias.xlsx`)
+- [x] Tabla de licencias generadas con estado (activa/expirada)
+- [x] CLI con `--name`, `--email`, `--list` flags
+- [x] Auto-copy al clipboard
+
+### 2.3.5 - Indicadores en UI
+- [x] Status online en sidebar (checkmark verde / warning amarillo)
+- [x] Slot de máquina visible (ej: "1/2")
+- [x] Error de límite de máquinas con lista de dispositivos registrados
+- [x] Opción de desactivar máquina online
+
+---
+
+## V2.4 - Reportes Personalizables
 
 **Objetivo:** Documentos profesionales con identidad del torneo
 
-### 2.3.1 - Configuración de Torneo/Evento
+### 2.4.1 - Configuración de Torneo/Evento
 - [ ] Subir logo del torneo (PNG/JPG)
 - [ ] Nombre oficial del evento
 - [ ] Fecha y sede
 - [ ] Organizador / Federación
 - [ ] Sponsors (logos secundarios)
 
-### 2.3.2 - Personalización de Reportes
+### 2.4.2 - Personalización de Reportes
 - [ ] Logo en encabezado de todos los documentos
 - [ ] Bandera del país junto a jugadores (usando pais_cd)
 - [ ] Colores personalizables (primario/secundario)
 - [ ] Pie de página con datos del evento
 
-### 2.3.3 - Documentos Mejorados
+### 2.4.3 - Documentos Mejorados
 - [ ] Hoja de partido con logo y datos del torneo
 - [ ] Hoja de grupo con encabezado profesional
 - [ ] Bracket con identidad visual
 - [ ] Acta oficial de resultados por categoría
 
-### 2.3.4 - Exportaciones
+### 2.4.4 - Exportaciones
 - [ ] CSV de todos los resultados
 - [ ] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
 - [ ] PDF de resumen del torneo
 
-### 2.3.5 - Certificados (Opcional)
+### 2.4.5 - Certificados (Opcional)
 - [ ] Template de diploma/certificado
 - [ ] Generación automática para top 3
 - [ ] Logo, firma, datos del evento
 
 ---
 
-## V2.4 - Portal Público para Jugadores
+## V2.5 - Portal Público para Jugadores
 
 **Objetivo:** Jugadores consultan horarios y resultados desde su celular (sin imprimir)
 
@@ -193,30 +246,30 @@ JUGADOR (su celular)              SERVIDOR
 └──────────────────┘              └──────────────────┘
 ```
 
-### 2.4.1 - Acceso al Portal
+### 2.5.1 - Acceso al Portal
 - [ ] Ruta pública: `/torneo` o `/public`
 - [ ] Código QR para compartir (imprimible, para pegar en entrada)
 - [ ] Sin login requerido
 - [ ] Funciona en red local o expuesto a internet
 
-### 2.4.2 - Vista General
+### 2.5.2 - Vista General
 - [ ] Lista de categorías del torneo
 - [ ] Estado de cada categoría (grupos, bracket, finalizado)
 - [ ] Resultados recientes
 - [ ] Próximos partidos (todas las mesas)
 
-### 2.4.3 - Búsqueda de Jugador
+### 2.5.3 - Búsqueda de Jugador
 - [ ] Buscar por nombre
 - [ ] Ver todos los partidos del jugador (pasados y próximos)
 - [ ] Mesa y hora del próximo partido
 - [ ] Resultados de sus partidos jugados
 
-### 2.4.4 - Vista por Categoría
+### 2.5.4 - Vista por Categoría
 - [ ] Grupos con resultados y standings
 - [ ] Bracket interactivo (zoom, scroll)
 - [ ] Horarios de la categoría
 
-### 2.4.5 - Diseño y UX (Prioridad Alta)
+### 2.5.5 - Diseño y UX (Prioridad Alta)
 
 **UI completamente diferente al admin - moderna y amigable:**
 
@@ -258,22 +311,22 @@ JUGADOR (su celular)              SERVIDOR
 
 ---
 
-## V2.5 - Check-in de Jugadores
+## V2.6 - Check-in de Jugadores
 
 **Objetivo:** Saber quién llegó y quién falta
 
-### 2.5.1 - Control de Asistencia
+### 2.6.1 - Control de Asistencia
 - [ ] Marcar jugador como "presente" (check-in)
 - [ ] Vista de jugadores pendientes por categoría
 - [ ] Hora de check-in registrada
 - [ ] Filtro: "Solo ausentes"
 
-### 2.5.2 - Alertas de Ausencia
+### 2.6.2 - Alertas de Ausencia
 - [ ] Advertencia al generar grupos si hay jugadores sin check-in
 - [ ] Opción de excluir automáticamente ausentes
 - [ ] Reporte de no-shows al final del torneo
 
-### 2.5.3 - QR Check-in (Opcional)
+### 2.6.3 - QR Check-in (Opcional)
 - [ ] Generar QR único por jugador
 - [ ] Escanear con celular del organizador
 - [ ] Auto check-in al escanear
@@ -389,9 +442,10 @@ Ideas para evaluar en el futuro:
 |---------|---------|--------|
 | 2.1.0 | MVP Comercial | Completada |
 | 2.2.0 | Pantalla Pública + Marcador Árbitro | Completada |
-| 2.3.0 | Reportes Personalizables | **Próxima** |
-| 2.4.0 | Portal Público para Jugadores | Planeada |
-| 2.5.0 | Check-in de Jugadores | Planeada |
+| 2.3.0 | Validación Online de Licencias | Completada |
+| 2.4.0 | Reportes Personalizables | **Próxima** |
+| 2.5.0 | Portal Público para Jugadores | Planeada |
+| 2.6.0 | Check-in de Jugadores | Planeada |
 | 3.0.0 | Notificaciones (WhatsApp/SMS) | Futura |
 | 3.1.0 | Inscripciones Online | Futura |
 | 3.2.0 | Dobles | Futura |
