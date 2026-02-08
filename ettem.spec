@@ -1,15 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec file for ETTEM - Easy Table Tennis Event Manager
+Cross-platform: generates .exe on Windows, .app on macOS
 """
 
 import os
+import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
+is_macos = sys.platform == 'darwin'
 
 # Base path
 base_path = os.path.dirname(os.path.abspath(SPEC))
+
+# Icon paths
+icon_file = None
+if is_macos:
+    _icns = os.path.join(base_path, 'assets', 'ettem.icns')
+    if os.path.exists(_icns):
+        icon_file = _icns
+else:
+    _ico = os.path.join(base_path, 'assets', 'ettem.ico')
+    if os.path.exists(_ico):
+        icon_file = _ico
 
 # Collect all data files
 datas = [
@@ -90,8 +104,8 @@ hiddenimports = [
     'PIL.Image',
 ]
 
-a = Analysis(
-    ['launcher.py'],
+# Analysis - platform-specific params
+analysis_kwargs = dict(
     pathex=[os.path.join(base_path, 'src')],
     binaries=[],
     datas=datas,
@@ -106,11 +120,16 @@ a = Analysis(
         'pandas',
         'cv2',
     ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Windows-only Analysis params
+if not is_macos:
+    analysis_kwargs['win_no_prefer_redirects'] = False
+    analysis_kwargs['win_private_assemblies'] = False
+
+a = Analysis(['launcher.py'], **analysis_kwargs)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -128,10 +147,26 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # Set to False for no console window (use True for debugging)
+    console=not is_macos,  # Windows: console visible; macOS: no console
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add icon path here if you have one: icon='assets/icon.ico'
+    icon=icon_file,
 )
+
+# macOS: create .app bundle
+if is_macos:
+    app = BUNDLE(
+        exe,
+        name='ETTEM.app',
+        icon=icon_file,
+        bundle_identifier='com.ettem.tournament-manager',
+        info_plist={
+            'CFBundleName': 'ETTEM',
+            'CFBundleDisplayName': 'ETTEM - Tournament Manager',
+            'CFBundleShortVersionString': '2.2.0',
+            'CFBundleVersion': '2.2.0',
+            'NSHighResolutionCapable': True,
+        },
+    )

@@ -7,6 +7,8 @@ Used for creating the standalone executable with PyInstaller.
 
 import os
 import sys
+import platform
+import signal
 import webbrowser
 import threading
 import time
@@ -30,6 +32,10 @@ def open_browser(port, delay=2):
     webbrowser.open(f'http://127.0.0.1:{port}')
 
 def main():
+    # macOS: handle SIGTERM gracefully (sent when closing .app bundle)
+    if platform.system() == "Darwin":
+        signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+
     # Set up paths for PyInstaller
     if getattr(sys, 'frozen', False):
         # Running as compiled executable
