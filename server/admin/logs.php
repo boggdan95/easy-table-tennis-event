@@ -3,11 +3,11 @@
  * ETTEM Admin Panel - Validation Logs
  * Filterable log of all license validation activity.
  */
-session_start();
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/helpers.php';
+require_once __DIR__ . '/auth.php';
 
-if (empty($_SESSION['ettem_admin'])) {
+if (!verify_auth_token()) {
     header('Location: index.php');
     exit;
 }

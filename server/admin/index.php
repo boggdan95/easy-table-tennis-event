@@ -3,17 +3,53 @@
  * ETTEM Admin Panel - Dashboard
  * Lists all licenses with status, machines, and quick actions.
  */
-session_start();
 require_once __DIR__ . '/../api/config.php';
 require_once __DIR__ . '/../api/helpers.php';
 
 // ---------------------------------------------------------------------------
-// Authentication
+// Cookie-based Authentication (more reliable than PHP sessions on shared hosting)
 // ---------------------------------------------------------------------------
 
+define('AUTH_COOKIE_NAME', 'ettem_admin_auth');
+define('AUTH_COOKIE_TTL', 86400); // 24 hours
+
+function make_auth_token(): string {
+    $expires = time() + AUTH_COOKIE_TTL;
+    $data = 'ettem_admin|' . $expires;
+    $sig = hash_hmac('sha256', $data, HMAC_SECRET);
+    return base64_encode($data . '|' . $sig);
+}
+
+function verify_auth_token(): bool {
+    $raw = $_COOKIE[AUTH_COOKIE_NAME] ?? '';
+    if (!$raw) return false;
+    $decoded = base64_decode($raw, true);
+    if (!$decoded) return false;
+    $parts = explode('|', $decoded);
+    if (count($parts) !== 3) return false;
+    [$label, $expires, $sig] = $parts;
+    if ($label !== 'ettem_admin') return false;
+    if ((int)$expires < time()) return false;
+    $expected = hash_hmac('sha256', $label . '|' . $expires, HMAC_SECRET);
+    return hash_equals($expected, $sig);
+}
+
+function set_auth_cookie(): void {
+    setcookie(AUTH_COOKIE_NAME, make_auth_token(), [
+        'expires' => time() + AUTH_COOKIE_TTL,
+        'path' => '/',
+        'secure' => true,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function clear_auth_cookie(): void {
+    setcookie(AUTH_COOKIE_NAME, '', ['expires' => 1, 'path' => '/']);
+}
+
 function require_admin_login(): void {
-    if (empty($_SESSION['ettem_admin'])) {
-        // Not logged in — show login form
+    if (!verify_auth_token()) {
         show_login_form();
         exit;
     }
@@ -49,7 +85,7 @@ function show_login_form(?string $error = null): void {
             <?php if ($error): ?>
                 <div class="error"><?= htmlspecialchars($error) ?></div>
             <?php endif; ?>
-            <form method="POST" action="">
+            <form method="POST" action="index.php">
                 <input type="hidden" name="action" value="login">
                 <div class="form-group">
                     <label>Password</label>
@@ -67,7 +103,7 @@ function show_login_form(?string $error = null): void {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login') {
     $password = $_POST['password'] ?? '';
     if (password_verify($password, ADMIN_PASSWORD_HASH)) {
-        $_SESSION['ettem_admin'] = true;
+        set_auth_cookie();
         header('Location: index.php');
         exit;
     } else {
@@ -78,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'login
 
 // Handle logout
 if (($_GET['action'] ?? '') === 'logout') {
-    session_destroy();
+    clear_auth_cookie();
     header('Location: index.php');
     exit;
 }

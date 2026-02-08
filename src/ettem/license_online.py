@@ -23,7 +23,7 @@ from .machine_id import get_machine_id, get_machine_label
 
 # Server configuration
 LICENSE_SERVER_URL = "https://ettem.boggdan.com/api"
-API_KEY = "ettem-desktop-2026-v1-change-me"  # Must match server config.php
+API_KEY = "yBAEwIwtof3h6LyWPa9rvXzrV7TsxWUzKng9cmcr6Tw"  # Must match server config.php
 
 # Metadata file
 LICENSE_META_FILE = "license.meta"

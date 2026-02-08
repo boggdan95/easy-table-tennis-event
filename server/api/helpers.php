@@ -45,8 +45,15 @@ function json_error(string $code, string $message, int $http = 400, array $extra
 // ---------------------------------------------------------------------------
 
 function require_api_key(): void {
-    $headers = getallheaders();
-    $key = $headers['X-API-Key'] ?? $headers['x-api-key'] ?? '';
+    // Try multiple sources: getallheaders() and $_SERVER (nginx/proxy fallback)
+    $key = '';
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        $key = $headers['X-API-Key'] ?? $headers['x-api-key'] ?? $headers['X-Api-Key'] ?? '';
+    }
+    if ($key === '' && isset($_SERVER['HTTP_X_API_KEY'])) {
+        $key = $_SERVER['HTTP_X_API_KEY'];
+    }
     if ($key !== API_KEY) {
         json_error('UNAUTHORIZED', 'Invalid API key', 401);
     }
