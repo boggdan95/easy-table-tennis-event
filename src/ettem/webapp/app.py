@@ -741,17 +741,14 @@ async def license_activate(request: Request, license_key: str = Form(...)):
         }
         return templates.TemplateResponse(request, "license_activation.html", context)
 
-    # Save the valid license
-    save_license(license_key)
-
-    # Try online activation (non-blocking: if it fails, offline still works)
+    # Try online activation BEFORE saving locally (to enforce machine limits)
     online_warning = None
     try:
         from ettem.license_online import activate_online
         ok, online_error, extra = activate_online(license_key)
         if not ok:
             if extra and extra.get("machines"):
-                # Machine limit reached - show error with machine list
+                # Machine limit reached - do NOT save license locally
                 context = {
                     "request": request,
                     "t": t,
@@ -765,6 +762,9 @@ async def license_activate(request: Request, license_key: str = Form(...)):
             online_warning = t("license.online_warning")
     except Exception:
         pass  # Online module unavailable, proceed offline
+
+    # Save the license locally only after online check passed (or was skipped)
+    save_license(license_key)
 
     # Set success flash message
     if hasattr(request, "session"):
