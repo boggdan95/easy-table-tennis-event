@@ -2,10 +2,10 @@
 
 import math
 import random
-from typing import Optional
+from typing import Optional, Union
 
-from ettem.models import Bracket, BracketSlot, GroupStanding, Player, RoundType
-from ettem.storage import PlayerRepository
+from ettem.models import Bracket, BracketSlot, GroupStanding, Pair, Player, RoundType
+from ettem.storage import PairRepository, PlayerRepository
 
 
 def next_power_of_2(n: int) -> int:
@@ -134,12 +134,16 @@ def get_bye_positions_for_bracket(num_qualifiers: int, bracket_size: int) -> set
 
 
 def build_bracket(
-    qualifiers: list[tuple[Player, GroupStanding]],
+    qualifiers: list[tuple[Union[Player, Pair], GroupStanding]],
     category: str,
     random_seed: Optional[int] = None,
     player_repo: Optional[PlayerRepository] = None,
+    event_type: str = "singles",
+    pair_repo: Optional[PairRepository] = None,
 ) -> Bracket:
     """Build knockout bracket from group stage qualifiers.
+
+    Works with both Player (singles) and Pair (doubles) qualifiers.
 
     Placement strategy:
     1. First, determine BYE positions (ensuring no BYE vs BYE matches)
@@ -150,10 +154,12 @@ def build_bracket(
     6. Annotate same-country 1st round matches (non-blocking)
 
     Args:
-        qualifiers: List of (Player, GroupStanding) tuples
+        qualifiers: List of (Player/Pair, GroupStanding) tuples
         category: Category name
         random_seed: Optional random seed for deterministic draws
         player_repo: Optional PlayerRepository for fetching player country codes
+        event_type: 'singles' or 'doubles'
+        pair_repo: Optional PairRepository (needed for doubles same-country check)
 
     Returns:
         Bracket object with slots filled
@@ -302,7 +308,10 @@ def build_bracket(
 
     # Annotate same-country matches (non-blocking warnings)
     if player_repo:
-        annotate_same_country_matches(bracket, first_round, player_repo)
+        annotate_same_country_matches(
+            bracket, first_round, player_repo,
+            event_type=event_type, pair_repo=pair_repo,
+        )
 
     # Create subsequent rounds (empty slots for winners to advance into)
     # This is needed for process_bye_advancements to work
@@ -342,16 +351,23 @@ def build_bracket(
 
 
 def annotate_same_country_matches(
-    bracket: Bracket, round_type: RoundType, player_repo: PlayerRepository
+    bracket: Bracket,
+    round_type: RoundType,
+    player_repo: PlayerRepository,
+    event_type: str = "singles",
+    pair_repo: Optional[PairRepository] = None,
 ) -> None:
-    """Mark 1st round matches with same-country players.
+    """Mark 1st round matches with same-country competitors.
 
     This is a non-blocking annotation for organizers to review.
+    For doubles, checks countries of all players in both pairs.
 
     Args:
         bracket: Bracket object to annotate
         round_type: The round type to check (typically first round)
         player_repo: PlayerRepository for fetching country codes
+        event_type: 'singles' or 'doubles'
+        pair_repo: PairRepository (needed for doubles)
     """
     slots = bracket.slots.get(round_type, [])
 
@@ -370,11 +386,24 @@ def annotate_same_country_matches(
         if slot1.player_id is None or slot2.player_id is None:
             continue
 
-        # Fetch players
-        player1 = player_repo.get_by_id(slot1.player_id)
-        player2 = player_repo.get_by_id(slot2.player_id)
-
-        if player1 and player2 and player1.pais_cd == player2.pais_cd:
-            # Same country! Flag both slots
-            slot1.same_country_warning = True
-            slot2.same_country_warning = True
+        if event_type == "doubles" and pair_repo:
+            # For doubles, get countries from pair members
+            pair1 = pair_repo.get_by_id(slot1.player_id)
+            pair2 = pair_repo.get_by_id(slot2.player_id)
+            if pair1 and pair2:
+                p1a = player_repo.get_by_id(pair1.player1_id)
+                p1b = player_repo.get_by_id(pair1.player2_id)
+                p2a = player_repo.get_by_id(pair2.player1_id)
+                p2b = player_repo.get_by_id(pair2.player2_id)
+                countries1 = {p.pais_cd for p in [p1a, p1b] if p}
+                countries2 = {p.pais_cd for p in [p2a, p2b] if p}
+                if countries1 & countries2:
+                    slot1.same_country_warning = True
+                    slot2.same_country_warning = True
+        else:
+            # Singles: direct player comparison
+            player1 = player_repo.get_by_id(slot1.player_id)
+            player2 = player_repo.get_by_id(slot2.player_id)
+            if player1 and player2 and player1.pais_cd == player2.pais_cd:
+                slot1.same_country_warning = True
+                slot2.same_country_warning = True

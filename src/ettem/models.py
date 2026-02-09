@@ -14,6 +14,38 @@ from enum import Enum
 from typing import Optional
 
 
+class EventType(str, Enum):
+    """Type of event/category."""
+
+    SINGLES = "singles"
+    DOUBLES = "doubles"
+    TEAMS = "teams"
+
+
+def detect_event_type(category: str) -> str:
+    """Detect event type from ITTF category naming convention.
+
+    Suffixes: BS/GS/MS/WS = Singles, BD/GD/MD/WD/XD = Doubles,
+              BT/GT/MT/WT = Teams.
+    """
+    cat = category.upper().strip()
+    if cat.endswith(("BD", "GD")) or cat in ("MD", "WD", "XD"):
+        return EventType.DOUBLES
+    elif cat.endswith(("BT", "GT")) or cat in ("MT", "WT"):
+        return EventType.TEAMS
+    return EventType.SINGLES
+
+
+def is_doubles_category(category: str) -> bool:
+    """Check if a category is a doubles event."""
+    return detect_event_type(category) == EventType.DOUBLES
+
+
+def is_teams_category(category: str) -> bool:
+    """Check if a category is a teams event."""
+    return detect_event_type(category) == EventType.TEAMS
+
+
 class Gender(str, Enum):
     """Player gender."""
 
@@ -98,6 +130,70 @@ class Player:
         """String representation."""
         num = self.display_number
         return f"{num} {self.full_name} ({self.pais_cd})"
+
+
+@dataclass
+class Pair:
+    """A doubles pair (two players competing together).
+
+    Behaves like a Player for groups/brackets: has id, seed, pais_cd.
+    Used for doubles categories (MD, WD, XD, U15BD, etc.).
+    """
+
+    id: int
+    player1_id: int
+    player2_id: int
+    categoria: str
+    ranking_pts: float = 0
+    seed: Optional[int] = None
+    group_id: Optional[int] = None
+    group_number: Optional[int] = None
+    notes: Optional[str] = None
+
+    # Populated at runtime (not stored in DB)
+    player1: Optional["Player"] = None
+    player2: Optional["Player"] = None
+
+    @property
+    def nombre(self) -> str:
+        """First part of display name (for CompetitorDisplay compat)."""
+        if self.player1 and self.player2:
+            return self.player1.apellido
+        return f"Pair #{self.id}"
+
+    @property
+    def apellido(self) -> str:
+        """Second part of display name (for CompetitorDisplay compat)."""
+        if self.player1 and self.player2:
+            return f"/ {self.player2.apellido}"
+        return ""
+
+    @property
+    def display_name(self) -> str:
+        """Short display: 'Pérez / López'."""
+        if self.player1 and self.player2:
+            return f"{self.player1.apellido} / {self.player2.apellido}"
+        return f"Pair #{self.id}"
+
+    @property
+    def full_name(self) -> str:
+        """Full display: 'Juan Pérez / Pedro López'."""
+        if self.player1 and self.player2:
+            return f"{self.player1.full_name} / {self.player2.full_name}"
+        return f"Pair #{self.id}"
+
+    @property
+    def pais_cd(self) -> str:
+        """Country code(s) for the pair."""
+        if self.player1 and self.player2:
+            if self.player1.pais_cd == self.player2.pais_cd:
+                return self.player1.pais_cd
+            return f"{self.player1.pais_cd}/{self.player2.pais_cd}"
+        return "---"
+
+    def __str__(self) -> str:
+        """String representation."""
+        return f"Pair {self.id}: {self.display_name}"
 
 
 @dataclass

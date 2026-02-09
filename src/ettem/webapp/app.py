@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from ettem.models import Match, MatchStatus, Player, Set
+from ettem.models import Match, MatchStatus, Pair, Player, Set, detect_event_type, is_doubles_category
 from ettem.standings import calculate_standings
 from ettem.storage import (
     DatabaseManager,
@@ -18,12 +18,15 @@ from ettem.storage import (
     GroupRepository,
     MatchRepository,
     MatchORM,
+    PairORM,
+    PairRepository,
     PlayerORM,
     PlayerRepository,
     ScheduleSlotRepository,
     StandingRepository,
     TournamentRepository,
 )
+from ettem.webapp.helpers import CompetitorDisplay, get_competitor_display
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
 from ettem.i18n import load_strings, get_language_from_env, clear_cache as clear_i18n_cache
 
@@ -880,6 +883,7 @@ async def view_group_matches(request: Request, group_id: int):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
 
     # Get group
@@ -890,11 +894,11 @@ async def view_group_matches(request: Request, group_id: int):
     # Get matches
     match_orms = match_repo.get_by_group(group_id)
 
-    # Convert to domain models with player names
+    # Convert to domain models with competitor names
     matches_data = []
     for m_orm in match_orms:
-        player1 = player_repo.get_by_id(m_orm.player1_id)
-        player2 = player_repo.get_by_id(m_orm.player2_id)
+        player1 = get_competitor_display(m_orm, 1, player_repo, pair_repo)
+        player2 = get_competitor_display(m_orm, 2, player_repo, pair_repo)
 
         # Get schedule info
         schedule_slot = schedule_repo.get_by_match(m_orm.id)
@@ -913,8 +917,8 @@ async def view_group_matches(request: Request, group_id: int):
 
         match = Match(
             id=m_orm.id,
-            player1_id=m_orm.player1_id,
-            player2_id=m_orm.player2_id,
+            player1_id=m_orm.competitor1_id or 0,
+            player2_id=m_orm.competitor2_id or 0,
             group_id=m_orm.group_id,
             round_type=m_orm.round_type,
             round_name=m_orm.round_name,
@@ -1404,6 +1408,7 @@ async def view_standings(request: Request, group_id: int):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
     standing_repo = StandingRepository(session)
 
     # Get group
@@ -1411,10 +1416,13 @@ async def view_standings(request: Request, group_id: int):
     if not group:
         return HTMLResponse(content="Group not found", status_code=404)
 
+    # Detect event type from category
+    event_type = detect_event_type(group.category)
+
     # Get matches and calculate standings
     match_orms = match_repo.get_by_group(group_id)
 
-    # Convert to domain models
+    # Convert to domain models using competitor IDs
     matches = []
     for m_orm in match_orms:
         sets = [
@@ -1427,8 +1435,8 @@ async def view_standings(request: Request, group_id: int):
         ]
         match = Match(
             id=m_orm.id,
-            player1_id=m_orm.player1_id,
-            player2_id=m_orm.player2_id,
+            player1_id=m_orm.competitor1_id or 0,
+            player2_id=m_orm.competitor2_id or 0,
             group_id=m_orm.group_id,
             round_type=m_orm.round_type,
             status=m_orm.status,
@@ -1438,19 +1446,34 @@ async def view_standings(request: Request, group_id: int):
         matches.append(match)
 
     # Calculate standings
-    standings, tiebreaker_info = calculate_standings(matches, group_id, player_repo)
+    standings, tiebreaker_info = calculate_standings(
+        matches, group_id, player_repo,
+        event_type=event_type, pair_repo=pair_repo,
+    )
 
-    # Get player details
+    # Get competitor details
     standings_data = []
     for standing in standings:
-        player = player_repo.get_by_id(standing.player_id)
-        if player:
-            tb_info = tiebreaker_info.get(standing.player_id)
-            standings_data.append({
-                "standing": standing,
-                "player": player,
-                "tiebreaker": tb_info
-            })
+        if event_type == "doubles":
+            pair_orm = pair_repo.get_by_id(standing.player_id)
+            if pair_orm:
+                p1 = player_repo.get_by_id(pair_orm.player1_id)
+                p2 = player_repo.get_by_id(pair_orm.player2_id)
+                competitor = CompetitorDisplay.from_pair(pair_orm, p1, p2)
+            else:
+                competitor = CompetitorDisplay.tbd()
+        else:
+            player = player_repo.get_by_id(standing.player_id)
+            if player:
+                competitor = CompetitorDisplay.from_player(player)
+            else:
+                competitor = CompetitorDisplay.tbd()
+        tb_info = tiebreaker_info.get(standing.player_id)
+        standings_data.append({
+            "standing": standing,
+            "player": competitor,
+            "tiebreaker": tb_info
+        })
 
     return render_template("standings.html", {
         "request": request,
@@ -2646,6 +2669,261 @@ async def admin_delete_category(request: Request, category: str):
     return RedirectResponse(url="/admin/import-players", status_code=303)
 
 
+# ============================================================================
+# Pair Import Routes (Doubles)
+# ============================================================================
+
+
+@app.get("/admin/import-pairs", response_class=HTMLResponse)
+async def admin_import_pairs_form(request: Request):
+    """Show import pairs form."""
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    tournament_repo = TournamentRepository(session)
+
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
+
+    # Get all pairs for current tournament
+    pairs = pair_repo.get_by_tournament(tournament_id)
+
+    # Populate player info for each pair
+    pairs_display = []
+    for pair_orm in pairs:
+        p1 = player_repo.get_by_id(pair_orm.player1_id)
+        p2 = player_repo.get_by_id(pair_orm.player2_id)
+        pairs_display.append({
+            "id": pair_orm.id,
+            "player1": p1,
+            "player2": p2,
+            "categoria": pair_orm.categoria,
+            "ranking_pts": pair_orm.ranking_pts,
+            "seed": pair_orm.seed,
+            "group_id": pair_orm.group_id,
+        })
+
+    # Get all players for current tournament (for manual pair creation)
+    players = player_repo.get_all(tournament_id=tournament_id)
+
+    # Get doubles categories that have players
+    doubles_categories = set()
+    for p in players:
+        if is_doubles_category(p.categoria):
+            doubles_categories.add(p.categoria)
+
+    return render_template(
+        "admin_import_pairs.html",
+        {
+            "request": request,
+            "pairs": pairs_display,
+            "players": players,
+            "doubles_categories": sorted(doubles_categories),
+            "current_tournament": current_tournament,
+        }
+    )
+
+
+@app.post("/admin/import-pairs/csv")
+async def admin_import_pairs_csv(
+    request: Request,
+    csv_file: UploadFile = File(...),
+    assign_seeds: Optional[str] = Form(None),
+):
+    """Import pairs from CSV file.
+
+    CSV format: player1_id,player2_id,ranking_pts,categoria
+    player1_id and player2_id reference original_id of imported players.
+    """
+    import csv
+    import io
+    import tempfile
+    from pathlib import Path
+
+    try:
+        content = await csv_file.read()
+        text = content.decode("utf-8-sig")
+
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        reader = csv.DictReader(io.StringIO(text))
+        imported_count = 0
+        errors = []
+
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                p1_orig_id = int(row.get("player1_id", "").strip())
+                p2_orig_id = int(row.get("player2_id", "").strip())
+                ranking = float(row.get("ranking_pts", "0").strip() or "0")
+                categoria = row.get("categoria", "").strip().upper()
+
+                if not categoria:
+                    errors.append(f"Row {row_num}: missing categoria")
+                    continue
+
+                if not is_doubles_category(categoria):
+                    errors.append(f"Row {row_num}: {categoria} is not a doubles category")
+                    continue
+
+                # Find players by original_id
+                all_players = player_repo.get_all(tournament_id=tournament_id)
+                p1 = next((p for p in all_players if p.original_id == p1_orig_id), None)
+                p2 = next((p for p in all_players if p.original_id == p2_orig_id), None)
+
+                if not p1:
+                    errors.append(f"Row {row_num}: player1_id {p1_orig_id} not found")
+                    continue
+                if not p2:
+                    errors.append(f"Row {row_num}: player2_id {p2_orig_id} not found")
+                    continue
+
+                pair = Pair(
+                    id=0,
+                    player1_id=p1.id,
+                    player2_id=p2.id,
+                    categoria=categoria,
+                    ranking_pts=ranking,
+                )
+                pair_repo.create(pair, tournament_id=tournament_id)
+                imported_count += 1
+
+            except (ValueError, KeyError) as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+
+        if assign_seeds == "true":
+            categories = pair_repo.get_all(tournament_id=tournament_id)
+            cats = set(p.categoria for p in categories)
+            for cat in cats:
+                pair_repo.assign_seeds(cat, tournament_id=tournament_id)
+
+        msg = f"Se importaron {imported_count} parejas exitosamente."
+        if errors:
+            msg += f" ({len(errors)} errores)"
+        request.session["flash_message"] = msg
+        request.session["flash_type"] = "success" if imported_count > 0 else "warning"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al importar CSV: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+
+@app.post("/admin/import-pairs/manual")
+async def admin_import_pairs_manual(
+    request: Request,
+    player1_id: int = Form(...),
+    player2_id: int = Form(...),
+    ranking_pts: float = Form(0),
+    categoria: str = Form(...),
+):
+    """Create a pair manually."""
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        # Validate players exist
+        p1 = player_repo.get_by_id(player1_id)
+        p2 = player_repo.get_by_id(player2_id)
+
+        if not p1 or not p2:
+            request.session["flash_message"] = "Uno o ambos jugadores no existen."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+        if player1_id == player2_id:
+            request.session["flash_message"] = "Los dos jugadores deben ser diferentes."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+        categoria = categoria.strip().upper()
+        if not is_doubles_category(categoria):
+            request.session["flash_message"] = f"{categoria} no es una categoría de dobles (debe terminar en BD, GD, o ser MD/WD/XD)."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+        # For XD (mixed doubles), validate genders
+        if categoria.upper() in ("XD",) or categoria.upper().endswith("XD"):
+            genders = set()
+            if hasattr(p1, "genero"):
+                g1 = p1.genero.value if hasattr(p1.genero, "value") else str(p1.genero)
+                genders.add(g1)
+            if hasattr(p2, "genero"):
+                g2 = p2.genero.value if hasattr(p2.genero, "value") else str(p2.genero)
+                genders.add(g2)
+            if genders != {"M", "F"}:
+                request.session["flash_message"] = "Para dobles mixtos (XD), la pareja debe ser un hombre y una mujer."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+        pair = Pair(
+            id=0,
+            player1_id=player1_id,
+            player2_id=player2_id,
+            categoria=categoria,
+            ranking_pts=ranking_pts,
+        )
+        pair_repo.create(pair, tournament_id=tournament_id)
+
+        # Auto-assign seeds for the category
+        pair_repo.assign_seeds(categoria, tournament_id=tournament_id)
+
+        request.session["flash_message"] = f"Pareja {p1.apellido}/{p2.apellido} creada exitosamente en {categoria}."
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al crear pareja: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+
+@app.post("/admin/pair/{pair_id}/delete")
+async def admin_delete_pair(request: Request, pair_id: int):
+    """Delete a pair."""
+    try:
+        session = get_db_session()
+        pair_repo = PairRepository(session)
+
+        pair = pair_repo.get_by_id(pair_id)
+        if not pair:
+            request.session["flash_message"] = "Pareja no encontrada."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+        categoria = pair.categoria
+        pair_repo.delete(pair_id)
+
+        # Recalculate seeds
+        tournament_repo = TournamentRepository(session)
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+        pair_repo.assign_seeds(categoria, tournament_id=tournament_id)
+
+        request.session["flash_message"] = "Pareja eliminada exitosamente."
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al eliminar pareja: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-pairs", status_code=303)
+
+
 @app.get("/admin/create-groups", response_class=HTMLResponse)
 async def admin_create_groups_form(request: Request):
     """Show create groups form."""
@@ -2810,7 +3088,7 @@ async def admin_create_groups_execute(
     manual_assignments: Optional[str] = Form(None),
     best_of: int = Form(5)
 ):
-    """Execute group creation."""
+    """Execute group creation. Supports both singles and doubles categories."""
     from ettem.group_builder import create_groups
     import json
 
@@ -2818,6 +3096,7 @@ async def admin_create_groups_execute(
         # Initialize repositories
         session = get_db_session()
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
         tournament_repo = TournamentRepository(session)
@@ -2826,88 +3105,121 @@ async def admin_create_groups_execute(
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
 
-        # Get players for this category in current tournament
-        player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+        # Detect event type from category
+        event_type = detect_event_type(category)
 
-        if not player_orms:
-            request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}. Importa jugadores primero."
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/admin/create-groups", status_code=303)
+        if event_type == "doubles":
+            # Get pairs for this doubles category
+            pair_orms = pair_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+            if not pair_orms:
+                request.session["flash_message"] = f"No se encontraron parejas para la categoría {category}. Importa parejas primero."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/create-groups", status_code=303)
 
-        # Convert ORM to domain models
-        players = []
-        for p_orm in player_orms:
-            player = Player(
-                id=p_orm.id,
-                nombre=p_orm.nombre,
-                apellido=p_orm.apellido,
-                genero=p_orm.genero,
-                pais_cd=p_orm.pais_cd,
-                ranking_pts=p_orm.ranking_pts,
-                categoria=p_orm.categoria,
-                seed=p_orm.seed,
-                original_id=p_orm.original_id,
-                tournament_number=p_orm.tournament_number,
-                group_id=p_orm.group_id,
-                group_number=p_orm.group_number,
-                checked_in=p_orm.checked_in,
-                notes=p_orm.notes,
-            )
-            players.append(player)
+            # Convert ORM to domain Pair models
+            competitors = []
+            for pair_orm in pair_orms:
+                pair = Pair(
+                    id=pair_orm.id,
+                    player1_id=pair_orm.player1_id,
+                    player2_id=pair_orm.player2_id,
+                    categoria=pair_orm.categoria,
+                    ranking_pts=pair_orm.ranking_pts,
+                    seed=pair_orm.seed,
+                    group_id=pair_orm.group_id,
+                    group_number=pair_orm.group_number,
+                    notes=pair_orm.notes,
+                )
+                # Populate player info for display
+                pair.player1 = player_repo.get_by_id(pair_orm.player1_id)
+                pair.player2 = player_repo.get_by_id(pair_orm.player2_id)
+                competitors.append(pair)
+        else:
+            # Get players for this singles category
+            player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+            if not player_orms:
+                request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}. Importa jugadores primero."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+            # Convert ORM to domain Player models
+            competitors = []
+            for p_orm in player_orms:
+                player = Player(
+                    id=p_orm.id,
+                    nombre=p_orm.nombre,
+                    apellido=p_orm.apellido,
+                    genero=p_orm.genero,
+                    pais_cd=p_orm.pais_cd,
+                    ranking_pts=p_orm.ranking_pts,
+                    categoria=p_orm.categoria,
+                    seed=p_orm.seed,
+                    original_id=p_orm.original_id,
+                    tournament_number=p_orm.tournament_number,
+                    group_id=p_orm.group_id,
+                    group_number=p_orm.group_number,
+                    checked_in=p_orm.checked_in,
+                    notes=p_orm.notes,
+                )
+                competitors.append(player)
 
         # Delete existing groups and matches for this category in current tournament
         existing_groups = group_repo.get_by_category(category, tournament_id=tournament_id)
         for group in existing_groups:
-            # Delete matches first
             matches = match_repo.get_by_group(group.id)
             for match in matches:
                 match_repo.delete(match.id)
-            # Then delete group
             group_repo.delete(group.id)
 
         # Check if we have manual assignments
-        if manual_assignments and manual_assignments.strip():
-            # Use manual assignments from preview
+        if manual_assignments and manual_assignments.strip() and event_type != "doubles":
             assignments = json.loads(manual_assignments)
             groups, matches = create_groups_from_manual_assignments(
-                players=players,
+                players=competitors,
                 category=category,
                 assignments=assignments
             )
         else:
-            # Create groups automatically
             groups, matches = create_groups(
-                players=players,
+                players=competitors,
                 category=category,
                 group_size_preference=group_size_preference,
                 random_seed=random_seed if random_seed else 42,
+                event_type=event_type,
             )
 
         # Save to database
         for group in groups:
-            # Save group with tournament_id
             group_orm = group_repo.create(group, tournament_id=tournament_id)
 
-            # Update players' group assignment
-            for player_id in group.player_ids:
-                player_orm = player_repo.get_by_id(player_id)
-                if player_orm:
-                    player_orm.group_id = group_orm.id
-                    # Find group_number from players list
-                    for p in players:
-                        if p.id == player_id:
-                            player_orm.group_number = p.group_number
-                            break
-            player_repo.session.commit()
+            # Update group assignment on competitors
+            for entity_id in group.player_ids:
+                if event_type == "doubles":
+                    pair_orm = pair_repo.get_by_id(entity_id)
+                    if pair_orm:
+                        pair_orm.group_id = group_orm.id
+                        for c in competitors:
+                            if c.id == entity_id:
+                                pair_orm.group_number = c.group_number
+                                break
+                    pair_repo.session.commit()
+                else:
+                    player_orm = player_repo.get_by_id(entity_id)
+                    if player_orm:
+                        player_orm.group_id = group_orm.id
+                        for c in competitors:
+                            if c.id == entity_id:
+                                player_orm.group_number = c.group_number
+                                break
+                    player_repo.session.commit()
 
-            # Save matches for this group with best_of format
+            # Save matches for this group
             for match in matches:
                 if match.player1_id in group.player_ids and match.player2_id in group.player_ids:
                     match.group_id = group_orm.id
-                    match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of)
+                    match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
 
-        # Create empty bracket structure for scheduling
-        # Default: 2 players advance per group (1st and 2nd place)
+        # Create empty bracket structure
         advance_per_group = 2
         bracket_repo = BracketRepository(session)
         slots_created, bracket_matches = create_empty_bracket_structure(
@@ -9105,6 +9417,7 @@ async def public_display(request: Request):
         live_score_repo = LiveScoreRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
         group_repo = GroupRepository(session)
         table_config_repo = TableConfigRepository(session)
 
@@ -9121,8 +9434,8 @@ async def public_display(request: Request):
             if match.tournament_id != tournament.id:
                 continue
 
-            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
 
             # Get table number
             table_number = None
@@ -9135,12 +9448,12 @@ async def public_display(request: Request):
                 "match_id": match.id,
                 "table_number": table_number or match.table_number,
                 "player1": {
-                    "name": player1.full_name if player1 else "TBD",
-                    "country": player1.pais_cd if player1 else "",
+                    "name": c1.full_name,
+                    "country": c1.pais_cd,
                 },
                 "player2": {
-                    "name": player2.full_name if player2 else "TBD",
-                    "country": player2.pais_cd if player2 else "",
+                    "name": c2.full_name,
+                    "country": c2.pais_cd,
                 },
                 "p1_sets": score.player1_sets,
                 "p2_sets": score.player2_sets,
@@ -9158,8 +9471,8 @@ async def public_display(request: Request):
         recent_results = []
 
         for match in completed[:10]:
-            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
 
             # Calculate score
             sets = match.sets or []
@@ -9168,10 +9481,10 @@ async def public_display(request: Request):
 
             recent_results.append({
                 "match_id": match.id,
-                "player1_id": match.player1_id,
-                "player2_id": match.player2_id,
-                "player1_name": player1.full_name if player1 else "TBD",
-                "player2_name": player2.full_name if player2 else "TBD",
+                "player1_id": match.competitor1_id,
+                "player2_id": match.competitor2_id,
+                "player1_name": c1.full_name,
+                "player2_name": c2.full_name,
                 "winner_id": match.winner_id,
                 "score": f"{p1_sets}-{p2_sets}",
                 "category": match.category or "",
@@ -9184,16 +9497,16 @@ async def public_display(request: Request):
         upcoming_matches = []
 
         for match in pending[:15]:
-            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
 
             # Get schedule info
             schedule = schedule_repo.get_by_match(match.id)
 
             upcoming_matches.append({
                 "match_id": match.id,
-                "player1_name": player1.full_name if player1 else "TBD",
-                "player2_name": player2.full_name if player2 else "TBD",
+                "player1_name": c1.full_name,
+                "player2_name": c2.full_name,
                 "category": match.category or "",
                 "round": match.round_name,
                 "table_number": schedule.table_number if schedule else None,
@@ -9241,6 +9554,7 @@ async def api_get_live_scores():
         live_score_repo = LiveScoreRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
 
         scores = live_score_repo.get_all_active()
 
@@ -9254,21 +9568,21 @@ async def api_get_live_scores():
             if tournament and match.tournament_id != tournament.id:
                 continue
 
-            player1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            player2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
 
             result.append({
                 "match_id": score.match_id,
                 "table_id": score.table_id,
                 "player1": {
-                    "id": player1.id if player1 else None,
-                    "name": player1.full_name if player1 else "TBD",
-                    "country": player1.pais_cd if player1 else None,
+                    "id": c1.id,
+                    "name": c1.full_name,
+                    "country": c1.pais_cd,
                 },
                 "player2": {
-                    "id": player2.id if player2 else None,
-                    "name": player2.full_name if player2 else "TBD",
-                    "country": player2.pais_cd if player2 else None,
+                    "id": c2.id,
+                    "name": c2.full_name,
+                    "country": c2.pais_cd,
                 },
                 "current_set": score.current_set,
                 "p1_points": score.player1_points,

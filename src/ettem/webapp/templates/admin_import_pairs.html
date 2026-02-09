@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('pairs.import_pairs') }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ t('pairs.import_pairs') }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>{{ t('nav.home') }}</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Import Methods Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('pairs.title') }}</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2 mb-3">
+            <button onclick="showImportMethod('csv')" class="btn btn-primary" id="btn-csv">
+                <span>📄</span>
+                <span>{{ t('pairs.import_csv') }}</span>
+            </button>
+            <button onclick="showImportMethod('manual')" class="btn btn-secondary" id="btn-manual">
+                <span>✍️</span>
+                <span>{{ t('pairs.create_manual') }}</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Import Section -->
+<div id="import-csv-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('pairs.import_csv') }}</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/import-pairs/csv" enctype="multipart/form-data">
+            <div class="form-section">
+                <label class="form-label">Archivo CSV</label>
+                <input type="file" name="csv_file" accept=".csv" required class="form-control" style="max-width: 400px;">
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">
+                    <input type="checkbox" name="assign_seeds" value="true" checked style="margin-right: 0.5rem;">
+                    Asignar seeds automáticamente basado en ranking
+                </label>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">{{ t('pairs.csv_format') }}</div>
+                    <div>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>player1_id</strong>: ID original del jugador 1 (del CSV de jugadores)</li>
+                            <li><strong>player2_id</strong>: ID original del jugador 2 (del CSV de jugadores)</li>
+                            <li><strong>ranking_pts</strong>: Ranking combinado de la pareja</li>
+                            <li><strong>categoria</strong>: Categoría de dobles (MD, WD, XD, U15BD, etc.)</li>
+                        </ul>
+                        <pre style="background: var(--bg-color); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.85rem;">player1_id,player2_id,ranking_pts,categoria
+1,2,2300,MD
+3,4,2100,MD
+5,6,1900,WD</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Importar</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Manual Entry Section -->
+<div id="import-manual-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('pairs.create_manual') }}</h3>
+    </div>
+    <div class="card-body">
+        {% if not players %}
+        <div class="alert alert-warning">
+            <span class="icon">⚠️</span>
+            <div class="alert-content">{{ t('pairs.no_players') }}</div>
+        </div>
+        {% else %}
+        <form method="post" action="/admin/import-pairs/manual">
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">{{ t('pairs.player1') }} *</label>
+                    <select name="player1_id" required class="form-control" id="select-p1">
+                        <option value="">{{ t('pairs.select_player') }}</option>
+                        {% for p in players %}
+                        <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.pais_cd }}) - {{ p.categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">{{ t('pairs.player2') }} *</label>
+                    <select name="player2_id" required class="form-control" id="select-p2">
+                        <option value="">{{ t('pairs.select_player') }}</option>
+                        {% for p in players %}
+                        <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.pais_cd }}) - {{ p.categoria }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">{{ t('pairs.ranking') }}</label>
+                    <input type="number" name="ranking_pts" class="form-control" placeholder="0" step="0.01" min="0" value="0">
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Categoría *</label>
+                    <input type="text" name="categoria" required class="form-control" placeholder="MD, WD, XD, U15BD..." style="text-transform: uppercase;">
+                    <p class="form-help">Debe ser categoría de dobles (terminar en BD, GD, o ser MD/WD/XD)</p>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Pareja</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pairs List -->
+{% if pairs %}
+{% set categories_list = pairs | map(attribute='categoria') | unique | sort | list %}
+{% if categories_list %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Categorías de Dobles ({{ categories_list|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-3" style="gap: 1rem;">
+            {% for cat in categories_list %}
+            {% set cat_pairs = pairs | selectattr('categoria', 'equalto', cat) | list %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ cat_pairs|length }} parejas</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Parejas Registradas ({{ pairs|length }})</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>{{ t('pairs.player1') }}</th>
+                        <th>{{ t('pairs.player2') }}</th>
+                        <th>{{ t('pairs.ranking') }}</th>
+                        <th>Categoría</th>
+                        <th>{{ t('pairs.seed') }}</th>
+                        <th>Grupo</th>
+                        <th style="width: 80px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pair in pairs %}
+                    <tr>
+                        <td><span class="badge badge-secondary">{{ pair.id }}</span></td>
+                        <td>
+                            {% if pair.player1 %}
+                            <strong>{{ pair.player1.nombre }} {{ pair.player1.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ pair.player1.pais_cd }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">ID {{ pair.player1.id if pair.player1 else '?' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if pair.player2 %}
+                            <strong>{{ pair.player2.nombre }} {{ pair.player2.apellido }}</strong>
+                            <span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ pair.player2.pais_cd }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">ID {{ pair.player2.id if pair.player2 else '?' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ pair.ranking_pts }}</td>
+                        <td><span class="badge badge-primary">{{ pair.categoria }}</span></td>
+                        <td>{{ pair.seed or '-' }}</td>
+                        <td>{% if pair.group_id %}<span class="badge badge-success">G</span>{% else %}-{% endif %}</td>
+                        <td style="text-align: center;">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePair({{ pair.id }})" title="Eliminar">
+                                🗑️
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <p style="font-size: 1.2rem; color: var(--text-muted);">{{ t('pairs.no_pairs') }}</p>
+        <p style="color: var(--text-muted);">Usa los botones de arriba para importar desde CSV o crear parejas manualmente.</p>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function showImportMethod(method) {
+    hideImportSections();
+    document.getElementById('btn-csv').className = 'btn btn-secondary';
+    document.getElementById('btn-manual').className = 'btn btn-secondary';
+
+    if (method === 'csv') {
+        document.getElementById('import-csv-section').style.display = 'block';
+        document.getElementById('btn-csv').className = 'btn btn-primary';
+    } else if (method === 'manual') {
+        document.getElementById('import-manual-section').style.display = 'block';
+        document.getElementById('btn-manual').className = 'btn btn-primary';
+    }
+}
+
+function hideImportSections() {
+    document.getElementById('import-csv-section').style.display = 'none';
+    document.getElementById('import-manual-section').style.display = 'none';
+    document.getElementById('btn-csv').className = 'btn btn-secondary';
+    document.getElementById('btn-manual').className = 'btn btn-secondary';
+}
+
+function confirmDeletePair(pairId) {
+    if (confirm('{{ t("pairs.delete_confirm") }}')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/pair/' + pairId + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

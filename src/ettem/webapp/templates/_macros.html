@@ -1,0 +1,40 @@
+{#
+  Reusable display macros for competitors (players, pairs, teams).
+
+  All macros accept a CompetitorDisplay object (or any object with
+  .nombre, .apellido, .pais_cd, .full_name attributes).
+
+  Usage:
+    {% from "_macros.html" import player_name, player_name_short %}
+    {{ player_name(match.player1) }}
+#}
+
+{# Full name with country badge #}
+{% macro player_name(c) %}
+<strong>{{ c.nombre }} {{ c.apellido }}</strong>
+<span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ c.pais_cd }}</span>
+{% endmacro %}
+
+{# Short name: "J. Pérez" or "Pérez / López" #}
+{% macro player_name_short(c) %}
+{%- if c.is_pair or c.is_team -%}
+{{ c.nombre }} {{ c.apellido }}
+{%- else -%}
+{{ c.nombre[0] }}. {{ c.apellido }}
+{%- endif -%}
+{% endmacro %}
+
+{# Name only, no badge #}
+{% macro player_name_only(c) %}
+{{ c.nombre }} {{ c.apellido }}
+{% endmacro %}
+
+{# Full name property #}
+{% macro player_full_name(c) %}
+{{ c.full_name }}
+{% endmacro %}
+
+{# Country badge only #}
+{% macro country_badge(c) %}
+<span class="badge badge-secondary">{{ c.pais_cd }}</span>
+{% endmacro %}

@@ -1,9 +1,9 @@
 """Group builder with snake seeding and circle method fixtures."""
 
 import random
-from typing import Optional
+from typing import Optional, Union
 
-from ettem.models import Group, Match, MatchStatus, Player, RoundType, Set
+from ettem.models import Group, Match, MatchStatus, Pair, Player, RoundType, Set
 
 
 def calculate_optimal_group_distribution(num_players: int, preferred_size: int = 4) -> list[int]:
@@ -88,8 +88,10 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
     raise ValueError(f"Cannot distribute {num_players} players into valid groups")
 
 
-def distribute_seeds_snake(players: list[Player], num_groups: int) -> list[list[Player]]:
-    """Distribute seeded players into groups using snake/serpentine method.
+def distribute_seeds_snake(
+    players: Union[list[Player], list[Pair]], num_groups: int
+) -> Union[list[list[Player]], list[list[Pair]]]:
+    """Distribute seeded competitors into groups using snake/serpentine method.
 
     Seeds flow in a snake pattern:
     - Group A: 1, 8, 9, 16
@@ -98,11 +100,11 @@ def distribute_seeds_snake(players: list[Player], num_groups: int) -> list[list[
     - Group D: 4, 5, 12, 13
 
     Args:
-        players: List of Player objects sorted by seed (1 = best)
+        players: List of Player or Pair objects sorted by seed (1 = best)
         num_groups: Number of groups to create
 
     Returns:
-        List of lists, each containing players for one group
+        List of lists, each containing competitors for one group
     """
     if not players:
         raise ValueError("Cannot distribute empty player list")
@@ -190,53 +192,58 @@ def generate_round_robin_fixtures(group_size: int) -> list[tuple[int, int]]:
 
 
 def create_groups(
-    players: list[Player],
+    players: Union[list[Player], list[Pair]],
     category: str,
     group_size_preference: int = 4,
     random_seed: Optional[int] = None,
+    event_type: str = "singles",
 ) -> tuple[list[Group], list[Match]]:
     """Create groups with snake seeding and generate fixtures.
 
+    Works with both Player (singles) and Pair (doubles) objects.
+    Both have .id, .seed, .full_name, .group_number attributes.
+
     Args:
-        players: List of seeded players (must have seed attribute set)
-        category: Category name (e.g., 'U13')
+        players: List of seeded competitors (Player or Pair, must have seed set)
+        category: Category name (e.g., 'U13', 'MD')
         group_size_preference: Preferred group size (3 or 4)
-        random_seed: Optional random seed for determinism (not used in V1, reserved for draws)
+        random_seed: Optional random seed for determinism
+        event_type: 'singles' or 'doubles'
 
     Returns:
         Tuple of (groups, matches) where:
-        - groups: List of Group objects
-        - matches: List of Match objects for all group fixtures
+        - groups: List of Group objects (player_ids contains entity IDs)
+        - matches: List of Match objects (player1_id/player2_id contain entity IDs)
     """
     if not players:
         raise ValueError("Cannot create groups with empty player list")
 
-    # Validate all players have seeds
+    # Validate all competitors have seeds
     for player in players:
         if player.seed is None:
             raise ValueError(f"Player {player.full_name} does not have a seed assigned")
 
-    # Sort players by seed (should already be sorted, but be defensive)
+    # Sort by seed (should already be sorted, but be defensive)
     sorted_players = sorted(players, key=lambda p: p.seed)
 
     # Calculate group distribution
     group_sizes = calculate_optimal_group_distribution(len(players), group_size_preference)
     num_groups = len(group_sizes)
 
-    # Distribute players using snake method
+    # Distribute using snake method
     player_groups = distribute_seeds_snake(sorted_players, num_groups)
 
     # Create Group objects
     groups = []
 
     for group_idx, player_list in enumerate(player_groups, start=1):
-        # Assign group numbers to players (1-indexed within group)
+        # Assign group numbers (1-indexed within group)
         for pos, player in enumerate(player_list, start=1):
             player.group_number = pos
 
         group = Group(
             id=0,  # Will be set by database
-            name=str(group_idx),  # Use numbers: "1", "2", "3", etc.
+            name=str(group_idx),
             category=category,
             player_ids=[p.id for p in player_list],
         )
@@ -252,14 +259,14 @@ def create_groups(
 
         # Create Match objects
         for fixture_idx, (p1_num, p2_num) in enumerate(fixtures, start=1):
-            # Map group numbers to player IDs
-            player1 = player_list[p1_num - 1]  # Convert to 0-indexed
-            player2 = player_list[p2_num - 1]
+            # Map group numbers to competitor IDs
+            competitor1 = player_list[p1_num - 1]
+            competitor2 = player_list[p2_num - 1]
 
             match = Match(
                 id=0,  # Will be set by database
-                player1_id=player1.id,
-                player2_id=player2.id,
+                player1_id=competitor1.id,
+                player2_id=competitor2.id,
                 group_id=0,  # Will be set when group is saved to DB
                 round_type=RoundType.ROUND_ROBIN,
                 round_name=f"Group {group.name} Match {fixture_idx}",

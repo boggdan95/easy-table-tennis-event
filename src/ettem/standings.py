@@ -4,7 +4,7 @@ from collections import defaultdict
 from typing import Optional
 
 from ettem.models import GroupStanding, Match, MatchStatus, Player
-from ettem.storage import PlayerRepository
+from ettem.storage import PairRepository, PlayerRepository
 
 
 def compute_sets_ratio(sets_w: int, sets_l: int) -> float:
@@ -41,10 +41,12 @@ def break_ties(
     tied_standings: list[GroupStanding],
     player_repo: PlayerRepository,
     matches: list[Match],
+    event_type: str = "singles",
+    pair_repo: Optional[PairRepository] = None,
 ) -> tuple[list[GroupStanding], dict]:
-    """Break ties among 2+ players using head-to-head ratios.
+    """Break ties among 2+ competitors using head-to-head ratios.
 
-    Tie-breaking criteria (applied ONLY among the tied players):
+    Tie-breaking criteria (applied ONLY among the tied competitors):
     1. Sets ratio (sets_w / sets_l)
     2. Points ratio (points_w / points_l)
     3. Seed (lower seed number wins)
@@ -53,6 +55,8 @@ def break_ties(
         tied_standings: List of GroupStanding objects with same points_total
         player_repo: PlayerRepository for fetching player data
         matches: List of matches to recalculate head-to-head stats
+        event_type: 'singles' or 'doubles'
+        pair_repo: PairRepository (needed for doubles seed lookup)
 
     Returns:
         Tuple of (sorted list of GroupStanding objects, tiebreaker_info dict)
@@ -62,25 +66,23 @@ def break_ties(
     if len(tied_standings) <= 1:
         return tied_standings, tiebreaker_info
 
-    # Get player IDs of tied players
+    # Get competitor IDs of tied entries
     tied_player_ids = {s.player_id for s in tied_standings}
 
-    # Recalculate stats using ONLY matches between tied players
+    # Recalculate stats using ONLY matches between tied competitors
     head_to_head_stats = {s.player_id: {"sets_w": 0, "sets_l": 0, "points_w": 0, "points_l": 0} for s in tied_standings}
 
     for match in matches:
-        # Only consider completed matches between tied players
+        # Only consider completed matches between tied competitors
         if not match.is_completed:
             continue
 
         if match.player1_id in tied_player_ids and match.player2_id in tied_player_ids:
-            # Add sets and points for player1
             head_to_head_stats[match.player1_id]["sets_w"] += match.player1_sets_won
             head_to_head_stats[match.player1_id]["sets_l"] += match.player2_sets_won
             head_to_head_stats[match.player1_id]["points_w"] += match.player1_total_points
             head_to_head_stats[match.player1_id]["points_l"] += match.player2_total_points
 
-            # Add sets and points for player2
             head_to_head_stats[match.player2_id]["sets_w"] += match.player2_sets_won
             head_to_head_stats[match.player2_id]["sets_l"] += match.player1_sets_won
             head_to_head_stats[match.player2_id]["points_w"] += match.player2_total_points
@@ -89,8 +91,12 @@ def break_ties(
     # Get seeds for final tie-breaker
     player_seeds = {}
     for standing in tied_standings:
-        player = player_repo.get_by_id(standing.player_id)
-        player_seeds[standing.player_id] = player.seed if player and player.seed else 999
+        if event_type == "doubles" and pair_repo:
+            pair = pair_repo.get_by_id(standing.player_id)
+            player_seeds[standing.player_id] = pair.seed if pair and pair.seed else 999
+        else:
+            player = player_repo.get_by_id(standing.player_id)
+            player_seeds[standing.player_id] = player.seed if player and player.seed else 999
 
     # Determine which criteria broke the tie
     all_sets_ratios = []
@@ -148,8 +154,13 @@ def calculate_standings(
     matches: list[Match],
     group_id: int,
     player_repo: PlayerRepository,
+    event_type: str = "singles",
+    pair_repo: Optional[PairRepository] = None,
 ) -> tuple[list[GroupStanding], dict]:
     """Calculate standings for a group based on match results.
+
+    Works for both singles and doubles. For doubles, player_id fields
+    in matches and standings contain pair IDs.
 
     Scoring:
     - Win: 2 tournament points
@@ -160,6 +171,8 @@ def calculate_standings(
         matches: List of Match objects for the group
         group_id: Group ID
         player_repo: PlayerRepository for tie-breaking
+        event_type: 'singles' or 'doubles'
+        pair_repo: PairRepository (needed for doubles seed lookup)
 
     Returns:
         Tuple of (List of GroupStanding objects sorted by position, tiebreaker_info dict)
@@ -262,8 +275,11 @@ def calculate_standings(
     all_tiebreaker_info = {}
     for points, group in sorted(points_groups.items(), reverse=True):
         if len(group) >= 2:
-            # Apply tie-breaking rules using head-to-head for 2+ players
-            sorted_group, tiebreaker_info = break_ties(group, player_repo, matches)
+            # Apply tie-breaking rules using head-to-head for 2+ competitors
+            sorted_group, tiebreaker_info = break_ties(
+                group, player_repo, matches,
+                event_type=event_type, pair_repo=pair_repo,
+            )
             final_standings.extend(sorted_group)
             all_tiebreaker_info.update(tiebreaker_info)
         else:
