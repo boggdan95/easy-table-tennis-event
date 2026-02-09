@@ -25,6 +25,7 @@ from ettem.storage import (
     ScheduleSlotRepository,
     StandingRepository,
     TournamentRepository,
+    migrate_v24_doubles,
 )
 from ettem.webapp.helpers import CompetitorDisplay, get_competitor_display
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
@@ -412,6 +413,7 @@ migrate_matches_add_category()
 migrate_matches_add_tournament_id()  # Add tournament_id to matches
 migrate_matches_add_best_of()  # Add best_of format to matches
 migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
+migrate_v24_doubles(db_manager.engine)  # Add doubles support (pairs table + nullable columns)
 migrate_bracket_slots_add_tournament_id()
 migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
