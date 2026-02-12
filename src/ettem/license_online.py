@@ -83,6 +83,7 @@ def _api_request(endpoint: str, payload: dict) -> Tuple[bool, dict]:
     req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
     req.add_header("X-API-Key", API_KEY)
+    req.add_header("User-Agent", f"ETTEM/{APP_VERSION}")
 
     # Create SSL context (use default certs)
     ctx = ssl.create_default_context()
