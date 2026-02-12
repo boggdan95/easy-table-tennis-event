@@ -85,6 +85,8 @@ hiddenimports = [
     'ettem.pdf_generator',
     'ettem.paths',
     'ettem.licensing',
+    'ettem.license_online',
+    'ettem.machine_id',
     # xhtml2pdf and reportlab dependencies
     'xhtml2pdf',
     'reportlab',
@@ -165,8 +167,8 @@ if is_macos:
         info_plist={
             'CFBundleName': 'ETTEM',
             'CFBundleDisplayName': 'ETTEM - Tournament Manager',
-            'CFBundleShortVersionString': '2.2.0',
-            'CFBundleVersion': '2.2.0',
+            'CFBundleShortVersionString': '2.3.0',
+            'CFBundleVersion': '2.3.0',
             'NSHighResolutionCapable': True,
         },
     )

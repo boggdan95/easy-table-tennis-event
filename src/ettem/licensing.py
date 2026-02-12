@@ -37,6 +37,10 @@ class LicenseInfo:
     is_valid: bool
     days_remaining: int
     raw_key: str
+    # Online validation fields
+    online_status: Optional[str] = None   # "ok", "grace_period", "offline_only", "revoked"
+    machine_slot: Optional[str] = None    # "1/2"
+    last_online_check: Optional[str] = None  # ISO datetime
 
     @property
     def is_expired(self) -> bool:
@@ -253,3 +257,83 @@ def clear_license() -> bool:
         return True
     except Exception:
         return False
+
+
+def get_current_license_with_online() -> Tuple[bool, Optional[LicenseInfo], Optional[str]]:
+    """
+    Get and validate the current license, including online validation.
+
+    Logic:
+    1. Validate offline first (existing logic). If invalid, return immediately.
+    2. If no license.meta exists → pure offline mode (backwards compat).
+    3. If meta exists and >30 days since last check → try online validation.
+    4. If online fails but within grace period (60 days total) → allow.
+    5. If online fails and beyond grace period → block.
+    6. Any unexpected exception → fallback to offline (never break).
+
+    Returns:
+        Tuple of (is_valid, license_info, error_message)
+    """
+    # Step 1: Offline validation
+    is_valid, license_info, error = get_current_license()
+    if not is_valid:
+        return is_valid, license_info, error
+
+    # Step 2-6: Online checks
+    try:
+        from .license_online import (
+            load_metadata, needs_online_validation,
+            validate_online, is_within_grace_period
+        )
+
+        meta = load_metadata()
+
+        # Case A: Never activated online = pure offline license
+        if not meta or not meta.activated_online:
+            license_info.online_status = "offline_only"
+            return True, license_info, None
+
+        # Populate online fields from metadata
+        if meta.last_validated_online:
+            license_info.last_online_check = meta.last_validated_online
+        if meta.slot is not None and meta.max_slots is not None:
+            license_info.machine_slot = f"{meta.slot}/{meta.max_slots}"
+
+        # Case B: Check if periodic validation needed
+        if needs_online_validation():
+            key = load_license()
+            ok, err_msg = validate_online(key)
+            if ok:
+                license_info.online_status = "ok"
+                # Reload metadata after successful validation
+                meta = load_metadata()
+                if meta:
+                    license_info.last_online_check = meta.last_validated_online
+                    if meta.slot is not None and meta.max_slots is not None:
+                        license_info.machine_slot = f"{meta.slot}/{meta.max_slots}"
+                return True, license_info, None
+            else:
+                # Validation failed — check grace period
+                if is_within_grace_period():
+                    license_info.online_status = "grace_period"
+                    return True, license_info, None
+                else:
+                    license_info.online_status = "revoked"
+                    license_info.is_valid = False
+                    return False, license_info, err_msg
+        else:
+            # Within validation interval, no check needed
+            # But still verify grace period hasn't expired
+            if not is_within_grace_period():
+                license_info.online_status = "revoked"
+                license_info.is_valid = False
+                return False, license_info, "License validation expired"
+
+            license_info.online_status = "ok"
+            return True, license_info, None
+
+    except Exception:
+        # If online module fails for any reason, fall back to offline
+        if license_info:
+            license_info.online_status = "offline_only"
+        return True, license_info, None

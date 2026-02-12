@@ -8,7 +8,12 @@ import io
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from xhtml2pdf import pisa
+try:
+    from xhtml2pdf import pisa
+    HAS_PISA = True
+except ImportError:
+    pisa = None
+    HAS_PISA = False
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -33,6 +38,8 @@ def render_html(template_name: str, context: Dict[str, Any]) -> str:
 
 def html_to_pdf(html_content: str) -> bytes:
     """Convert HTML string to PDF bytes."""
+    if not HAS_PISA:
+        raise ImportError("xhtml2pdf is not available (Python 3.14+ cffi issue). PDF generation disabled.")
     result = io.BytesIO()
 
     # Convert HTML to PDF

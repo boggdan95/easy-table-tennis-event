@@ -115,6 +115,32 @@ class PlayerORM(Base):
     )
 
 
+class PairORM(Base):
+    """Doubles pair table.
+
+    Two players competing together in a doubles category.
+    """
+
+    __tablename__ = "pairs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
+    categoria = Column(String(20), nullable=False)  # MD, WD, XD, U15BD, etc.
+    player1_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player2_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    ranking_pts = Column(Float, nullable=False, default=0)
+    seed = Column(Integer, nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    group_number = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    tournament = relationship("TournamentORM")
+    player1 = relationship("PlayerORM", foreign_keys=[player1_id])
+    player2 = relationship("PlayerORM", foreign_keys=[player2_id])
+
+
 class GroupORM(Base):
     """Group table."""
 
@@ -124,7 +150,8 @@ class GroupORM(Base):
     name = Column(String(10), nullable=False)  # A, B, C, etc.
     category = Column(String(20), nullable=False)
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
-    # Store player_ids as JSON array
+    event_type = Column(String(10), nullable=True, default="singles")  # singles, doubles, teams
+    # Store player_ids as JSON array (for doubles: pair IDs; for teams: team IDs)
     player_ids_json = Column(Text, nullable=False, default="[]")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -155,6 +182,9 @@ class MatchORM(Base):
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)  # For filtering by tournament
     category = Column(String(20), nullable=True)  # Category for bracket matches (SUB21, OPEN, etc.)
+    event_type = Column(String(10), nullable=True, default="singles")  # singles, doubles, teams
+    pair1_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles matches
+    pair2_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles matches
     round_type = Column(String(10), nullable=False, default="RR")  # RR, R16, QF, SF, F
     round_name = Column(String(50), nullable=True)
     match_number = Column(Integer, nullable=True)
@@ -175,7 +205,28 @@ class MatchORM(Base):
     player2 = relationship(
         "PlayerORM", back_populates="matches_as_player2", foreign_keys=[player2_id]
     )
+    pair1 = relationship("PairORM", foreign_keys=[pair1_id])
+    pair2 = relationship("PairORM", foreign_keys=[pair2_id])
     group = relationship("GroupORM", back_populates="matches")
+
+    @property
+    def is_doubles(self) -> bool:
+        """Check if this is a doubles match."""
+        return (self.event_type or "singles") == "doubles"
+
+    @property
+    def competitor1_id(self) -> Optional[int]:
+        """Get competitor 1 ID (player_id for singles, pair1_id for doubles)."""
+        if self.is_doubles:
+            return self.pair1_id
+        return self.player1_id
+
+    @property
+    def competitor2_id(self) -> Optional[int]:
+        """Get competitor 2 ID (player_id for singles, pair2_id for doubles)."""
+        if self.is_doubles:
+            return self.pair2_id
+        return self.player2_id
 
     @property
     def sets(self) -> list[dict]:
@@ -194,7 +245,8 @@ class GroupStandingORM(Base):
     __tablename__ = "group_standings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles standings
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     points_total = Column(Integer, nullable=False, default=0)
     wins = Column(Integer, nullable=False, default=0)
@@ -208,6 +260,7 @@ class GroupStandingORM(Base):
 
     # Relationships
     player = relationship("PlayerORM")
+    pair = relationship("PairORM")
     group = relationship("GroupORM", back_populates="standings")
 
 
@@ -222,6 +275,7 @@ class BracketSlotORM(Base):
     slot_number = Column(Integer, nullable=False)
     round_type = Column(String(10), nullable=False)  # R32, R16, QF, SF, F
     player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles brackets
     is_bye = Column(Boolean, nullable=False, default=False)
     same_country_warning = Column(Boolean, nullable=False, default=False)
     advanced_by_bye = Column(Boolean, nullable=False, default=False)
@@ -229,6 +283,7 @@ class BracketSlotORM(Base):
 
     # Relationships
     player = relationship("PlayerORM")
+    pair = relationship("PairORM")
 
 
 class SessionORM(Base):
@@ -779,14 +834,16 @@ class MatchRepository:
     def __init__(self, session):
         self.session = session
 
-    def create(self, match: "Match", category: str = None, tournament_id: int = None, best_of: int = 5) -> MatchORM:
+    def create(self, match: "Match", category: str = None, tournament_id: int = None, best_of: int = 5, event_type: str = "singles") -> MatchORM:
         """Create a new match in the database.
 
         Args:
-            match: Match domain model
+            match: Match domain model (player1_id/player2_id are competitor IDs)
             category: Category name for bracket matches (optional)
             tournament_id: Tournament ID for filtering (optional)
             best_of: Match format (3, 5, or 7 sets). Default is 5.
+            event_type: 'singles' or 'doubles'. For doubles, competitor IDs
+                are stored in pair1_id/pair2_id instead of player1_id/player2_id.
 
         Returns:
             Created MatchORM instance
@@ -803,22 +860,46 @@ class MatchRepository:
             for s in match.sets
         ]
 
-        match_orm = MatchORM(
-            player1_id=match.player1_id,
-            player2_id=match.player2_id,
-            group_id=match.group_id,
-            tournament_id=tournament_id,
-            category=category,
-            best_of=best_of,
-            round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
-            round_name=match.round_name,
-            match_number=match.match_number,
-            status=match.status.value if hasattr(match.status, "value") else match.status,
-            sets_json=json.dumps(sets_data),
-            winner_id=match.winner_id,
-            scheduled_time=match.scheduled_time,
-            table_number=match.table_number,
-        )
+        if event_type == "doubles":
+            # For doubles, store pair IDs in both player1_id/player2_id (for
+            # legacy webapp code) AND pair1_id/pair2_id (for explicit queries).
+            match_orm = MatchORM(
+                player1_id=match.player1_id,
+                player2_id=match.player2_id,
+                pair1_id=match.player1_id,
+                pair2_id=match.player2_id,
+                event_type="doubles",
+                group_id=match.group_id,
+                tournament_id=tournament_id,
+                category=category,
+                best_of=best_of,
+                round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
+                round_name=match.round_name,
+                match_number=match.match_number,
+                status=match.status.value if hasattr(match.status, "value") else match.status,
+                sets_json=json.dumps(sets_data),
+                winner_id=match.winner_id,
+                scheduled_time=match.scheduled_time,
+                table_number=match.table_number,
+            )
+        else:
+            match_orm = MatchORM(
+                player1_id=match.player1_id,
+                player2_id=match.player2_id,
+                event_type="singles",
+                group_id=match.group_id,
+                tournament_id=tournament_id,
+                category=category,
+                best_of=best_of,
+                round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
+                round_name=match.round_name,
+                match_number=match.match_number,
+                status=match.status.value if hasattr(match.status, "value") else match.status,
+                sets_json=json.dumps(sets_data),
+                winner_id=match.winner_id,
+                scheduled_time=match.scheduled_time,
+                table_number=match.table_number,
+            )
         self.session.add(match_orm)
         self.session.commit()
         self.session.refresh(match_orm)
@@ -1924,3 +2005,161 @@ class LiveScoreRepository:
         count = self.session.query(LiveScoreORM).delete()
         self.session.commit()
         return count
+
+
+# ============================================================================
+# Pair Repository (Doubles)
+# ============================================================================
+
+
+class PairRepository:
+    """Repository for doubles Pair operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, pair: "Pair", tournament_id: int = None) -> PairORM:
+        """Create a new pair from a Pair domain model.
+
+        Args:
+            pair: Pair domain model
+            tournament_id: Tournament ID
+
+        Returns:
+            Created PairORM instance
+        """
+        pair_orm = PairORM(
+            tournament_id=tournament_id,
+            categoria=pair.categoria,
+            player1_id=pair.player1_id,
+            player2_id=pair.player2_id,
+            ranking_pts=pair.ranking_pts,
+            seed=pair.seed,
+            notes=pair.notes,
+            created_at=datetime.utcnow(),
+        )
+        self.session.add(pair_orm)
+        self.session.commit()
+        self.session.refresh(pair_orm)
+        return pair_orm
+
+    def get_by_id(self, pair_id: int) -> Optional[PairORM]:
+        """Get pair by ID."""
+        return self.session.query(PairORM).filter(
+            PairORM.id == pair_id
+        ).first()
+
+    def get_by_category(self, categoria: str, tournament_id: int = None) -> list[PairORM]:
+        """Get all pairs in a category for a tournament, sorted by seed."""
+        query = self.session.query(PairORM).filter(PairORM.categoria == categoria)
+        if tournament_id is not None:
+            query = query.filter(PairORM.tournament_id == tournament_id)
+        return query.order_by(PairORM.seed.asc().nullslast(), PairORM.ranking_pts.desc()).all()
+
+    def get_by_category_sorted_by_seed(self, categoria: str, tournament_id: int = None) -> list[PairORM]:
+        """Get pairs sorted by seed (for group/bracket creation)."""
+        return self.get_by_category(categoria, tournament_id)
+
+    def get_by_tournament(self, tournament_id: int) -> list[PairORM]:
+        """Get all pairs for a tournament."""
+        return self.session.query(PairORM).filter(
+            PairORM.tournament_id == tournament_id,
+        ).order_by(PairORM.categoria, PairORM.seed.asc().nullslast()).all()
+
+    def get_all(self, tournament_id: int = None) -> list[PairORM]:
+        """Get all pairs, optionally filtered by tournament."""
+        q = self.session.query(PairORM)
+        if tournament_id:
+            q = q.filter(PairORM.tournament_id == tournament_id)
+        return q.order_by(PairORM.categoria, PairORM.seed.asc().nullslast()).all()
+
+    def update(self, pair: PairORM) -> PairORM:
+        """Update an existing pair."""
+        self.session.commit()
+        self.session.refresh(pair)
+        return pair
+
+    def delete(self, pair_id: int) -> bool:
+        """Delete a pair."""
+        pair = self.get_by_id(pair_id)
+        if pair:
+            self.session.delete(pair)
+            self.session.commit()
+            return True
+        return False
+
+    def assign_seeds(self, categoria: str, tournament_id: int = None) -> list[PairORM]:
+        """Assign seeds to pairs by ranking_pts (highest = seed 1)."""
+        query = self.session.query(PairORM).filter(PairORM.categoria == categoria)
+        if tournament_id is not None:
+            query = query.filter(PairORM.tournament_id == tournament_id)
+        pairs = query.order_by(PairORM.ranking_pts.desc()).all()
+
+        for i, pair in enumerate(pairs, 1):
+            pair.seed = i
+        self.session.commit()
+        return pairs
+
+
+# ============================================================================
+# Database Migration (V2.4 Doubles)
+# ============================================================================
+
+
+def _safe_add_column(session, table: str, column: str, col_type: str):
+    """Add a column to a table if it doesn't already exist (SQLite)."""
+    from sqlalchemy import text
+    try:
+        session.execute(text(f"SELECT {column} FROM {table} LIMIT 1"))
+    except Exception:
+        session.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        session.commit()
+
+
+def migrate_v24_doubles(engine):
+    """Run V2.4 migration: add doubles support columns and tables.
+
+    Safe to run multiple times (idempotent).
+    """
+    from sqlalchemy import text, inspect
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        # Create pairs table if not exists
+        if "pairs" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS pairs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tournament_id INTEGER NOT NULL,
+                    categoria VARCHAR(20) NOT NULL,
+                    player1_id INTEGER NOT NULL,
+                    player2_id INTEGER NOT NULL,
+                    ranking_pts REAL NOT NULL DEFAULT 0,
+                    seed INTEGER,
+                    group_id INTEGER,
+                    group_number INTEGER,
+                    notes TEXT,
+                    created_at DATETIME,
+                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
+                    FOREIGN KEY (player1_id) REFERENCES players(id),
+                    FOREIGN KEY (player2_id) REFERENCES players(id),
+                    FOREIGN KEY (group_id) REFERENCES groups(id)
+                )
+            """))
+            session.commit()
+
+        # Add nullable columns to existing tables
+        _safe_add_column(session, "matches", "event_type", "VARCHAR(10) DEFAULT 'singles'")
+        _safe_add_column(session, "matches", "pair1_id", "INTEGER")
+        _safe_add_column(session, "matches", "pair2_id", "INTEGER")
+        _safe_add_column(session, "groups", "event_type", "VARCHAR(10) DEFAULT 'singles'")
+        _safe_add_column(session, "bracket_slots", "pair_id", "INTEGER")
+        _safe_add_column(session, "group_standings", "pair_id", "INTEGER")
+
+    finally:
+        session.close()

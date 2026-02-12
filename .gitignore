@@ -224,3 +224,6 @@ LICENSE_ADMIN.md
 tools/
 tmpclaude-*
 .venv-build/
+
+# Server config (contains DB credentials and secrets)
+server/api/config.php
