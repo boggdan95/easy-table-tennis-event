@@ -73,12 +73,14 @@ class TestEventTypeDetection:
             assert detect_event_type(cat) == EventType.SINGLES, f"{cat} should be SINGLES"
 
     def test_doubles_categories(self):
-        doubles = ["MD", "WD", "XD", "U13BD", "U15GD", "U17BD", "U19GD"]
+        doubles = ["MD", "WD", "XD", "U13BD", "U15GD", "U17BD", "U19GD",
+                    "U15XD", "U19MD", "U17WD"]
         for cat in doubles:
             assert detect_event_type(cat) == EventType.DOUBLES, f"{cat} should be DOUBLES"
 
     def test_teams_categories(self):
-        teams = ["MT", "WT", "U13BT", "U15GT", "U17BT", "U19GT"]
+        teams = ["MT", "WT", "U13BT", "U15GT", "U17BT", "U19GT",
+                 "U15MT", "U19WT"]
         for cat in teams:
             assert detect_event_type(cat) == EventType.TEAMS, f"{cat} should be TEAMS"
 

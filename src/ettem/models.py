@@ -29,9 +29,9 @@ def detect_event_type(category: str) -> str:
               BT/GT/MT/WT = Teams.
     """
     cat = category.upper().strip()
-    if cat.endswith(("BD", "GD")) or cat in ("MD", "WD", "XD"):
+    if cat.endswith(("BD", "GD", "MD", "WD", "XD")):
         return EventType.DOUBLES
-    elif cat.endswith(("BT", "GT")) or cat in ("MT", "WT"):
+    elif cat.endswith(("BT", "GT", "MT", "WT")):
         return EventType.TEAMS
     return EventType.SINGLES
 

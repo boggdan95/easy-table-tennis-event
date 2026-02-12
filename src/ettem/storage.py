@@ -861,10 +861,11 @@ class MatchRepository:
         ]
 
         if event_type == "doubles":
-            # For doubles, store pair IDs in pair1_id/pair2_id
+            # For doubles, store pair IDs in both player1_id/player2_id (for
+            # legacy webapp code) AND pair1_id/pair2_id (for explicit queries).
             match_orm = MatchORM(
-                player1_id=None,
-                player2_id=None,
+                player1_id=match.player1_id,
+                player2_id=match.player2_id,
                 pair1_id=match.player1_id,
                 pair2_id=match.player2_id,
                 event_type="doubles",
