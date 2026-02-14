@@ -3562,7 +3562,7 @@ async def admin_direct_bracket_form(request: Request):
         {
             "request": request,
             "available_categories": available_categories,
-            "competitors_json": json_module.dumps(competitors_json),
+            "competitors_json": json_module.dumps(competitors_json).replace("</", "<\\/"),
         }
     )
 
@@ -3690,10 +3690,26 @@ async def admin_direct_bracket_execute(
         session.commit()
 
         # Process BYE advancements
-        process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
+        process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
 
         # Sync matches with updated slots
         sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+
+        # For doubles, refresh pair IDs after BYE advancement (BYEs may have
+        # populated player1_id/player2_id in downstream rounds without setting
+        # pair1_id/pair2_id).
+        if event_type == "doubles":
+            bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
+            for m in bracket_matches:
+                if m.player1_id and not m.pair1_id:
+                    m.pair1_id = m.player1_id
+                if m.player2_id and not m.pair2_id:
+                    m.pair2_id = m.player2_id
+            saved_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+            for slot_orm in saved_slots:
+                if slot_orm.player_id and not slot_orm.is_bye and not slot_orm.pair_id:
+                    slot_orm.pair_id = slot_orm.player_id
+            session.commit()
 
         request.session["flash_message"] = f"KO Directo generado: {len(competitors)} competidores, {total_slots} slots, {matches_created} partidos"
         request.session["flash_type"] = "success"
