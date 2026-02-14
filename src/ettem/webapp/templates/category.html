@@ -26,25 +26,31 @@
         <h2 class="card-title">🏆 {{ t('nav.category') }}: {{ category }}</h2>
     </div>
     <div class="card-body">
+        {% if groups %}
         <p style="margin-bottom: 1rem;">
             <strong>{{ t('groups.title') }} (Round-Robin)</strong><br>
             <span style="color: var(--text-muted);">{{ t('matches.enter_result') }}</span>
         </p>
+        {% elif has_direct_bracket %}
+        <p style="margin-bottom: 1rem;">
+            <strong>🎯 KO Directo</strong> — Bracket eliminatorio sin fase de grupos<br>
+            <span style="color: var(--text-muted);">Competidores seadeados por ranking</span>
+        </p>
+        {% else %}
+        <p style="margin-bottom: 1rem;">
+            <span style="color: var(--text-muted);">No hay grupos ni bracket creados para esta categoría.</span>
+        </p>
+        {% endif %}
 
         <!-- Quick Actions -->
         <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
             <h4 style="margin-bottom: 1rem; font-size: 0.95rem; color: var(--text-muted);">⚡ {{ t('common.actions') }}:</h4>
             <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                {% if groups %}
                 <a href="/category/{{ category }}/standings" class="btn btn-secondary btn-sm">
                     <span>📊</span>
                     <span>{{ t('standings.title') }}</span>
                 </a>
-                {% if not groups %}
-                <a href="/admin/create-groups" class="btn btn-primary btn-sm">
-                    <span>👥</span>
-                    <span>{{ t('nav.create_groups') }}</span>
-                </a>
-                {% endif %}
                 <a href="/admin/calculate-standings" class="btn btn-success btn-sm">
                     <span>🧮</span>
                     <span>{{ t('dashboard.calculate_standings') }}</span>
@@ -53,11 +59,31 @@
                     <span>🏆</span>
                     <span>{{ t('dashboard.generate_bracket') }}</span>
                 </a>
+                {% elif has_direct_bracket %}
+                <a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
+                    <span>📋</span>
+                    <span>{{ t('bracket.bracket_matches') }}</span>
+                </a>
+                <a href="/category/{{ category }}/bracket" class="btn btn-success btn-sm">
+                    <span>🗂️</span>
+                    <span>{{ t('bracket.visual_bracket') }}</span>
+                </a>
+                {% else %}
+                <a href="/admin/create-groups" class="btn btn-primary btn-sm">
+                    <span>👥</span>
+                    <span>{{ t('nav.create_groups') }}</span>
+                </a>
+                <a href="/admin/direct-bracket" class="btn btn-warning btn-sm">
+                    <span>🎯</span>
+                    <span>KO Directo (Sin Grupos)</span>
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
+{% if groups %}
 <!-- Groups Grid -->
 <div class="grid grid-2">
     {% for group_data in groups %}
@@ -101,4 +127,22 @@
     </div>
     {% endfor %}
 </div>
+{% elif has_direct_bracket %}
+<!-- Direct Bracket info -->
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 2rem;">
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">Esta categoría usa <strong>KO Directo</strong> (sin fase de grupos).</p>
+        <div class="d-flex gap-2" style="justify-content: center;">
+            <a href="/bracket/{{ category }}" class="btn btn-primary">
+                <span>📋</span>
+                <span>Ver Partidos del Bracket</span>
+            </a>
+            <a href="/category/{{ category }}/bracket" class="btn btn-success">
+                <span>🗂️</span>
+                <span>Ver Bracket Visual</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
