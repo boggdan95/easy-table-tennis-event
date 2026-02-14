@@ -868,12 +868,20 @@ async def view_category(request: Request, category: str):
             "completed_matches": completed_matches,
         })
 
+    # Check if this category has a direct bracket (no groups)
+    has_direct_bracket = False
+    if not groups:
+        bracket_repo = BracketRepository(session)
+        bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+        has_direct_bracket = len(bracket_slots) > 0
+
     return render_template(
         "category.html",
         {
             "request": request,
             "category": category,
-            "groups": groups_data
+            "groups": groups_data,
+            "has_direct_bracket": has_direct_bracket,
         }
     )
 
@@ -3467,6 +3475,237 @@ async def admin_calculate_standings_category(
         request.session["flash_message"] = f"Error al calcular clasificaciones: {str(e)}"
         request.session["flash_type"] = "error"
         return RedirectResponse(url="/admin/calculate-standings", status_code=303)
+
+
+# ─── Direct Bracket (KO Directo) ────────────────────────────────────────────
+
+@app.get("/admin/direct-bracket", response_class=HTMLResponse)
+async def admin_direct_bracket_form(request: Request):
+    """Show form for generating a bracket directly from ranking (no group stage)."""
+    import json as json_module
+
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    group_repo = GroupRepository(session)
+    bracket_repo = BracketRepository(session)
+    tournament_repo = TournamentRepository(session)
+
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return RedirectResponse(url="/tournaments", status_code=303)
+
+    tournament_id = current_tournament.id
+
+    # Build category list with competitor counts
+    all_players = player_repo.get_all(tournament_id=tournament_id)
+    all_pairs = pair_repo.get_all(tournament_id=tournament_id)
+
+    # Group by category
+    categories_map = {}
+    for p in all_players:
+        if p.categoria not in categories_map:
+            categories_map[p.categoria] = {"players": [], "pairs": []}
+        categories_map[p.categoria]["players"].append(p)
+    for p in all_pairs:
+        if p.categoria not in categories_map:
+            categories_map[p.categoria] = {"players": [], "pairs": []}
+        categories_map[p.categoria]["pairs"].append(p)
+
+    available_categories = []
+    competitors_json = {}
+
+    for cat_name in sorted(categories_map.keys()):
+        event_type = detect_event_type(cat_name)
+        cat_data = categories_map[cat_name]
+
+        if event_type == "doubles":
+            competitors = cat_data["pairs"]
+            count = len(competitors)
+            # Build display data for JS
+            comp_list = []
+            for pair_orm in sorted(competitors, key=lambda p: (-p.ranking_pts, p.id)):
+                p1 = player_repo.get_by_id(pair_orm.player1_id)
+                p2 = player_repo.get_by_id(pair_orm.player2_id)
+                name = f"{p1.nombre} {p1.apellido} / {p2.nombre} {p2.apellido}" if p1 and p2 else f"Pair {pair_orm.id}"
+                country = f"{p1.pais_cd}/{p2.pais_cd}" if p1 and p2 else "?"
+                comp_list.append({"name": name, "country": country, "ranking_pts": pair_orm.ranking_pts})
+        else:
+            competitors = cat_data["players"]
+            count = len(competitors)
+            comp_list = []
+            for player_orm in sorted(competitors, key=lambda p: (-p.ranking_pts, p.id)):
+                comp_list.append({
+                    "name": f"{player_orm.nombre} {player_orm.apellido}",
+                    "country": player_orm.pais_cd,
+                    "ranking_pts": player_orm.ranking_pts,
+                })
+
+        if count < 2:
+            continue
+
+        # Check if groups/bracket already exist
+        groups = group_repo.get_by_category(cat_name, tournament_id=tournament_id)
+        bracket_slots = bracket_repo.get_by_category(cat_name, tournament_id=tournament_id)
+
+        available_categories.append({
+            "name": cat_name,
+            "count": count,
+            "event_type": event_type.value if hasattr(event_type, 'value') else event_type,
+            "has_groups": len(groups) > 0,
+            "has_bracket": len(bracket_slots) > 0,
+        })
+        competitors_json[cat_name] = comp_list
+
+    return render_template(
+        "admin_direct_bracket.html",
+        {
+            "request": request,
+            "available_categories": available_categories,
+            "competitors_json": json_module.dumps(competitors_json),
+        }
+    )
+
+
+@app.post("/admin/direct-bracket/execute")
+async def admin_direct_bracket_execute(
+    request: Request,
+    category: str = Form(...),
+    best_of: int = Form(5),
+    random_seed: Optional[int] = Form(None),
+    draw_mode: str = Form("seeded"),
+):
+    """Generate bracket directly from ranking_pts (no group stage)."""
+    from ettem.bracket import build_bracket_direct
+
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        bracket_repo = BracketRepository(session)
+        match_repo = MatchRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        event_type = detect_event_type(category)
+
+        # Fetch competitors sorted by ranking_pts
+        if event_type == "doubles":
+            pair_orms = pair_repo.get_by_category(category, tournament_id=tournament_id)
+            if not pair_orms:
+                request.session["flash_message"] = f"No hay parejas para la categoría {category}."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+            competitors = []
+            for po in pair_orms:
+                competitors.append(Pair(
+                    id=po.id,
+                    player1_id=po.player1_id,
+                    player2_id=po.player2_id,
+                    ranking_pts=po.ranking_pts,
+                    categoria=po.categoria,
+                    seed=po.seed,
+                ))
+        else:
+            player_orms = player_repo.get_by_category(category, tournament_id=tournament_id)
+            if not player_orms:
+                request.session["flash_message"] = f"No hay jugadores para la categoría {category}."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+            competitors = []
+            for po in player_orms:
+                competitors.append(Player(
+                    id=po.id,
+                    nombre=po.nombre,
+                    apellido=po.apellido,
+                    genero=po.genero,
+                    pais_cd=po.pais_cd,
+                    ranking_pts=po.ranking_pts,
+                    categoria=po.categoria,
+                    seed=po.seed,
+                ))
+
+        if len(competitors) < 2:
+            request.session["flash_message"] = f"Se necesitan al menos 2 competidores (hay {len(competitors)})."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+        # Delete existing bracket for this category if it exists
+        existing_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+        if existing_slots:
+            for slot in existing_slots:
+                session.delete(slot)
+            # Delete existing bracket matches
+            bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
+            for m in bracket_matches:
+                session.delete(m)
+            session.commit()
+
+        # Build bracket
+        bracket = build_bracket_direct(
+            competitors=competitors,
+            category=category,
+            random_seed=random_seed if random_seed else 42,
+            player_repo=player_repo,
+            event_type=event_type,
+            pair_repo=pair_repo,
+            draw_mode=draw_mode,
+        )
+
+        # Save bracket slots
+        total_slots = 0
+        for round_type, slots in bracket.slots.items():
+            for slot in slots:
+                bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+                total_slots += 1
+
+        # For doubles, set pair_id on the bracket slots
+        if event_type == "doubles":
+            saved_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
+            for slot_orm in saved_slots:
+                if slot_orm.player_id and not slot_orm.is_bye:
+                    slot_orm.pair_id = slot_orm.player_id
+            session.commit()
+
+        # Create matches from bracket slots
+        matches_created = create_bracket_matches(
+            category, bracket_repo, match_repo,
+            tournament_id=tournament_id, best_of=best_of
+        )
+
+        # Set event_type on created matches
+        bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
+        for m in bracket_matches:
+            m.event_type = event_type
+            if event_type == "doubles":
+                # Set pair IDs on matches
+                if m.player1_id:
+                    m.pair1_id = m.player1_id
+                if m.player2_id:
+                    m.pair2_id = m.player2_id
+        session.commit()
+
+        # Process BYE advancements
+        process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
+
+        # Sync matches with updated slots
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+
+        request.session["flash_message"] = f"KO Directo generado: {len(competitors)} competidores, {total_slots} slots, {matches_created} partidos"
+        request.session["flash_type"] = "success"
+
+        return RedirectResponse(url=f"/bracket/{category}", status_code=303)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        request.session["flash_message"] = f"Error al generar KO Directo: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/direct-bracket", status_code=303)
 
 
 @app.get("/admin/generate-bracket", response_class=HTMLResponse)

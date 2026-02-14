@@ -133,6 +133,205 @@ def get_bye_positions_for_bracket(num_qualifiers: int, bracket_size: int) -> set
     return bye_positions
 
 
+def get_seed_positions(bracket_size: int) -> list[int]:
+    """Get ITTF standard seed positions for direct seeding.
+
+    Returns a list of slot numbers in seed priority order:
+    - Index 0 = seed #1 position, index 1 = seed #2 position, etc.
+
+    Pattern ensures maximum separation of top seeds:
+    - Seeds 1,2: top and bottom of draw
+    - Seeds 3,4: midpoints of each half
+    - Seeds 5-8: midpoints of each quarter
+    - Seeds 9-16: midpoints of each eighth
+    - etc.
+    """
+    if bracket_size <= 1:
+        return [1]
+    if bracket_size == 2:
+        return [1, 2]
+
+    positions = [1, bracket_size]
+
+    # Seeds 3-4: midpoint of the draw
+    half = bracket_size // 2
+    positions.extend([half, half + 1])
+
+    # Each subsequent level: midpoints of smaller segments
+    divisor = 4
+    while len(positions) < bracket_size:
+        chunk = bracket_size // divisor
+        for i in range(1, divisor, 2):  # odd multiples: 1, 3, 5, 7...
+            pos = i * chunk
+            positions.append(pos)
+            positions.append(pos + 1)
+        divisor *= 2
+
+    return positions[:bracket_size]
+
+
+def _adjust_seed_positions_for_byes(
+    seed_positions: list[int],
+    bye_positions: set[int],
+    bracket_size: int,
+) -> list[int]:
+    """Adjust seed positions so seeds land on non-BYE slots.
+
+    When a seed position falls on a BYE, redirect the seed to the
+    BYE's match partner (the other slot in the same first-round match).
+    This ensures top seeds get BYE advancement per ITTF rules.
+    """
+    result = []
+    used = set()
+
+    for pos in seed_positions:
+        if pos in bye_positions:
+            # Redirect to match partner
+            partner = pos - 1 if pos % 2 == 0 else pos + 1
+            if partner not in used and partner not in bye_positions:
+                result.append(partner)
+                used.add(partner)
+            else:
+                # Partner conflict, find next available
+                for p in range(1, bracket_size + 1):
+                    if p not in bye_positions and p not in used:
+                        result.append(p)
+                        used.add(p)
+                        break
+        elif pos not in used:
+            result.append(pos)
+            used.add(pos)
+        else:
+            # Position already used, find next available
+            for p in range(1, bracket_size + 1):
+                if p not in bye_positions and p not in used:
+                    result.append(p)
+                    used.add(p)
+                    break
+
+    return result
+
+
+def build_bracket_direct(
+    competitors: list[Union[Player, Pair]],
+    category: str,
+    random_seed: Optional[int] = None,
+    player_repo: Optional[PlayerRepository] = None,
+    event_type: str = "singles",
+    pair_repo: Optional[PairRepository] = None,
+    draw_mode: str = "seeded",
+) -> Bracket:
+    """Build knockout bracket directly from competitors (no group stage).
+
+    Two draw modes:
+    - "seeded": Competitors placed by ranking_pts with ITTF seed separation
+    - "random": Fully random draw (lottery), all positions shuffled
+
+    Args:
+        competitors: List of Player or Pair objects
+        category: Category name
+        random_seed: Optional random seed for deterministic draws
+        player_repo: Optional PlayerRepository for same-country checks
+        event_type: 'singles' or 'doubles'
+        pair_repo: Optional PairRepository (needed for doubles)
+        draw_mode: 'seeded' (by ranking) or 'random' (lottery)
+
+    Returns:
+        Bracket object with slots filled
+    """
+    if not competitors:
+        raise ValueError("Cannot build bracket with no competitors")
+
+    if random_seed is not None:
+        random.seed(random_seed)
+
+    num_competitors = len(competitors)
+    bracket_size = next_power_of_2(num_competitors)
+    bye_positions = get_bye_positions_for_bracket(num_competitors, bracket_size)
+    first_round = get_round_type_for_size(bracket_size)
+
+    # Initialize bracket with BYEs
+    bracket = Bracket(category=category)
+    bracket.slots[first_round] = []
+    for slot_num in range(1, bracket_size + 1):
+        bracket.slots[first_round].append(BracketSlot(
+            slot_number=slot_num,
+            round_type=first_round,
+            player_id=None,
+            is_bye=slot_num in bye_positions,
+        ))
+
+    if draw_mode == "random":
+        # Random draw: shuffle competitors, place in non-BYE slots sequentially
+        shuffled = list(competitors)
+        random.shuffle(shuffled)
+        non_bye_slots = [s for s in bracket.slots[first_round] if not s.is_bye]
+        for competitor, slot in zip(shuffled, non_bye_slots):
+            slot.player_id = competitor.id
+    else:
+        # Seeded draw: sort by ranking_pts, place using ITTF seed positions
+        sorted_competitors = sorted(competitors, key=lambda c: (-c.ranking_pts, c.id))
+
+        raw_positions = get_seed_positions(bracket_size)
+        adjusted_positions = _adjust_seed_positions_for_byes(
+            raw_positions, bye_positions, bracket_size
+        )
+
+        # Shuffle within ITTF seeding tiers (seeds 1-2 fixed, 3-4 shuffled, etc.)
+        tier_start = 2
+        tier_size = 2
+        while tier_start < len(adjusted_positions):
+            tier_end = min(tier_start + tier_size, len(adjusted_positions))
+            tier_slice = adjusted_positions[tier_start:tier_end]
+            random.shuffle(tier_slice)
+            adjusted_positions[tier_start:tier_end] = tier_slice
+            tier_start = tier_end
+            tier_size *= 2
+
+        for i, competitor in enumerate(sorted_competitors):
+            if i < len(adjusted_positions):
+                pos = adjusted_positions[i]
+                bracket.slots[first_round][pos - 1].player_id = competitor.id
+
+    # Annotate same-country matches
+    if player_repo:
+        annotate_same_country_matches(
+            bracket, first_round, player_repo,
+            event_type=event_type, pair_repo=pair_repo,
+        )
+
+    # Create subsequent rounds (empty slots for winners to advance into)
+    round_progression = {
+        RoundType.ROUND_OF_128: RoundType.ROUND_OF_64,
+        RoundType.ROUND_OF_64: RoundType.ROUND_OF_32,
+        RoundType.ROUND_OF_32: RoundType.ROUND_OF_16,
+        RoundType.ROUND_OF_16: RoundType.QUARTERFINAL,
+        RoundType.QUARTERFINAL: RoundType.SEMIFINAL,
+        RoundType.SEMIFINAL: RoundType.FINAL,
+    }
+
+    current_round = first_round
+    current_size = bracket_size
+
+    while current_round in round_progression:
+        next_round = round_progression[current_round]
+        next_size = current_size // 2
+        if next_size < 1:
+            break
+        bracket.slots[next_round] = []
+        for slot_num in range(1, next_size + 1):
+            bracket.slots[next_round].append(BracketSlot(
+                slot_number=slot_num,
+                round_type=next_round,
+                player_id=None,
+                is_bye=False,
+            ))
+        current_round = next_round
+        current_size = next_size
+
+    return bracket
+
+
 def build_bracket(
     qualifiers: list[tuple[Union[Player, Pair], GroupStanding]],
     category: str,
