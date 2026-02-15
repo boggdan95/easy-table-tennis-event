@@ -1785,6 +1785,7 @@ async def view_bracket(request: Request, category: str):
         sys.stderr.flush()
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
         group_repo = GroupRepository(session)
         standing_repo = StandingRepository(session)
         tournament_repo = TournamentRepository(session)
@@ -1876,14 +1877,11 @@ async def view_bracket(request: Request, category: str):
             sys.stderr.flush()
             slots_with_players[round_type] = []
             for slot in slots:
-                player = None
-                if slot.player_id:
-                    player = player_repo.get_by_id(slot.player_id)
-                    sys.stderr.write(f"[DEBUG]   Slot {slot.slot_number}: player {player.nombre if player else 'None'}\n")
-                    sys.stderr.flush()
+                from ettem.webapp.helpers import get_bracket_slot_display
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
-                    "player": player
+                    "player": competitor
                 })
 
         # Get groups dict for lookups (filtered by tournament)
@@ -1912,10 +1910,18 @@ async def view_bracket(request: Request, category: str):
             and m.group_id is None  # bracket match
         ]
         for m in final_matches:
-            p1 = player_repo.get_by_id(m.player1_id)
-            if p1 and p1.categoria == category and m.winner_id:
-                champion_id = m.winner_id
-                break
+            # Check category via player or pair
+            from ettem.models import is_doubles_category
+            if is_doubles_category(category) and m.pair1_id:
+                p = pair_repo.get_by_id(m.pair1_id)
+                if p and p.categoria == category and m.winner_id:
+                    champion_id = m.winner_id
+                    break
+            elif m.player1_id:
+                p1 = player_repo.get_by_id(m.player1_id)
+                if p1 and p1.categoria == category and m.winner_id:
+                    champion_id = m.winner_id
+                    break
 
         # Get all bracket matches with scores for this category
         all_bracket_matches = [
@@ -1927,13 +1933,25 @@ async def view_bracket(request: Request, category: str):
         matches_by_round = {}
         bracket_best_of = 5  # default
         has_played_matches = False
+        from ettem.webapp.helpers import get_competitor_display
         for match in all_bracket_matches:
-            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            if p1 and p1.categoria == category:
+            # Determine if this match belongs to this category
+            match_in_category = False
+            if is_doubles_category(category) and match.pair1_id:
+                p = pair_repo.get_by_id(match.pair1_id)
+                if p and p.categoria == category:
+                    match_in_category = True
+            elif match.player1_id:
+                p1_check = player_repo.get_by_id(match.player1_id)
+                if p1_check and p1_check.categoria == category:
+                    match_in_category = True
+
+            if match_in_category:
                 if match.round_type not in matches_by_round:
                     matches_by_round[match.round_type] = []
 
-                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
+                p1 = get_competitor_display(match, 1, player_repo, pair_repo)
+                p2 = get_competitor_display(match, 2, player_repo, pair_repo)
                 matches_by_round[match.round_type].append({
                     "match": match,
                     "player1": p1,
@@ -1974,6 +1992,7 @@ async def view_bracket_matches(request: Request, category: str):
     session = get_db_session()
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
     bracket_repo = BracketRepository(session)
     tournament_repo = TournamentRepository(session)
 
@@ -2001,13 +2020,14 @@ async def view_bracket_matches(request: Request, category: str):
     for round_type in matches_by_round:
         matches_by_round[round_type].sort(key=lambda m: m.match_number)
 
-    # Prepare matches with player details
+    # Prepare matches with player details (using CompetitorDisplay for doubles support)
+    from ettem.webapp.helpers import get_competitor_display as _get_cd
     matches_with_players = {}
     for round_type, matches in matches_by_round.items():
         matches_with_players[round_type] = []
         for match_orm in matches:
-            player1 = player_repo.get_by_id(match_orm.player1_id)
-            player2 = player_repo.get_by_id(match_orm.player2_id)
+            player1 = _get_cd(match_orm, 1, player_repo, pair_repo)
+            player2 = _get_cd(match_orm, 2, player_repo, pair_repo)
 
             # Parse sets from JSON
             sets = []
@@ -2033,13 +2053,14 @@ async def view_bracket_matches(request: Request, category: str):
                 round_order.append(rt.value)
 
     # Check if there's a champion (final match completed)
+    from ettem.webapp.helpers import get_champion_display
     champion = None
     champion_id = None
     if RoundType.FINAL.value in matches_by_round:
         for match_data in matches_with_players[RoundType.FINAL.value]:
             if match_data["match"].winner_id:
                 champion_id = match_data["match"].winner_id
-                champion = player_repo.get_by_id(champion_id)
+                champion = get_champion_display(champion_id, category, player_repo, pair_repo)
                 break
 
     # Determine active round (first round with incomplete matches)
@@ -2092,13 +2113,16 @@ async def view_bracket_matches(request: Request, category: str):
 @app.get("/category/{category}/results", response_class=HTMLResponse)
 async def view_final_results(request: Request, category: str):
     """View final results and podium for a category."""
-    from ettem.models import RoundType, MatchStatus
+    from ettem.models import RoundType, MatchStatus, is_doubles_category
+    from ettem.webapp.helpers import get_competitor_display, CompetitorDisplay
 
     session = get_db_session()
     player_repo = PlayerRepository(session)
     match_repo = MatchRepository(session)
     bracket_repo = BracketRepository(session)
     tournament_repo = TournamentRepository(session)
+    pair_repo = PairRepository(session)
+    _is_doubles = is_doubles_category(category)
 
     # Get current tournament
     current_tournament = tournament_repo.get_current()
@@ -2130,9 +2154,18 @@ async def view_final_results(request: Request, category: str):
 
     if final_match and final_match.winner_id:
         # Tournament is complete
-        champion = player_repo.get_by_id(final_match.winner_id)
-        loser_id = final_match.player2_id if final_match.winner_id == final_match.player1_id else final_match.player1_id
-        second_place = player_repo.get_by_id(loser_id)
+        if _is_doubles:
+            # For doubles, use competitor display to show pairs
+            if final_match.winner_id == final_match.player1_id:
+                champion = get_competitor_display(final_match, 1, player_repo, pair_repo)
+                second_place = get_competitor_display(final_match, 2, player_repo, pair_repo)
+            else:
+                champion = get_competitor_display(final_match, 2, player_repo, pair_repo)
+                second_place = get_competitor_display(final_match, 1, player_repo, pair_repo)
+        else:
+            champion = player_repo.get_by_id(final_match.winner_id)
+            loser_id = final_match.player2_id if final_match.winner_id == final_match.player1_id else final_match.player1_id
+            second_place = player_repo.get_by_id(loser_id)
 
         # Get semifinal losers (3rd/4th place)
         semifinal_matches = [
@@ -2144,99 +2177,173 @@ async def view_final_results(request: Request, category: str):
         ]
 
         for sf_match in semifinal_matches:
-            p1 = player_repo.get_by_id(sf_match.player1_id)
-            if p1 and p1.categoria == category and sf_match.winner_id:
-                loser_id = sf_match.player2_id if sf_match.winner_id == sf_match.player1_id else sf_match.player1_id
-                if loser_id:
-                    loser = player_repo.get_by_id(loser_id)
-                    if loser:
-                        third_fourth.append(loser)
+            if not sf_match.winner_id:
+                continue
+            if _is_doubles:
+                # Determine loser side and get display
+                if sf_match.winner_id == sf_match.player1_id:
+                    loser_display = get_competitor_display(sf_match, 2, player_repo, pair_repo)
+                else:
+                    loser_display = get_competitor_display(sf_match, 1, player_repo, pair_repo)
+                if loser_display.id != 0:
+                    third_fourth.append(loser_display)
+            else:
+                p1 = player_repo.get_by_id(sf_match.player1_id)
+                if p1 and p1.categoria == category:
+                    loser_id = sf_match.player2_id if sf_match.winner_id == sf_match.player1_id else sf_match.player1_id
+                    if loser_id:
+                        loser = player_repo.get_by_id(loser_id)
+                        if loser:
+                            third_fourth.append(loser)
 
     # Build complete ranking
-    # Get all players in this category (filtered by tournament)
-    all_category_players = [
-        p for p in player_repo.get_all(tournament_id=tournament_id)
-        if p.categoria == category
-    ]
-
-    # Determine elimination round for each player
     player_rankings = []
 
-    for player in all_category_players:
-        # Check if player is in bracket
-        player_in_bracket = any(
-            slot.player_id == player.id for slot in bracket_slots if slot.player_id
-        )
-
-        if not player_in_bracket:
-            # Player didn't qualify for bracket
-            player_rankings.append({
-                'player': player,
-                'final_position': 99,  # Group stage only
-                'elimination_round': 'Fase de Grupos'
-            })
-            continue
-
-        # Find last match for this player (bracket matches in this tournament)
-        player_matches = [
+    if _is_doubles:
+        # For doubles, iterate over pairs
+        all_pairs = [p for p in pair_repo.get_all() if p.categoria == category]
+        all_bracket_matches = [
             m for m in match_repo.get_all()
-            if m.group_id is None  # bracket matches
-            and m.tournament_id == tournament_id
-            and (m.player1_id == player.id or m.player2_id == player.id)
-            and m.status == MatchStatus.COMPLETED.value
+            if m.group_id is None and m.tournament_id == tournament_id
         ]
 
-        if not player_matches:
-            # In bracket but no matches played yet
+        for pair in all_pairs:
+            p1 = player_repo.get_by_id(pair.player1_id)
+            p2 = player_repo.get_by_id(pair.player2_id)
+            pair_display = CompetitorDisplay.from_pair(pair, p1, p2)
+
+            # Check if pair is in bracket
+            pair_in_bracket = any(
+                (getattr(slot, 'pair_id', None) == pair.id or slot.player_id == pair.id)
+                for slot in bracket_slots if slot.player_id
+            )
+
+            if not pair_in_bracket:
+                player_rankings.append({
+                    'player': pair_display,
+                    'final_position': 99,
+                    'elimination_round': 'Fase de Grupos'
+                })
+                continue
+
+            # Find matches for this pair
+            pair_matches = [
+                m for m in all_bracket_matches
+                if (m.pair1_id == pair.id or m.pair2_id == pair.id)
+                and m.status == MatchStatus.COMPLETED.value
+            ]
+
+            if not pair_matches:
+                player_rankings.append({
+                    'player': pair_display,
+                    'final_position': 50,
+                    'elimination_round': 'Por Jugar'
+                })
+                continue
+
+            rounds_reached = [m.round_type for m in pair_matches]
+
+            if champion and pair_display.id == champion.id:
+                position = 1
+                round_name = 'Campeón'
+            elif second_place and pair_display.id == second_place.id:
+                position = 2
+                round_name = 'Subcampeón'
+            elif any(pair_display.id == p.id for p in third_fourth):
+                position = 3
+                round_name = 'Semifinal'
+            elif RoundType.SEMIFINAL.value in rounds_reached:
+                position = 3
+                round_name = 'Semifinal'
+            elif RoundType.QUARTERFINAL.value in rounds_reached:
+                position = 5
+                round_name = 'Cuartos de Final'
+            elif RoundType.ROUND_OF_16.value in rounds_reached:
+                position = 9
+                round_name = 'Ronda de 16'
+            elif RoundType.ROUND_OF_32.value in rounds_reached:
+                position = 17
+                round_name = 'Ronda de 32'
+            else:
+                position = 20
+                round_name = 'Primera Ronda'
+
+            player_rankings.append({
+                'player': pair_display,
+                'final_position': position,
+                'elimination_round': round_name
+            })
+    else:
+        # Singles: iterate over individual players
+        all_category_players = [
+            p for p in player_repo.get_all(tournament_id=tournament_id)
+            if p.categoria == category
+        ]
+
+        for player in all_category_players:
+            player_in_bracket = any(
+                slot.player_id == player.id for slot in bracket_slots if slot.player_id
+            )
+
+            if not player_in_bracket:
+                player_rankings.append({
+                    'player': player,
+                    'final_position': 99,
+                    'elimination_round': 'Fase de Grupos'
+                })
+                continue
+
+            player_matches = [
+                m for m in match_repo.get_all()
+                if m.group_id is None
+                and m.tournament_id == tournament_id
+                and (m.player1_id == player.id or m.player2_id == player.id)
+                and m.status == MatchStatus.COMPLETED.value
+            ]
+
+            if not player_matches:
+                player_rankings.append({
+                    'player': player,
+                    'final_position': 50,
+                    'elimination_round': 'Por Jugar'
+                })
+                continue
+
+            rounds_reached = [m.round_type for m in player_matches]
+
+            if player.id == champion.id if champion else None:
+                position = 1
+                round_name = 'Campeón'
+            elif player.id == second_place.id if second_place else None:
+                position = 2
+                round_name = 'Subcampeón'
+            elif any(player.id == p.id for p in third_fourth):
+                position = 3
+                round_name = 'Semifinal'
+            elif RoundType.SEMIFINAL.value in rounds_reached:
+                position = 3
+                round_name = 'Semifinal'
+            elif RoundType.QUARTERFINAL.value in rounds_reached:
+                position = 5
+                round_name = 'Cuartos de Final'
+            elif RoundType.ROUND_OF_16.value in rounds_reached:
+                position = 9
+                round_name = 'Ronda de 16'
+            elif RoundType.ROUND_OF_32.value in rounds_reached:
+                position = 17
+                round_name = 'Ronda de 32'
+            else:
+                position = 20
+                round_name = 'Primera Ronda'
+
             player_rankings.append({
                 'player': player,
-                'final_position': 50,
-                'elimination_round': 'Por Jugar'
+                'final_position': position,
+                'elimination_round': round_name
             })
-            continue
-
-        # Find the highest round reached
-        rounds_reached = [m.round_type for m in player_matches]
-
-        # Determine final position based on elimination round
-        if player.id == champion.id if champion else None:
-            position = 1
-            round_name = 'Campeón'
-        elif player.id == second_place.id if second_place else None:
-            position = 2
-            round_name = 'Subcampeón'
-        elif any(player.id == p.id for p in third_fourth):
-            position = 3
-            round_name = 'Semifinal'
-        elif RoundType.SEMIFINAL.value in rounds_reached:
-            # Lost in semifinal
-            position = 3
-            round_name = 'Semifinal'
-        elif RoundType.QUARTERFINAL.value in rounds_reached:
-            # Lost in quarterfinal
-            position = 5
-            round_name = 'Cuartos de Final'
-        elif RoundType.ROUND_OF_16.value in rounds_reached:
-            # Lost in R16
-            position = 9
-            round_name = 'Ronda de 16'
-        elif RoundType.ROUND_OF_32.value in rounds_reached:
-            # Lost in R32
-            position = 17
-            round_name = 'Ronda de 32'
-        else:
-            # First round
-            position = 20
-            round_name = 'Primera Ronda'
-
-        player_rankings.append({
-            'player': player,
-            'final_position': position,
-            'elimination_round': round_name
-        })
 
     # Sort by position
-    player_rankings.sort(key=lambda x: (x['final_position'], x['player'].seed))
+    player_rankings.sort(key=lambda x: (x['final_position'], getattr(x['player'], 'seed', None) or 99))
 
     return render_template("results.html", {
         "request": request,
@@ -3565,6 +3672,171 @@ async def admin_direct_bracket_form(request: Request):
             "competitors_json": json_module.dumps(competitors_json).replace("</", "<\\/"),
         }
     )
+
+
+@app.post("/admin/direct-bracket/preview")
+async def admin_direct_bracket_preview(
+    request: Request,
+    category: str = Form(...),
+    best_of: int = Form(5),
+    random_seed: Optional[int] = Form(None),
+    draw_mode: str = Form("seeded"),
+):
+    """Preview bracket draw before generating (sorteo)."""
+    from ettem.bracket import build_bracket_direct
+    from ettem.models import is_doubles_category
+    from ettem.webapp.helpers import CompetitorDisplay
+
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        event_type = detect_event_type(category)
+        _is_doubles = is_doubles_category(category)
+
+        # Fetch competitors sorted by ranking_pts
+        if event_type == "doubles":
+            pair_orms = pair_repo.get_by_category(category, tournament_id=tournament_id)
+            if not pair_orms:
+                request.session["flash_message"] = f"No hay parejas para la categoría {category}."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+            competitors = []
+            for po in pair_orms:
+                competitors.append(Pair(
+                    id=po.id,
+                    player1_id=po.player1_id,
+                    player2_id=po.player2_id,
+                    ranking_pts=po.ranking_pts,
+                    categoria=po.categoria,
+                    seed=po.seed,
+                ))
+        else:
+            player_orms = player_repo.get_by_category(category, tournament_id=tournament_id)
+            if not player_orms:
+                request.session["flash_message"] = f"No hay jugadores para la categoría {category}."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+            competitors = []
+            for po in player_orms:
+                competitors.append(Player(
+                    id=po.id,
+                    nombre=po.nombre,
+                    apellido=po.apellido,
+                    genero=po.genero,
+                    pais_cd=po.pais_cd,
+                    ranking_pts=po.ranking_pts,
+                    categoria=po.categoria,
+                    seed=po.seed,
+                ))
+
+        if len(competitors) < 2:
+            request.session["flash_message"] = f"Se necesitan al menos 2 competidores (hay {len(competitors)})."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/direct-bracket", status_code=303)
+
+        # Build bracket IN MEMORY (not saved to DB)
+        bracket = build_bracket_direct(
+            competitors=competitors,
+            category=category,
+            random_seed=random_seed if random_seed else 42,
+            player_repo=player_repo,
+            event_type=event_type,
+            pair_repo=pair_repo,
+            draw_mode=draw_mode,
+        )
+
+        # Extract first round matchups
+        first_round = None
+        round_priority = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
+        for rt in round_priority:
+            if rt in bracket.slots:
+                first_round = rt
+                break
+
+        matchups = []
+        if first_round:
+            slots = bracket.slots[first_round]
+            for i in range(0, len(slots), 2):
+                slot1 = slots[i]
+                slot2 = slots[i + 1] if i + 1 < len(slots) else None
+
+                # Resolve competitor display
+                def resolve_slot(slot):
+                    if not slot:
+                        return CompetitorDisplay.tbd()
+                    if slot.is_bye:
+                        return CompetitorDisplay.bye()
+                    if slot.player_id:
+                        if _is_doubles:
+                            pair_orm = pair_repo.get_by_id(slot.player_id)
+                            if pair_orm:
+                                p1 = player_repo.get_by_id(pair_orm.player1_id)
+                                p2 = player_repo.get_by_id(pair_orm.player2_id)
+                                return CompetitorDisplay.from_pair(pair_orm, p1, p2)
+                        else:
+                            player = player_repo.get_by_id(slot.player_id)
+                            if player:
+                                return CompetitorDisplay.from_player(player)
+                    return CompetitorDisplay.tbd()
+
+                c1 = resolve_slot(slot1)
+                c2 = resolve_slot(slot2)
+                is_bye_match = (slot1 and slot1.is_bye) or (slot2 and slot2.is_bye)
+
+                matchups.append({
+                    "seed1": slot1.slot_number if slot1 else "-",
+                    "seed2": slot2.slot_number if slot2 else "-",
+                    "competitor1": c1,
+                    "competitor2": c2,
+                    "is_bye": is_bye_match,
+                    "same_country": (slot1 and slot1.same_country_warning) or (slot2 and slot2 and slot2.same_country_warning),
+                })
+
+        bracket_size = len(bracket.slots.get(first_round, []))
+        num_byes = sum(1 for s in bracket.slots.get(first_round, []) if s.is_bye)
+
+        round_names = {
+            "R128": "Ronda de 128",
+            "R64": "Ronda de 64",
+            "R32": "Ronda de 32",
+            "R16": "Ronda de 16",
+            "QF": "Cuartos de Final",
+            "SF": "Semifinal",
+            "F": "Final",
+        }
+
+        context = {
+            "request": request,
+            "category": category,
+            "best_of": best_of,
+            "random_seed": random_seed if random_seed else 42,
+            "draw_mode": draw_mode,
+            "draw_mode_label": "Seeding por ranking" if draw_mode == "seeded" else "Sorteo aleatorio",
+            "num_competitors": len(competitors),
+            "bracket_size": bracket_size,
+            "num_byes": num_byes,
+            "first_round": round_names.get(first_round, first_round),
+            "matchups": matchups,
+            "is_doubles": _is_doubles,
+            "unit": "parejas" if _is_doubles else "jugadores",
+        }
+
+        return render_template("admin_direct_bracket_preview.html", context)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        request.session["flash_message"] = f"Error en preview: {str(e)}"
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/admin/direct-bracket", status_code=303)
 
 
 @app.post("/admin/direct-bracket/execute")
@@ -6161,7 +6433,8 @@ async def print_all_category_match_sheets(category: str):
 @app.get("/tournament-status", response_class=HTMLResponse)
 async def tournament_status(request: Request):
     """Show consolidated tournament status."""
-    from ettem.models import RoundType
+    from ettem.models import RoundType, is_doubles_category
+    from ettem.webapp.helpers import get_champion_display
 
     with get_db_session() as session:
         tournament_repo = TournamentRepository(session)
@@ -6170,6 +6443,7 @@ async def tournament_status(request: Request):
         player_repo = PlayerRepository(session)
         bracket_repo = BracketRepository(session)
         standing_repo = StandingRepository(session)
+        pair_repo = PairRepository(session)
 
         current_tournament = tournament_repo.get_current()
         if not current_tournament:
@@ -6217,12 +6491,20 @@ async def tournament_status(request: Request):
             rounds_status = {}
 
             if has_bracket:
+                _is_doubles = is_doubles_category(category)
                 all_matches = match_repo.get_all()
                 for m in all_matches:
                     if m.group_id is None and m.player1_id:
-                        player = player_repo.get_by_id(m.player1_id)
-                        if player and player.categoria == category:
-                            bracket_matches.append(m)
+                        if _is_doubles and m.pair1_id:
+                            pair = pair_repo.get_by_id(m.pair1_id)
+                            if pair:
+                                p1_player = player_repo.get_by_id(pair.player1_id)
+                                if p1_player and p1_player.categoria == category:
+                                    bracket_matches.append(m)
+                        else:
+                            player = player_repo.get_by_id(m.player1_id)
+                            if player and player.categoria == category:
+                                bracket_matches.append(m)
 
                 # Group by round
                 round_order = [
@@ -6247,7 +6529,7 @@ async def tournament_status(request: Request):
                 # Check for champion
                 final_matches = [m for m in bracket_matches if m.round_type == RoundType.FINAL.value]
                 if final_matches and final_matches[0].winner_id:
-                    champion = player_repo.get_by_id(final_matches[0].winner_id)
+                    champion = get_champion_display(final_matches[0].winner_id, category, player_repo, pair_repo)
 
             categories_status[category] = {
                 "groups": {
@@ -7264,15 +7546,29 @@ async def print_bracket_match_sheet(match_id: int):
     with get_db_session() as session:
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
 
         match_orm = match_repo.get_by_id(match_id)
         if not match_orm:
             return Response(content="Partido no encontrado", status_code=404)
 
-        p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
-        p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+        from ettem.webapp.helpers import get_competitor_display
+        p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
+        p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
 
-        category = p1.categoria if p1 else (p2.categoria if p2 else "Bracket")
+        # Determine category from pair or player
+        from ettem.models import is_doubles_category
+        category = "Bracket"
+        if match_orm.pair1_id:
+            pair = pair_repo.get_by_id(match_orm.pair1_id)
+            if pair:
+                category = pair.categoria
+        elif match_orm.player1_id:
+            player = player_repo.get_by_id(match_orm.player1_id)
+            if player:
+                category = player.categoria
+
+        _is_doubles = is_doubles_category(category)
 
         round_names = {
             "R32": "Ronda de 32",
@@ -7311,6 +7607,7 @@ async def print_bracket_match_sheet(match_id: int):
                 matches_data=matches_data,
                 tournament_name=get_tournament_name(),
                 category=category,
+                is_doubles=_is_doubles,
             )
 
             filename = f"partido_bracket_{match_orm.round_type}_{match_id}.pdf"
@@ -7425,11 +7722,15 @@ async def print_bracket_selected_matches(
 @app.get("/print/bracket/{category}/all-match-sheets")
 async def print_bracket_all_match_sheets(category: str):
     """Download PDF for all bracket match sheets in a category."""
+    from ettem.models import is_doubles_category
+
     with get_db_session() as session:
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
 
-        all_matches = [m for m in match_repo.get_all() if m.group_id is None]
+        _is_doubles = is_doubles_category(category)
+        bracket_matches = match_repo.get_bracket_matches_by_category(category)
 
         round_names = {
             "R32": "Ronda de 32",
@@ -7440,21 +7741,13 @@ async def print_bracket_all_match_sheets(category: str):
         }
         round_order = {"R32": 0, "R16": 1, "QF": 2, "SF": 3, "F": 4}
 
+        from ettem.webapp.helpers import get_competitor_display
         matches_data = []
-        for match_orm in all_matches:
-            p1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
-            p2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
+        for match_orm in bracket_matches:
+            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
+            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
 
-            match_category = None
-            if p1:
-                match_category = p1.categoria
-            elif p2:
-                match_category = p2.categoria
-
-            if match_category != category:
-                continue
-
-            if not p1 or not p2:
+            if p1.id == 0 and p2.id == 0:
                 continue
 
             matches_data.append({
@@ -7495,6 +7788,7 @@ async def print_bracket_all_match_sheets(category: str):
                 matches_data=matches_data_flat,
                 tournament_name=get_tournament_name(),
                 category=category,
+                is_doubles=_is_doubles,
             )
 
             filename = f"partidos_bracket_{category}.pdf"
@@ -7512,11 +7806,14 @@ async def preview_bracket_tree(request: Request, category: str):
     """Preview the bracket tree visualization for printing."""
     from collections import defaultdict, namedtuple
     from datetime import datetime
+    from ettem.models import is_doubles_category
+    from ettem.webapp.helpers import get_bracket_slot_display, get_competitor_display, get_champion_display
 
     with get_db_session() as session:
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        pair_repo = PairRepository(session)
         tournament_repo = TournamentRepository(session)
 
         # Get current tournament
@@ -7585,17 +7882,16 @@ async def preview_bracket_tree(request: Request, category: str):
                     )
                     complete_bracket[round_type].append(dummy)
 
-        # Get player details for each slot
+        # Get competitor details for each slot (doubles-aware)
+        _is_doubles = is_doubles_category(category)
         slots_with_players = {}
         for round_type, slots in complete_bracket.items():
             slots_with_players[round_type] = []
             for slot in slots:
-                player = None
-                if slot.player_id:
-                    player = player_repo.get_by_id(slot.player_id)
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
-                    "player": player
+                    "player": competitor
                 })
 
         # Get bracket matches with scores
@@ -7606,23 +7902,35 @@ async def preview_bracket_tree(request: Request, category: str):
         champion = None
 
         for match in all_bracket_matches:
-            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            if p1 and p1.categoria == category:
-                if match.round_type not in matches_by_round:
-                    matches_by_round[match.round_type] = []
+            # Category filter: for doubles check pair, for singles check player
+            if _is_doubles and match.pair1_id:
+                pair = pair_repo.get_by_id(match.pair1_id)
+                if not pair:
+                    continue
+                p1_player = player_repo.get_by_id(pair.player1_id)
+                if not p1_player or p1_player.categoria != category:
+                    continue
+            else:
+                p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+                if not p1 or p1.categoria != category:
+                    continue
 
-                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
-                matches_by_round[match.round_type].append({
-                    "match": match,
-                    "player1": p1,
-                    "player2": p2,
-                })
+            if match.round_type not in matches_by_round:
+                matches_by_round[match.round_type] = []
 
-                bracket_best_of = match.best_of or 5
+            cd1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            cd2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            matches_by_round[match.round_type].append({
+                "match": match,
+                "player1": cd1,
+                "player2": cd2,
+            })
 
-                # Check for champion (final match winner)
-                if match.round_type == 'F' and match.winner_id:
-                    champion = player_repo.get_by_id(match.winner_id)
+            bracket_best_of = match.best_of or 5
+
+            # Check for champion (final match winner)
+            if match.round_type == 'F' and match.winner_id:
+                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo)
 
         # Round display names
         round_names = {
@@ -7648,6 +7956,7 @@ async def preview_bracket_tree(request: Request, category: str):
             "round_names": round_names,
             "best_of": bracket_best_of,
             "champion": champion,
+            "is_doubles": _is_doubles,
             "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
 
@@ -7659,11 +7968,14 @@ async def print_bracket_tree(category: str):
     """Download PDF for bracket tree visualization."""
     from collections import defaultdict, namedtuple
     from datetime import datetime
+    from ettem.models import is_doubles_category
+    from ettem.webapp.helpers import get_bracket_slot_display, get_competitor_display, get_champion_display
 
     with get_db_session() as session:
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        pair_repo = PairRepository(session)
         tournament_repo = TournamentRepository(session)
 
         # Get current tournament
@@ -7732,17 +8044,16 @@ async def print_bracket_tree(category: str):
                     )
                     complete_bracket[round_type].append(dummy)
 
-        # Get player details for each slot
+        # Get competitor details for each slot (doubles-aware)
+        _is_doubles = is_doubles_category(category)
         slots_with_players = {}
         for round_type, slots in complete_bracket.items():
             slots_with_players[round_type] = []
             for slot in slots:
-                player = None
-                if slot.player_id:
-                    player = player_repo.get_by_id(slot.player_id)
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
-                    "player": player
+                    "player": competitor
                 })
 
         # Get bracket matches with scores
@@ -7753,23 +8064,35 @@ async def print_bracket_tree(category: str):
         champion = None
 
         for match in all_bracket_matches:
-            p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
-            if p1 and p1.categoria == category:
-                if match.round_type not in matches_by_round:
-                    matches_by_round[match.round_type] = []
+            # Category filter: for doubles check pair, for singles check player
+            if _is_doubles and match.pair1_id:
+                pair = pair_repo.get_by_id(match.pair1_id)
+                if not pair:
+                    continue
+                p1_player = player_repo.get_by_id(pair.player1_id)
+                if not p1_player or p1_player.categoria != category:
+                    continue
+            else:
+                p1 = player_repo.get_by_id(match.player1_id) if match.player1_id else None
+                if not p1 or p1.categoria != category:
+                    continue
 
-                p2 = player_repo.get_by_id(match.player2_id) if match.player2_id else None
-                matches_by_round[match.round_type].append({
-                    "match": match,
-                    "player1": p1,
-                    "player2": p2,
-                })
+            if match.round_type not in matches_by_round:
+                matches_by_round[match.round_type] = []
 
-                bracket_best_of = match.best_of or 5
+            cd1 = get_competitor_display(match, 1, player_repo, pair_repo)
+            cd2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            matches_by_round[match.round_type].append({
+                "match": match,
+                "player1": cd1,
+                "player2": cd2,
+            })
 
-                # Check for champion (final match winner)
-                if match.round_type == 'F' and match.winner_id:
-                    champion = player_repo.get_by_id(match.winner_id)
+            bracket_best_of = match.best_of or 5
+
+            # Check for champion (final match winner)
+            if match.round_type == 'F' and match.winner_id:
+                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo)
 
         # Round display names
         round_names = {
@@ -7791,6 +8114,7 @@ async def print_bracket_tree(category: str):
             "round_names": round_names,
             "best_of": bracket_best_of,
             "champion": champion,
+            "is_doubles": _is_doubles,
             "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
 

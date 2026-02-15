@@ -237,7 +237,7 @@
                         {% endif %}
                             <span class="slot-num">{{ slot1.slot.slot_number }}</span>
                             {% if slot1.slot.is_bye %}BYE
-                            {% elif slot1.player %}{{ slot1.player.apellido|upper }} {{ slot1.player.nombre[0] }}. ({{ slot1.player.pais_cd }})
+                            {% elif slot1.player %}{% if is_doubles %}{{ slot1.player.nombre }} {{ slot1.player.apellido }}{% else %}{{ slot1.player.apellido|upper }} {{ slot1.player.nombre[0] }}.{% endif %} ({{ slot1.player.pais_cd }})
                                 {% if is_done %}
                                     <span class="slot-score">
                                         {% if match_data.player1 and match_data.player1.id == slot1.player.id %}{{ match_data.match.player1_sets_won }}
@@ -267,7 +267,7 @@
                         {% endif %}
                             <span class="slot-num">{{ slot2.slot.slot_number }}</span>
                             {% if slot2.slot.is_bye %}BYE
-                            {% elif slot2.player %}{{ slot2.player.apellido|upper }} {{ slot2.player.nombre[0] }}. ({{ slot2.player.pais_cd }})
+                            {% elif slot2.player %}{% if is_doubles %}{{ slot2.player.nombre }} {{ slot2.player.apellido }}{% else %}{{ slot2.player.apellido|upper }} {{ slot2.player.nombre[0] }}.{% endif %} ({{ slot2.player.pais_cd }})
                                 {% if is_done %}
                                     <span class="slot-score">
                                         {% if match_data.player1 and match_data.player1.id == slot2.player.id %}{{ match_data.match.player1_sets_won }}

@@ -109,3 +109,55 @@ def get_competitor_display(match_orm, side: int, player_repo, pair_repo=None):
         if player:
             return CompetitorDisplay.from_player(player)
     return CompetitorDisplay.tbd()
+
+
+def get_bracket_slot_display(slot_orm, category, player_repo, pair_repo=None):
+    """Get CompetitorDisplay for a bracket slot.
+
+    For doubles categories, uses slot.pair_id to fetch pair and build display.
+    For singles, uses slot.player_id as before.
+    """
+    from ettem.models import is_doubles_category
+
+    if slot_orm.is_bye:
+        return CompetitorDisplay.bye()
+
+    if is_doubles_category(category) and pair_repo:
+        pair_id = getattr(slot_orm, "pair_id", None) or slot_orm.player_id
+        if pair_id:
+            pair_orm = pair_repo.get_by_id(pair_id)
+            if pair_orm:
+                p1 = player_repo.get_by_id(pair_orm.player1_id)
+                p2 = player_repo.get_by_id(pair_orm.player2_id)
+                return CompetitorDisplay.from_pair(pair_orm, p1, p2)
+        return CompetitorDisplay.tbd()
+
+    # Singles
+    if slot_orm.player_id:
+        player = player_repo.get_by_id(slot_orm.player_id)
+        if player:
+            return CompetitorDisplay.from_player(player)
+    return CompetitorDisplay.tbd()
+
+
+def get_champion_display(winner_id, category, player_repo, pair_repo=None):
+    """Get CompetitorDisplay for a match winner.
+
+    For doubles, winner_id is a pair_id. For singles, it's a player_id.
+    """
+    from ettem.models import is_doubles_category
+
+    if not winner_id:
+        return None
+
+    if is_doubles_category(category) and pair_repo:
+        pair_orm = pair_repo.get_by_id(winner_id)
+        if pair_orm:
+            p1 = player_repo.get_by_id(pair_orm.player1_id)
+            p2 = player_repo.get_by_id(pair_orm.player2_id)
+            return CompetitorDisplay.from_pair(pair_orm, p1, p2)
+
+    player = player_repo.get_by_id(winner_id)
+    if player:
+        return CompetitorDisplay.from_player(player)
+    return None

@@ -207,7 +207,7 @@ class TestDirectBracketE2E:
         expect(competitors_card).to_be_visible()
 
     def test_08_generate_seeded_bracket(self, page: Page):
-        """Generate a seeded direct bracket for MD."""
+        """Generate a seeded direct bracket for MD via preview."""
         page.goto("/admin/direct-bracket")
         page.wait_for_load_state("networkidle")
 
@@ -216,7 +216,17 @@ class TestDirectBracketE2E:
         page.select_option("select[name='draw_mode']", "seeded")
         page.fill("input[name='random_seed']", "42")
 
-        page.click("button:has-text('Generar KO Directo')")
+        # Click "Ver Sorteo" to see preview
+        page.click("button:has-text('Ver Sorteo')")
+        page.wait_for_load_state("networkidle")
+
+        # Should be on preview page with matchups
+        content = page.content()
+        assert "Vista Previa" in content or "Sorteo" in content
+        assert "Confirmar" in content
+
+        # Click "Confirmar y Generar" to execute
+        page.click("button:has-text('Confirmar y Generar')")
         page.wait_for_load_state("networkidle")
 
         # Should redirect to bracket page
@@ -244,7 +254,7 @@ class TestDirectBracketE2E:
         assert "KO Directo" in content
 
     def test_11_regenerate_with_random_draw(self, page: Page):
-        """Regenerate bracket with random draw mode."""
+        """Regenerate bracket with random draw mode via preview."""
         page.goto("/admin/direct-bracket")
         page.wait_for_load_state("networkidle")
 
@@ -252,7 +262,11 @@ class TestDirectBracketE2E:
         page.select_option("select[name='draw_mode']", "random")
         page.fill("input[name='random_seed']", "99")
 
-        page.click("button:has-text('Generar KO Directo')")
+        # Click "Ver Sorteo" then confirm
+        page.click("button:has-text('Ver Sorteo')")
+        page.wait_for_load_state("networkidle")
+
+        page.click("button:has-text('Confirmar y Generar')")
         page.wait_for_load_state("networkidle")
 
         # Should redirect to bracket page
