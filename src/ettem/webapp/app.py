@@ -2524,7 +2524,8 @@ async def admin_import_players_form(request: Request):
             "pairs_display": pairs_display,
             "singles_categories": singles_categories,
             "doubles_categories": doubles_categories,
-            "current_tournament": current_tournament
+            "current_tournament": current_tournament,
+            "tournament": current_tournament
         }
     )
 
@@ -3368,7 +3369,8 @@ async def admin_create_groups_form(request: Request):
         {
             "request": request,
             "available_categories": available_categories,
-            "existing_groups": existing_groups
+            "existing_groups": existing_groups,
+            "tournament": current_tournament
         }
     )
 
