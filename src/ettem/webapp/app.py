@@ -3394,6 +3394,11 @@ async def admin_create_groups_preview(
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/admin/create-groups", status_code=303)
 
+        # Auto-assign seeds if not already assigned
+        if any(p.seed is None for p in player_orms):
+            player_repo.assign_seeds(category)
+            player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+
         # Convert ORM to domain models
         players = []
         for p_orm in player_orms:
@@ -3494,6 +3499,11 @@ async def admin_create_groups_execute(
                 request.session["flash_type"] = "error"
                 return RedirectResponse(url="/admin/create-groups", status_code=303)
 
+            # Auto-assign seeds if not already assigned
+            if any(p.seed is None for p in pair_orms):
+                pair_repo.assign_seeds(category, tournament_id=tournament_id)
+                pair_orms = pair_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+
             # Convert ORM to domain Pair models
             competitors = []
             for pair_orm in pair_orms:
@@ -3519,6 +3529,11 @@ async def admin_create_groups_execute(
                 request.session["flash_message"] = f"No se encontraron jugadores para la categoría {category}. Importa jugadores primero."
                 request.session["flash_type"] = "error"
                 return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+            # Auto-assign seeds if not already assigned
+            if any(p.seed is None for p in player_orms):
+                player_repo.assign_seeds(category)
+                player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
 
             # Convert ORM to domain Player models
             competitors = []
@@ -4073,7 +4088,7 @@ async def admin_direct_bracket_manual_save(request: Request, category: str):
                 session.delete(m)
             session.commit()
 
-        # Create bracket slots
+        # Create first round bracket slots
         for slot_num in range(1, bracket_size + 1):
             value = slot_data.get(slot_num, "")
             is_bye = (value == "BYE")
@@ -4089,6 +4104,36 @@ async def admin_direct_bracket_manual_save(request: Request, category: str):
                 category,
                 tournament_id=tournament_id,
             )
+
+        # Create subsequent round slots (empty placeholders for winners to advance into)
+        round_progression = {
+            RoundType.ROUND_OF_128: RoundType.ROUND_OF_64,
+            RoundType.ROUND_OF_64: RoundType.ROUND_OF_32,
+            RoundType.ROUND_OF_32: RoundType.ROUND_OF_16,
+            RoundType.ROUND_OF_16: RoundType.QUARTERFINAL,
+            RoundType.QUARTERFINAL: RoundType.SEMIFINAL,
+            RoundType.SEMIFINAL: RoundType.FINAL,
+        }
+        current_round = first_round
+        current_size = bracket_size
+        while current_round in round_progression:
+            next_round = round_progression[current_round]
+            next_size = current_size // 2
+            if next_size < 1:
+                break
+            for slot_num in range(1, next_size + 1):
+                bracket_repo.create_slot(
+                    BracketSlot(
+                        slot_number=slot_num,
+                        round_type=next_round,
+                        player_id=None,
+                        is_bye=False,
+                    ),
+                    category,
+                    tournament_id=tournament_id,
+                )
+            current_round = next_round
+            current_size = next_size
 
         # For doubles, set pair_id
         if _is_doubles:
@@ -8749,9 +8794,7 @@ async def admin_scheduler(request: Request):
 
         tournament = tournament_repo.get_current()
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         session_repo = SessionRepository(session)
         sessions = session_repo.get_by_tournament(tournament.id)
@@ -8839,9 +8882,7 @@ async def save_scheduler_config(
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         tournament.num_tables = num_tables
         tournament.default_match_duration = default_match_duration
@@ -8873,9 +8914,7 @@ async def create_session(
 
         tournament = tournament_repo.get_current()
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         session_repo = SessionRepository(session)
 
@@ -8955,9 +8994,7 @@ async def scheduler_grid(request: Request, session_id: int):
 
         tournament = tournament_repo.get_current()
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         session_repo = SessionRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
@@ -9833,9 +9870,7 @@ async def admin_table_config(request: Request):
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         table_config_repo = TableConfigRepository(session)
         table_lock_repo = TableLockRepository(session)
@@ -9885,9 +9920,7 @@ async def admin_table_config_initialize(request: Request, num_tables: int = Form
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         table_config_repo = TableConfigRepository(session)
         table_config_repo.initialize_tables(tournament.id, num_tables, default_mode)
@@ -9908,9 +9941,7 @@ async def admin_table_config_add(request: Request, name: str = Form(None), mode:
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         table_config_repo = TableConfigRepository(session)
         existing_tables = table_config_repo.get_by_tournament(tournament.id)
@@ -9992,9 +10023,7 @@ async def admin_table_config_qr_codes(request: Request):
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            request.session["flash_message"] = "No hay torneo activo"
-            request.session["flash_type"] = "error"
-            return RedirectResponse(url="/", status_code=303)
+            return RedirectResponse(url="/tournaments", status_code=303)
 
         table_config_repo = TableConfigRepository(session)
         tables = table_config_repo.get_by_tournament(tournament.id, active_only=True)

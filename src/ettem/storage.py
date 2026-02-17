@@ -641,16 +641,15 @@ class PlayerRepository:
             tournament_id: Optional tournament ID to filter by
 
         Returns:
-            List of PlayerORM instances sorted by seed (1 first)
+            List of PlayerORM instances sorted by seed (seeded first, then by ranking_pts)
         """
         query = (
             self.session.query(PlayerORM)
             .filter(PlayerORM.categoria == category)
-            .filter(PlayerORM.seed.isnot(None))
         )
         if tournament_id is not None:
             query = query.filter(PlayerORM.tournament_id == tournament_id)
-        return query.order_by(PlayerORM.seed).all()
+        return query.order_by(PlayerORM.seed.asc().nullslast(), PlayerORM.ranking_pts.desc()).all()
 
     def get_all(self, tournament_id: int = None) -> list[PlayerORM]:
         """Get all players, optionally filtered by tournament.
