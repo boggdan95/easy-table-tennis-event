@@ -9,10 +9,12 @@
     <span>←</span>
     <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
+{% if has_groups %}
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">
     <span>👥</span>
     <span>{{ t('nav.groups') }}</span>
 </a>
+{% endif %}
 {% if pending_byes is defined and pending_byes > 0 %}
 <button onclick="confirmProcessByes('{{ category }}', {{ pending_byes }})" class="btn btn-primary btn-sm" title="{{ t('bracket.process_byes') }}">
     <span>⏩</span>

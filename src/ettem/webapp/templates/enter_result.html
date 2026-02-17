@@ -11,7 +11,7 @@
     <span>{{ t('common.cancel') }}</span>
 </a>
 {% else %}
-<a href="/bracket/{{ player1.categoria }}" class="btn btn-secondary btn-sm">
+<a href="/bracket/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
     <span>{{ t('common.cancel') }}</span>
 </a>
@@ -41,13 +41,13 @@
     <div class="card-body">
         <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; font-size: 1.25rem;">
             <div style="text-align: right; flex: 1;">
-                <strong>{{ player1.nombre }} {{ player1.apellido }}</strong>
-                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ player1.pais_cd }}</span>
+                <strong>{% if is_doubles %}{{ display1.full_name }}{% else %}{{ player1.nombre }} {{ player1.apellido }}{% endif %}</strong>
+                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ display1.pais_cd }}</span>
             </div>
             <div style="font-size: 1.5rem; color: var(--text-muted);">VS</div>
             <div style="text-align: left; flex: 1;">
-                <strong>{{ player2.nombre }} {{ player2.apellido }}</strong>
-                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ player2.pais_cd }}</span>
+                <strong>{% if is_doubles %}{{ display2.full_name }}{% else %}{{ player2.nombre }} {{ player2.apellido }}{% endif %}</strong>
+                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ display2.pais_cd }}</span>
             </div>
         </div>
     </div>
@@ -79,7 +79,7 @@
                     <table class="table" style="margin: 0;">
                         <thead>
                             <tr>
-                                <th style="width: 180px;">{{ t('standings.player') }}</th>
+                                <th style="width: 180px;">{% if is_doubles %}Pareja{% else %}{{ t('standings.player') }}{% endif %}</th>
                                 {% for i in range(1, best_of + 1) %}
                                 <th style="width: 100px; text-align: center;">{{ t('matches.set_n', n=i) }}</th>
                                 {% endfor %}
@@ -87,7 +87,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><strong>{{ player1.nombre[0] }}. {{ player1.apellido }}</strong></td>
+                                <td><strong>{% if is_doubles %}{{ display1.nombre }} {{ display1.apellido }}{% else %}{{ player1.nombre[0] }}. {{ player1.apellido }}{% endif %}</strong></td>
                                 {% for i in range(1, best_of + 1) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
@@ -110,7 +110,7 @@
                                 {% endfor %}
                             </tr>
                             <tr>
-                                <td><strong>{{ player2.nombre[0] }}. {{ player2.apellido }}</strong></td>
+                                <td><strong>{% if is_doubles %}{{ display2.nombre }} {{ display2.apellido }}{% else %}{{ player2.nombre[0] }}. {{ player2.apellido }}{% endif %}</strong></td>
                                 {% for i in range(1, best_of + 1) %}
                                 {% set set_data = match.sets[i-1] if match.sets and i <= match.sets|length else none %}
                                 {# If form_values exists (validation error), use it; otherwise use saved set_data #}
@@ -150,15 +150,15 @@
                     </label>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span style="color: var(--text-secondary);">{{ t('matches.winner') }}:</span>
-                        <select name="winner_id" class="form-control" style="max-width: 250px; margin: 0;">
+                        <select name="winner_id" class="form-control" style="max-width: 300px; margin: 0;">
                             <option value="">- {{ t('common.select') }} -</option>
                             <option value="{{ player1.id }}"
                                     {% if match.winner_id == player1.id %}selected{% endif %}>
-                                {{ player1.nombre }} {{ player1.apellido }}
+                                {% if is_doubles %}{{ display1.full_name }}{% else %}{{ player1.nombre }} {{ player1.apellido }}{% endif %}
                             </option>
                             <option value="{{ player2.id }}"
                                     {% if match.winner_id == player2.id %}selected{% endif %}>
-                                {{ player2.nombre }} {{ player2.apellido }}
+                                {% if is_doubles %}{{ display2.full_name }}{% else %}{{ player2.nombre }} {{ player2.apellido }}{% endif %}
                             </option>
                         </select>
                     </div>

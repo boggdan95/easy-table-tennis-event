@@ -1,9 +1,0 @@
-id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
-1,Juan,Perez,M,ESP,1200,MD
-2,Pedro,Lopez,M,ESP,1100,MD
-3,Carlos,Rodriguez,M,MEX,1000,MD
-4,Miguel,Sanchez,M,ARG,900,MD
-5,David,Ramirez,M,MEX,800,MD
-6,Luis,Morales,M,COL,700,MD
-7,Pablo,Torres,M,ARG,600,MD
-8,Diego,Silva,M,COL,500,MD

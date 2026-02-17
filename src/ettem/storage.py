@@ -975,18 +975,19 @@ class MatchRepository:
             query = query.filter(MatchORM.tournament_id == tournament_id)
         return query.order_by(MatchORM.round_type, MatchORM.match_number).all()
 
-    def get_bracket_match_by_round_and_number(self, category: str, round_type: str, match_number: int) -> Optional[MatchORM]:
+    def get_bracket_match_by_round_and_number(self, category: str, round_type: str, match_number: int, tournament_id: int = None) -> Optional[MatchORM]:
         """Get a specific bracket match by category, round type, and match number.
 
         Args:
             category: Category name
             round_type: Round type (R16, QF, SF, F)
             match_number: Match number within the round
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             MatchORM if found, None otherwise
         """
-        return (
+        query = (
             self.session.query(MatchORM)
             .filter(
                 MatchORM.category == category,
@@ -994,8 +995,10 @@ class MatchRepository:
                 MatchORM.round_type == round_type,
                 MatchORM.match_number == match_number
             )
-            .first()
         )
+        if tournament_id is not None:
+            query = query.filter(MatchORM.tournament_id == tournament_id)
+        return query.first()
 
     def delete_bracket_matches_by_category(self, category: str, tournament_id: int = None) -> int:
         """Delete all bracket matches for a category.

@@ -30,7 +30,8 @@
                                 data-has-groups="{{ 'true' if cat.has_groups else 'false' }}"
                                 data-has-bracket="{{ 'true' if cat.has_bracket else 'false' }}"
                                 data-event-type="{{ cat.event_type }}"
-                                {% if cat.has_bracket %}style="color: #ffc107;"{% endif %}>
+                                {% if cat.has_bracket %}style="color: #ffc107;"{% endif %}
+                                {% if cat.name == selected_category %}selected{% endif %}>
                             {{ cat.name }} ({{ cat.count }} {% if cat.event_type == 'doubles' %}parejas{% else %}jugadores{% endif %}){% if cat.has_bracket %} ⚠️ tiene bracket{% endif %}
                         </option>
                         {% endfor %}
@@ -53,10 +54,11 @@
                     <select name="draw_mode" class="form-control" id="draw-mode-select" onchange="updateDrawMode()">
                         <option value="seeded">Seeding por ranking_pts</option>
                         <option value="random">Sorteo aleatorio</option>
+                        <option value="manual">Manual (drag & drop)</option>
                     </select>
-                    <p class="form-help">Seeding ubica a los mejores en posiciones separadas. Sorteo es completamente al azar.</p>
+                    <p class="form-help" id="draw-mode-help">Seeding ubica a los mejores en posiciones separadas. Sorteo es completamente al azar.</p>
                 </div>
-                <div class="form-section">
+                <div class="form-section" id="random-seed-section">
                     <label class="form-label">Semilla Aleatoria (Random Seed)</label>
                     <input type="number" name="random_seed" class="form-control" placeholder="42" value="42">
                     <p class="form-help">Para resultados reproducibles en el sorteo.</p>
@@ -89,10 +91,13 @@
                 </div>
             </div>
 
+            <!-- Hidden input for manual order -->
+            <input type="hidden" name="manual_order" id="manual-order-input" value="">
+
             <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success">
+                <button type="submit" class="btn btn-success" id="btn-submit-draw">
                     <span>🎯</span>
-                    <span>Ver Sorteo</span>
+                    <span id="btn-submit-draw-text">Ver Sorteo</span>
                 </button>
                 <a href="/admin/generate-bracket" class="btn btn-secondary">
                     <span>🏆</span>
@@ -110,15 +115,17 @@
 <!-- Competitors Preview Table -->
 {% if available_categories %}
 <div class="card" id="competitors-card" style="display: none;">
-    <div class="card-header">
-        <h3 class="card-title" id="competitors-title">Competidores</h3>
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 class="card-title" id="competitors-title" style="margin: 0;">Competidores</h3>
+        <span id="drag-hint" style="display: none; font-size: 0.85rem; color: var(--text-muted);">Arrastra las filas para reordenar</span>
     </div>
     <div class="card-body" style="padding: 0;">
         <div class="table-responsive">
-            <table class="table">
+            <table class="table" id="competitors-table">
                 <thead>
                     <tr>
-                        <th>Seed</th>
+                        <th id="th-drag" style="display: none; width: 40px;"></th>
+                        <th>Pos</th>
                         <th>Competidor</th>
                         <th>País</th>
                         <th>Ranking Pts</th>
@@ -132,9 +139,33 @@
 </div>
 {% endif %}
 
+<style>
+.drag-handle {
+    cursor: grab;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+#competitors-body tr.dragging {
+    opacity: 0.4;
+    background: rgba(33, 150, 243, 0.1);
+}
+#competitors-body tr.drag-over {
+    border-top: 3px solid var(--info);
+}
+#competitors-body.manual-mode tr {
+    transition: background 0.15s;
+}
+#competitors-body.manual-mode tr:hover {
+    background: rgba(33, 150, 243, 0.08);
+}
+</style>
+
 <script>
 // Competitors data passed from server
 const competitorsByCategory = {{ competitors_json|safe }};
+let currentCompetitors = []; // current ordered list for manual mode
 
 function updatePreview() {
     const select = document.getElementById('category-select');
@@ -167,34 +198,140 @@ function updatePreview() {
     const drawMode = document.getElementById('draw-mode-select').value;
     let text = `${count} ${unit} → bracket de ${bracketSize}`;
     if (byes > 0) text += ` con ${byes} BYE(s)`;
-    text += drawMode === 'random' ? '. Sorteo aleatorio.' : '. Seeding por ranking_pts.';
+    if (drawMode === 'random') text += '. Sorteo aleatorio.';
+    else if (drawMode === 'manual') text += '. Orden manual — arrastra para reordenar.';
+    else text += '. Seeding por ranking_pts.';
     previewText.textContent = text;
     previewInfo.style.display = 'flex';
 
     // Show competitors table
     const competitors = competitorsByCategory[option.value] || [];
+    currentCompetitors = competitors.map((c, i) => ({...c, originalIndex: i}));
+
     if (competitors.length > 0) {
-        const tbody = document.getElementById('competitors-body');
-        tbody.innerHTML = '';
-        competitors.forEach((c, i) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><span class="badge badge-primary">${i + 1}</span></td>
-                <td><strong>${c.name}</strong></td>
-                <td><span class="badge badge-secondary">${c.country}</span></td>
-                <td>${c.ranking_pts}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-        const drawMode = document.getElementById('draw-mode-select').value;
-        const titlePrefix = drawMode === 'random' ? 'Sorteo' : 'Seeding';
-        document.getElementById('competitors-title').textContent = `${titlePrefix}: ${option.value} (${count} ${unit})`;
+        renderCompetitorsTable(drawMode, option.value, count, unit);
         competitorsCard.style.display = 'block';
     }
 }
 
+function renderCompetitorsTable(drawMode, catName, count, unit) {
+    const tbody = document.getElementById('competitors-body');
+    const thDrag = document.getElementById('th-drag');
+    const dragHint = document.getElementById('drag-hint');
+    const isManual = drawMode === 'manual';
+
+    thDrag.style.display = isManual ? 'table-cell' : 'none';
+    dragHint.style.display = isManual ? 'inline' : 'none';
+    tbody.className = isManual ? 'manual-mode' : '';
+
+    tbody.innerHTML = '';
+    currentCompetitors.forEach((c, i) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-index', i);
+        if (isManual) {
+            tr.draggable = true;
+            tr.addEventListener('dragstart', onDragStart);
+            tr.addEventListener('dragover', onDragOver);
+            tr.addEventListener('dragenter', onDragEnter);
+            tr.addEventListener('dragleave', onDragLeave);
+            tr.addEventListener('drop', onDrop);
+            tr.addEventListener('dragend', onDragEnd);
+        }
+        let html = '';
+        if (isManual) html += `<td class="drag-handle">☰</td>`;
+        html += `
+            <td><span class="badge badge-primary">${i + 1}</span></td>
+            <td><strong>${c.name}</strong></td>
+            <td><span class="badge badge-secondary">${c.country}</span></td>
+            <td>${c.ranking_pts}</td>
+        `;
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+    });
+
+    const titleLabels = { seeded: 'Seeding', random: 'Sorteo', manual: 'Orden Manual' };
+    document.getElementById('competitors-title').textContent =
+        `${titleLabels[drawMode] || 'Seeding'}: ${catName} (${count} ${unit})`;
+
+    updateManualOrderInput();
+}
+
+// Drag & Drop handlers
+let dragSrcRow = null;
+
+function onDragStart(e) {
+    dragSrcRow = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.getAttribute('data-index'));
+}
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function onDragEnter(e) { e.preventDefault(); this.classList.add('drag-over'); }
+function onDragLeave(e) { this.classList.remove('drag-over'); }
+function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    if (dragSrcRow === this) return;
+
+    const fromIdx = parseInt(dragSrcRow.getAttribute('data-index'));
+    const toIdx = parseInt(this.getAttribute('data-index'));
+
+    // Reorder array
+    const [moved] = currentCompetitors.splice(fromIdx, 1);
+    currentCompetitors.splice(toIdx, 0, moved);
+
+    // Re-render
+    const drawMode = document.getElementById('draw-mode-select').value;
+    const select = document.getElementById('category-select');
+    const option = select.options[select.selectedIndex];
+    const count = parseInt(option.getAttribute('data-count'));
+    const eventType = option.getAttribute('data-event-type');
+    const unit = eventType === 'doubles' ? 'parejas' : 'jugadores';
+    renderCompetitorsTable(drawMode, option.value, count, unit);
+}
+function onDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('#competitors-body tr').forEach(r => r.classList.remove('drag-over'));
+}
+
+function updateManualOrderInput() {
+    const drawMode = document.getElementById('draw-mode-select').value;
+    if (drawMode === 'manual') {
+        const order = currentCompetitors.map(c => c.originalIndex);
+        document.getElementById('manual-order-input').value = JSON.stringify(order);
+    } else {
+        document.getElementById('manual-order-input').value = '';
+    }
+}
+
 function updateDrawMode() {
+    const drawMode = document.getElementById('draw-mode-select').value;
+    const helpEl = document.getElementById('draw-mode-help');
+    const seedSection = document.getElementById('random-seed-section');
+
+    const btnText = document.getElementById('btn-submit-draw-text');
+    if (drawMode === 'manual') {
+        helpEl.textContent = 'Arrastra los competidores para definir el orden de la llave manualmente.';
+        seedSection.style.display = 'none';
+        btnText.textContent = 'Realizar Sorteo';
+    } else if (drawMode === 'random') {
+        helpEl.textContent = 'Los competidores se ubican completamente al azar.';
+        seedSection.style.display = 'block';
+        btnText.textContent = 'Realizar Sorteo';
+    } else {
+        helpEl.textContent = 'Los mejores rankeados se ubican en posiciones separadas de la llave.';
+        seedSection.style.display = 'block';
+        btnText.textContent = 'Ver Sorteo';
+    }
     updatePreview();
 }
+
+// Auto-trigger preview if category is pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('category-select');
+    if (select.value) {
+        updateDrawMode();
+    }
+});
 </script>
 {% endblock %}

@@ -18,10 +18,14 @@
         <h3 class="card-title">{{ t('pairs.title') }}</h3>
     </div>
     <div class="card-body">
-        <div class="grid grid-2 mb-3">
-            <button onclick="showImportMethod('csv')" class="btn btn-primary" id="btn-csv">
+        <div class="grid grid-3 mb-3">
+            <button onclick="showImportMethod('unified')" class="btn btn-primary" id="btn-unified">
+                <span>📋</span>
+                <span>CSV de Parejas</span>
+            </button>
+            <button onclick="showImportMethod('csv')" class="btn btn-secondary" id="btn-csv">
                 <span>📄</span>
-                <span>{{ t('pairs.import_csv') }}</span>
+                <span>CSV Avanzado (IDs)</span>
             </button>
             <button onclick="showImportMethod('manual')" class="btn btn-secondary" id="btn-manual">
                 <span>✍️</span>
@@ -31,12 +35,117 @@
     </div>
 </div>
 
-<!-- CSV Import Section -->
-<div id="import-csv-section" class="card mb-3" style="display: none;">
+<!-- Unified CSV Import Section (Recommended) -->
+<div id="import-unified-section" class="card mb-3" style="display: none;">
     <div class="card-header">
-        <h3 class="card-title">{{ t('pairs.import_csv') }}</h3>
+        <h3 class="card-title">Importar Parejas desde CSV</h3>
     </div>
     <div class="card-body">
+        <form method="post" action="/admin/import-pairs/csv-unified" enctype="multipart/form-data" id="unified-csv-form">
+            <div class="form-section">
+                <label class="form-label">Archivo CSV</label>
+                <div class="dropzone" id="unified-dropzone">
+                    <input type="file" name="csv_file" accept=".csv" required class="dropzone-input" id="unified-file-input">
+                    <div class="dropzone-content" id="unified-dropzone-content">
+                        <span class="dropzone-icon">📋</span>
+                        <p class="dropzone-text">Arrastra tu archivo CSV de parejas aquí</p>
+                        <p class="dropzone-subtext">o haz clic para seleccionar</p>
+                    </div>
+                    <div class="dropzone-selected" id="unified-dropzone-selected" style="display: none;">
+                        <span class="dropzone-file-icon">✓</span>
+                        <span class="dropzone-filename" id="unified-dropzone-filename"></span>
+                        <button type="button" class="dropzone-clear" onclick="clearUnifiedFile(event)">&times;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">
+                    <input type="checkbox" name="assign_seeds" value="true" checked style="margin-right: 0.5rem;">
+                    Asignar seeds automáticamente basado en ranking
+                </label>
+            </div>
+
+            <div class="alert alert-info">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Formato del CSV</div>
+                    <div>
+                        <p style="margin: 0.25rem 0;">Cada fila es una pareja completa. Los jugadores se crean automáticamente si no existen.</p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>nombre1, apellido1, pais1</strong>: Datos del jugador 1</li>
+                            <li><strong>nombre2, apellido2, pais2</strong>: Datos del jugador 2</li>
+                            <li><strong>ranking_pts</strong>: Ranking de la pareja (opcional, default 0)</li>
+                            <li><strong>categoria</strong>: Categoría dobles (MD, WD, XD, U15BD, etc.)</li>
+                        </ul>
+                        <pre style="background: var(--bg-color); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.85rem;">nombre1,apellido1,pais1,nombre2,apellido2,pais2,ranking_pts,categoria
+Juan,Perez,ESP,Pedro,Lopez,ESP,2900,MD
+Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="unified-preview-section" style="display: none;">
+                <div class="alert alert-success mb-3">
+                    <span class="icon">✓</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Archivo cargado correctamente</div>
+                        <div id="unified-preview-summary"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-3" style="max-height: 400px; overflow: hidden;">
+                    <div class="card-header" style="padding: 0.75rem 1rem;">
+                        <h4 class="card-title" style="font-size: 1rem; margin: 0;">Vista previa de parejas</h4>
+                    </div>
+                    <div class="card-body" style="padding: 0; overflow-y: auto; max-height: 340px;">
+                        <table class="table" id="unified-preview-table" style="margin: 0; font-size: 0.85rem;">
+                            <thead id="unified-preview-header"></thead>
+                            <tbody id="unified-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="unified-validation-errors" class="alert alert-danger mb-3" style="display: none;">
+                    <span class="icon">⚠️</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Errores de validación</div>
+                        <ul id="unified-errors-list" style="margin: 0.5rem 0 0 1rem; padding: 0;"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="button" id="btn-preview-unified" class="btn btn-primary" onclick="previewUnifiedCSV()">
+                    <span>👁️</span>
+                    <span>Ver Preview</span>
+                </button>
+                <button type="submit" id="btn-submit-unified" class="btn btn-success" style="display: none;">
+                    <span>✓</span>
+                    <span>Confirmar Importación</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- CSV Import Section (Advanced - IDs) -->
+<div id="import-csv-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">CSV Avanzado (con IDs de jugadores)</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning mb-3">
+            <span class="icon">⚠️</span>
+            <div class="alert-content">
+                <div>Requiere que los jugadores estén importados previamente. Usa "CSV de Parejas" para importar todo de una vez.</div>
+            </div>
+        </div>
         <form method="post" action="/admin/import-pairs/csv" enctype="multipart/form-data">
             <div class="form-section">
                 <label class="form-label">Archivo CSV</label>
@@ -55,16 +164,9 @@
                 <div class="alert-content">
                     <div class="alert-title">{{ t('pairs.csv_format') }}</div>
                     <div>
-                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-                            <li><strong>player1_id</strong>: ID original del jugador 1 (del CSV de jugadores)</li>
-                            <li><strong>player2_id</strong>: ID original del jugador 2 (del CSV de jugadores)</li>
-                            <li><strong>ranking_pts</strong>: Ranking combinado de la pareja</li>
-                            <li><strong>categoria</strong>: Categoría de dobles (MD, WD, XD, U15BD, etc.)</li>
-                        </ul>
                         <pre style="background: var(--bg-color); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.85rem;">player1_id,player2_id,ranking_pts,categoria
 1,2,2300,MD
-3,4,2100,MD
-5,6,1900,WD</pre>
+3,4,2100,MD</pre>
                     </div>
                 </div>
             </div>
@@ -229,18 +331,213 @@
 <div class="card">
     <div class="card-body" style="text-align: center; padding: 3rem;">
         <p style="font-size: 1.2rem; color: var(--text-muted);">{{ t('pairs.no_pairs') }}</p>
-        <p style="color: var(--text-muted);">Usa los botones de arriba para importar desde CSV o crear parejas manualmente.</p>
+        <p style="color: var(--text-muted);">Usa "CSV de Parejas" para importar tus parejas de dobles.</p>
     </div>
 </div>
 {% endif %}
 
+<style>
+.dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    max-width: 500px;
+}
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.05);
+}
+.dropzone-input {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+}
+.dropzone-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+.dropzone-text { font-weight: 600; color: var(--text-primary); margin: 0; }
+.dropzone-subtext { font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0; }
+.dropzone-selected {
+    display: flex; align-items: center; gap: 0.75rem;
+    justify-content: center; pointer-events: auto;
+}
+.dropzone-file-icon { color: var(--success); font-size: 1.5rem; }
+.dropzone-filename { font-weight: 600; color: var(--text-primary); }
+.dropzone-clear {
+    background: var(--danger); color: white; border: none;
+    width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+    font-size: 1rem; line-height: 1; display: flex;
+    align-items: center; justify-content: center;
+}
+.dropzone-clear:hover { background: #c62828; }
+#unified-preview-table th {
+    position: sticky; top: 0; background: var(--card-bg);
+    z-index: 10; text-transform: uppercase; font-size: 0.75rem; padding: 0.5rem 0.75rem;
+}
+#unified-preview-table td {
+    padding: 0.4rem 0.75rem; white-space: nowrap;
+}
+</style>
+
 <script>
+// Dropzone for unified CSV
+document.addEventListener('DOMContentLoaded', function() {
+    const dropzone = document.getElementById('unified-dropzone');
+    if (!dropzone) return;
+    const fileInput = document.getElementById('unified-file-input');
+    const dropzoneContent = document.getElementById('unified-dropzone-content');
+    const dropzoneSelected = document.getElementById('unified-dropzone-selected');
+    const filenameDisplay = document.getElementById('unified-dropzone-filename');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+        dropzone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }, false);
+    });
+    ['dragenter', 'dragover'].forEach(e => {
+        dropzone.addEventListener(e, () => dropzone.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(e => {
+        dropzone.addEventListener(e, () => dropzone.classList.remove('dragover'), false);
+    });
+
+    dropzone.addEventListener('drop', function(e) {
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].name.endsWith('.csv')) {
+            fileInput.files = files;
+            showUnifiedFile(files[0].name);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            showUnifiedFile(this.files[0].name);
+        }
+    });
+
+    function showUnifiedFile(filename) {
+        dropzoneContent.style.display = 'none';
+        dropzoneSelected.style.display = 'flex';
+        filenameDisplay.textContent = filename;
+        setTimeout(previewUnifiedCSV, 100);
+    }
+});
+
+function clearUnifiedFile(event) {
+    event.stopPropagation();
+    document.getElementById('unified-file-input').value = '';
+    document.getElementById('unified-dropzone-content').style.display = 'block';
+    document.getElementById('unified-dropzone-selected').style.display = 'none';
+    document.getElementById('unified-preview-section').style.display = 'none';
+    document.getElementById('btn-preview-unified').style.display = 'inline-flex';
+    document.getElementById('btn-submit-unified').style.display = 'none';
+}
+
+function previewUnifiedCSV() {
+    const fileInput = document.getElementById('unified-file-input');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Por favor selecciona un archivo CSV primero');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) {
+            alert('El archivo está vacío');
+            return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const required = ['nombre1', 'apellido1', 'pais1', 'nombre2', 'apellido2', 'pais2', 'categoria'];
+        const errors = [];
+
+        const missing = required.filter(h => !headers.includes(h));
+        if (missing.length > 0) {
+            errors.push('Columnas faltantes: ' + missing.join(', '));
+        }
+
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const values = line.split(',').map(v => v.trim());
+            const row = {};
+            headers.forEach((h, idx) => row[h] = values[idx] || '');
+
+            if (!row.nombre1 || !row.apellido1) errors.push(`Fila ${i+1}: Jugador 1 incompleto`);
+            if (!row.nombre2 || !row.apellido2) errors.push(`Fila ${i+1}: Jugador 2 incompleto`);
+            if (!row.categoria) errors.push(`Fila ${i+1}: Categoría vacía`);
+            if (row.pais1 && row.pais1.length !== 3) errors.push(`Fila ${i+1}: País 1 inválido "${row.pais1}"`);
+            if (row.pais2 && row.pais2.length !== 3) errors.push(`Fila ${i+1}: País 2 inválido "${row.pais2}"`);
+
+            data.push(row);
+        }
+
+        // Show preview
+        document.getElementById('unified-preview-section').style.display = 'block';
+
+        const cats = {};
+        data.forEach(r => { const c = (r.categoria||'').toUpperCase(); cats[c] = (cats[c]||0)+1; });
+        const catSummary = Object.entries(cats).map(([k,v]) => `${k}: ${v}`).join(', ');
+        document.getElementById('unified-preview-summary').innerHTML =
+            `<strong>${data.length}</strong> parejas encontradas` +
+            (catSummary ? ` — Categorías: ${catSummary}` : '');
+
+        // Table
+        const displayHeaders = ['#', 'Jugador 1', 'País 1', 'Jugador 2', 'País 2', 'Ranking', 'Categoría'];
+        document.getElementById('unified-preview-header').innerHTML =
+            '<tr>' + displayHeaders.map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+        let bodyHtml = '';
+        const maxRows = Math.min(data.length, 30);
+        for (let i = 0; i < maxRows; i++) {
+            const r = data[i];
+            bodyHtml += `<tr>
+                <td><span class="badge badge-secondary">${i+1}</span></td>
+                <td><strong>${r.nombre1||''} ${r.apellido1||''}</strong></td>
+                <td><span class="badge badge-secondary">${(r.pais1||'').toUpperCase()}</span></td>
+                <td><strong>${r.nombre2||''} ${r.apellido2||''}</strong></td>
+                <td><span class="badge badge-secondary">${(r.pais2||'').toUpperCase()}</span></td>
+                <td>${r.ranking_pts||'0'}</td>
+                <td><span class="badge badge-primary">${(r.categoria||'').toUpperCase()}</span></td>
+            </tr>`;
+        }
+        if (data.length > 30) {
+            bodyHtml += `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);font-style:italic;">... y ${data.length-30} más</td></tr>`;
+        }
+        document.getElementById('unified-preview-body').innerHTML = bodyHtml;
+
+        // Errors
+        const errDiv = document.getElementById('unified-validation-errors');
+        const errList = document.getElementById('unified-errors-list');
+        if (errors.length > 0) {
+            errList.innerHTML = errors.slice(0,10).map(e => `<li>${e}</li>`).join('');
+            if (errors.length > 10) errList.innerHTML += `<li style="font-style:italic;">... y ${errors.length-10} errores más</li>`;
+            errDiv.style.display = 'block';
+        } else {
+            errDiv.style.display = 'none';
+        }
+
+        // Toggle buttons
+        document.getElementById('btn-preview-unified').style.display = 'none';
+        document.getElementById('btn-submit-unified').style.display = 'inline-flex';
+        document.getElementById('btn-submit-unified').disabled = missing.length > 0;
+    };
+    reader.readAsText(fileInput.files[0]);
+}
+
 function showImportMethod(method) {
     hideImportSections();
+    document.getElementById('btn-unified').className = 'btn btn-secondary';
     document.getElementById('btn-csv').className = 'btn btn-secondary';
     document.getElementById('btn-manual').className = 'btn btn-secondary';
 
-    if (method === 'csv') {
+    if (method === 'unified') {
+        document.getElementById('import-unified-section').style.display = 'block';
+        document.getElementById('btn-unified').className = 'btn btn-primary';
+    } else if (method === 'csv') {
         document.getElementById('import-csv-section').style.display = 'block';
         document.getElementById('btn-csv').className = 'btn btn-primary';
     } else if (method === 'manual') {
@@ -250,10 +547,10 @@ function showImportMethod(method) {
 }
 
 function hideImportSections() {
+    document.getElementById('import-unified-section').style.display = 'none';
     document.getElementById('import-csv-section').style.display = 'none';
     document.getElementById('import-manual-section').style.display = 'none';
-    document.getElementById('btn-csv').className = 'btn btn-secondary';
-    document.getElementById('btn-manual').className = 'btn btn-secondary';
+    clearUnifiedFile(new Event('click'));
 }
 
 function confirmDeletePair(pairId) {

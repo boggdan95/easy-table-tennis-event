@@ -261,7 +261,12 @@ def build_bracket_direct(
             is_bye=slot_num in bye_positions,
         ))
 
-    if draw_mode == "random":
+    if draw_mode == "manual":
+        # Manual draw: competitors already in user-defined order, place sequentially
+        non_bye_slots = [s for s in bracket.slots[first_round] if not s.is_bye]
+        for competitor, slot in zip(competitors, non_bye_slots):
+            slot.player_id = competitor.id
+    elif draw_mode == "random":
         # Random draw: shuffle competitors, place in non-BYE slots sequentially
         shuffled = list(competitors)
         random.shuffle(shuffled)
