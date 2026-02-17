@@ -2455,10 +2455,13 @@ async def admin_import_players_form(request: Request):
     player_repo = PlayerRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament - redirect if none exists
+    # Get current tournament - show empty state if none exists
     current_tournament = tournament_repo.get_current()
     if not current_tournament:
-        return RedirectResponse(url="/tournaments", status_code=303)
+        return render_template("admin_import_players.html", {
+            "request": request,
+            "tournament": None,
+        })
 
     tournament_id = current_tournament.id
 
@@ -3311,10 +3314,13 @@ async def admin_create_groups_form(request: Request):
     match_repo = MatchRepository(session)
     tournament_repo = TournamentRepository(session)
 
-    # Get current tournament - redirect if none exists
+    # Get current tournament - show empty state if none exists
     current_tournament = tournament_repo.get_current()
     if not current_tournament:
-        return RedirectResponse(url="/tournaments", status_code=303)
+        return render_template("admin_create_groups.html", {
+            "request": request,
+            "tournament": None,
+        })
 
     tournament_id = current_tournament.id
 
@@ -8794,7 +8800,10 @@ async def admin_scheduler(request: Request):
 
         tournament = tournament_repo.get_current()
         if not tournament:
-            return RedirectResponse(url="/tournaments", status_code=303)
+            return render_template("admin_scheduler.html", {
+                "request": request,
+                "tournament": None,
+            })
 
         session_repo = SessionRepository(session)
         sessions = session_repo.get_by_tournament(tournament.id)
@@ -9870,7 +9879,10 @@ async def admin_table_config(request: Request):
         tournament = tournament_repo.get_current()
 
         if not tournament:
-            return RedirectResponse(url="/tournaments", status_code=303)
+            return render_template("admin_table_config.html", {
+                "request": request,
+                "tournament": None,
+            })
 
         table_config_repo = TableConfigRepository(session)
         table_lock_repo = TableLockRepository(session)

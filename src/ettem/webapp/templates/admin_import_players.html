@@ -12,6 +12,21 @@
 {% endblock %}
 
 {% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📥</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo primero para importar jugadores y parejas.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
 <!-- Import Type Selector -->
 <div class="card mb-3">
     <div class="card-header">
@@ -1168,4 +1183,5 @@ function confirmDeleteCategory(category, playerCount) {
     }
 }
 </script>
+{% endif %}
 {% endblock %}

@@ -12,6 +12,21 @@
 {% endblock %}
 
 {% block content %}
+{% if not tournament_name or tournament_name == "Sin torneo" %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🖨️</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo para generar documentos e imprimir hojas de partido.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
 <!-- Tournament Info -->
 <div class="card mb-3">
     <div class="card-body">
@@ -423,5 +438,6 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}
