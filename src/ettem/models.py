@@ -196,6 +196,137 @@ class Pair:
         return f"Pair {self.id}: {self.display_name}"
 
 
+# ============================================================================
+# Team Models (ITTF Team Events: BT/GT/MT/WT)
+# ============================================================================
+
+
+class TeamMatchSystem(str, Enum):
+    """ITTF Team Match Systems (Handbook 2020, Section 3.7.6)."""
+
+    SWAYTHLING = "swaythling"  # Bo5, 5 singles, 3 players
+    CORBILLON = "corbillon"    # Bo5, 4S+1D, 2-4 players
+    OLYMPIC = "olympic"        # Bo5, 4S+1D, 3 players
+    BEST_OF_7 = "bo7"          # Bo7, 6S+1D, 3-5 players
+    BEST_OF_9 = "bo9"          # Bo9, 9 singles, 3 players
+
+
+# Order of play per system: (match_number, match_type, home_label, away_label)
+TEAM_MATCH_ORDERS: dict[str, list[tuple[int, str, str, str]]] = {
+    TeamMatchSystem.SWAYTHLING: [
+        (1, "singles", "A", "X"),
+        (2, "singles", "B", "Y"),
+        (3, "singles", "C", "Z"),
+        (4, "singles", "A", "Y"),
+        (5, "singles", "B", "X"),
+    ],
+    TeamMatchSystem.CORBILLON: [
+        (1, "singles", "A", "X"),
+        (2, "singles", "B", "Y"),
+        (3, "doubles", "doubles", "doubles"),
+        (4, "singles", "A", "Y"),
+        (5, "singles", "B", "X"),
+    ],
+    TeamMatchSystem.OLYMPIC: [
+        (1, "doubles", "B&C", "Y&Z"),
+        (2, "singles", "A", "X"),
+        (3, "singles", "C", "Z"),
+        (4, "singles", "A", "Y"),
+        (5, "singles", "B", "X"),
+    ],
+    TeamMatchSystem.BEST_OF_7: [
+        (1, "singles", "A", "Y"),
+        (2, "singles", "B", "X"),
+        (3, "singles", "C", "Z"),
+        (4, "doubles", "doubles", "doubles"),
+        (5, "singles", "A", "X"),
+        (6, "singles", "C", "Y"),
+        (7, "singles", "B", "Z"),
+    ],
+    TeamMatchSystem.BEST_OF_9: [
+        (1, "singles", "A", "X"),
+        (2, "singles", "B", "Y"),
+        (3, "singles", "C", "Z"),
+        (4, "singles", "B", "X"),
+        (5, "singles", "A", "Z"),
+        (6, "singles", "C", "Y"),
+        (7, "singles", "B", "Z"),
+        (8, "singles", "C", "X"),
+        (9, "singles", "A", "Y"),
+    ],
+}
+
+
+def get_team_match_best_of(system: str) -> int:
+    """Return the best-of count for a team match system (how many individual matches)."""
+    order = TEAM_MATCH_ORDERS.get(system, [])
+    return len(order)
+
+
+def get_team_match_majority(system: str) -> int:
+    """Return how many individual wins needed to clinch the team match."""
+    total = get_team_match_best_of(system)
+    return (total // 2) + 1
+
+
+@dataclass
+class Team:
+    """A team of players competing together in team events.
+
+    Behaves like Player/Pair for groups/brackets: has id, seed, pais_cd.
+    Used for team categories (MT, WT, U15BT, etc.).
+    Teams consist of 3-5 players per ITTF rules.
+    """
+
+    id: int
+    name: str  # "Spain A", "Mexico", etc.
+    categoria: str  # MT, WT, U15BT, etc.
+    pais_cd: str  # Primary country code (ISO-3)
+    ranking_pts: float = 0
+    seed: Optional[int] = None
+    group_id: Optional[int] = None
+    group_number: Optional[int] = None
+    notes: Optional[str] = None
+
+    # Player IDs (3-5 members)
+    player_ids: list[int] = field(default_factory=list)
+
+    # Populated at runtime (not stored in DB)
+    players: list["Player"] = field(default_factory=list)
+
+    @property
+    def nombre(self) -> str:
+        """Team name (for CompetitorDisplay compat)."""
+        return self.name
+
+    @property
+    def apellido(self) -> str:
+        """Empty for teams (for CompetitorDisplay compat)."""
+        return ""
+
+    @property
+    def display_name(self) -> str:
+        """Short display name."""
+        return self.name
+
+    @property
+    def full_name(self) -> str:
+        """Full display: 'Spain A (Perez, Rodriguez, Lopez)'."""
+        if self.players:
+            members = ", ".join(p.apellido for p in self.players)
+            return f"{self.name} ({members})"
+        return self.name
+
+    @property
+    def member_count(self) -> int:
+        """Number of team members."""
+        return len(self.player_ids)
+
+    def __str__(self) -> str:
+        """String representation."""
+        return f"Team {self.id}: {self.name} ({self.pais_cd})"
+
+
 @dataclass
 class Set:
     """A single set within a match.

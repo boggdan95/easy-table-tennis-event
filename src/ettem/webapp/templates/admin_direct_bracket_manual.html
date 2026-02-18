@@ -360,6 +360,17 @@ function restoreState() {
     if (!saved) return;
     try {
         const sa = JSON.parse(saved);
+        // Validate that saved player IDs exist in the current competitors pool
+        const currentIds = new Set();
+        document.querySelectorAll('#competitors-pool .player-item').forEach(item => {
+            currentIds.add(item.dataset.playerId);
+        });
+        const allValid = Object.values(sa).every(data => currentIds.has(String(data.playerId)));
+        if (!allValid) {
+            // Stale data from a different tournament/session - discard
+            localStorage.removeItem(STORAGE_KEY);
+            return;
+        }
         Object.entries(sa).forEach(([slotNum, data]) => {
             assignPlayerToSlot(parseInt(slotNum), data.playerId, data.playerName, data.country);
         });

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado - {{ home_name }} vs {{ away_name }} - ETTEM{% endblock %}
+
+{% block page_title %}Resultado Individual{% endblock %}
+
+{% block topbar_actions %}
+<a href="/team-match/{{ parent_match_id }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Encuentro</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Match Header -->
+<div class="card mb-3">
+    <div class="card-body" style="text-align: center; padding: 1.5rem;">
+        <p style="color: var(--text-muted); margin-bottom: 0.5rem;">
+            {{ team1_name }} vs {{ team2_name }} — Partido {{ detail.match_number }} de {{ total_matches }}
+        </p>
+        <h2 style="margin-bottom: 0.5rem;">{{ home_name }} vs {{ away_name }}</h2>
+        {% if detail.match_type == 'doubles' %}
+        <span class="badge badge-warning">DOBLES</span>
+        {% endif %}
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Mejor de {{ detail.best_of }} sets</p>
+    </div>
+</div>
+
+<!-- Score Entry -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Ingresar Resultado</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/team-match/{{ parent_match_id }}/detail/{{ detail.id }}/save-result" id="result-form">
+            <table class="table" style="text-align: center;">
+                <thead>
+                    <tr>
+                        <th></th>
+                        {% for i in range(1, max_sets + 1) %}
+                        <th>Set {{ i }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="font-weight: 600; text-align: left;">
+                            {{ home_name }}
+                            <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ detail.label_home }}</span>
+                        </td>
+                        {% for i in range(1, max_sets + 1) %}
+                        <td>
+                            <input type="number" name="set{{ i }}_p1" min="0" max="99"
+                                   class="form-control" style="width: 60px; text-align: center; margin: 0 auto;"
+                                   value="{{ existing_sets[i-1].player1_points if existing_sets|length >= i else '' }}">
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td style="font-weight: 600; text-align: left;">
+                            {{ away_name }}
+                            <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ detail.label_away }}</span>
+                        </td>
+                        {% for i in range(1, max_sets + 1) %}
+                        <td>
+                            <input type="number" name="set{{ i }}_p2" min="0" max="99"
+                                   class="form-control" style="width: 60px; text-align: center; margin: 0 auto;"
+                                   value="{{ existing_sets[i-1].player2_points if existing_sets|length >= i else '' }}">
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center;">
+                <button type="submit" class="btn btn-success">
+                    <span>Guardar Resultado</span>
+                </button>
+                <a href="/team-match/{{ parent_match_id }}" class="btn btn-secondary">
+                    <span>Cancelar</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

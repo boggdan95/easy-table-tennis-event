@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from ettem.models import Match, MatchStatus, Pair, Player, Set, detect_event_type, is_doubles_category
+from ettem.models import Match, MatchStatus, Pair, Player, Set, Team, detect_event_type, is_doubles_category, is_teams_category
 from ettem.standings import calculate_standings
 from ettem.storage import (
     DatabaseManager,
@@ -26,6 +26,11 @@ from ettem.storage import (
     StandingRepository,
     TournamentRepository,
     migrate_v24_doubles,
+    migrate_v25_teams,
+    TeamRepository,
+    TeamMatchDetailRepository,
+    TeamORM,
+    TeamMatchDetailORM,
 )
 from ettem.webapp.helpers import CompetitorDisplay, get_competitor_display
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
@@ -414,6 +419,7 @@ migrate_matches_add_tournament_id()  # Add tournament_id to matches
 migrate_matches_add_best_of()  # Add best_of format to matches
 migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
 migrate_v24_doubles(db_manager.engine)  # Add doubles support (pairs table + nullable columns)
+migrate_v25_teams(db_manager.engine)  # Add teams support (teams + team_match_details tables)
 migrate_bracket_slots_add_tournament_id()
 migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
@@ -843,6 +849,7 @@ async def view_category(request: Request, category: str):
     player_repo = PlayerRepository(session)
     match_repo = MatchRepository(session)
     tournament_repo = TournamentRepository(session)
+    team_repo = TeamRepository(session)
 
     # Get current tournament
     current_tournament = tournament_repo.get_current()
@@ -851,10 +858,16 @@ async def view_category(request: Request, category: str):
     # Get groups for this category in current tournament
     groups = group_repo.get_by_category(category, tournament_id=tournament_id)
 
-    # Get players and match stats for each group
+    is_teams_cat = is_teams_category(category)
+
+    # Get players/teams and match stats for each group
     groups_data = []
     for group in groups:
-        players = [player_repo.get_by_id(pid) for pid in group.player_ids]
+        if is_teams_cat:
+            # Group player_ids contain team IDs for teams categories
+            players = [team_repo.get_by_id(tid) for tid in group.player_ids]
+        else:
+            players = [player_repo.get_by_id(pid) for pid in group.player_ids]
 
         # Get match progress
         matches = match_repo.get_by_group(group.id)
@@ -894,6 +907,7 @@ async def view_group_matches(request: Request, group_id: int):
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
 
     # Get group
@@ -907,8 +921,8 @@ async def view_group_matches(request: Request, group_id: int):
     # Convert to domain models with competitor names
     matches_data = []
     for m_orm in match_orms:
-        player1 = get_competitor_display(m_orm, 1, player_repo, pair_repo)
-        player2 = get_competitor_display(m_orm, 2, player_repo, pair_repo)
+        player1 = get_competitor_display(m_orm, 1, player_repo, pair_repo, team_repo)
+        player2 = get_competitor_display(m_orm, 2, player_repo, pair_repo, team_repo)
 
         # Get schedule info
         schedule_slot = schedule_repo.get_by_match(m_orm.id)
@@ -948,13 +962,16 @@ async def view_group_matches(request: Request, group_id: int):
             "scheduled_time": scheduled_time,
         })
 
+    is_teams_cat = is_teams_category(group.category)
+
     return render_template(
         "group_matches.html",
         {
             "request": request,
             "group": group,
             "matches": matches_data,
-            "category": group.category
+            "category": group.category,
+            "is_teams": is_teams_cat,
         }
     )
 
@@ -966,6 +983,7 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
 
     # Get match
@@ -976,11 +994,11 @@ async def enter_result_form(request: Request, match_id: int, return_to: Optional
     player1 = player_repo.get_by_id(match_orm.player1_id) if match_orm.player1_id else None
     player2 = player_repo.get_by_id(match_orm.player2_id) if match_orm.player2_id else None
 
-    # Get display objects (handles doubles pair names)
+    # Get display objects (handles doubles pair names and team names)
     from ettem.webapp.helpers import get_competitor_display
     from ettem.models import is_doubles_category
-    display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-    display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+    display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+    display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
     category = match_orm.category or (player1.categoria if player1 else "")
     _is_doubles = is_doubles_category(category)
 
@@ -1245,6 +1263,13 @@ async def save_result(
     if match_orm.group_id is not None:
         player_repo = PlayerRepository(session)
         standing_repo = StandingRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
+
+        # Detect event type from category
+        group_repo = GroupRepository(session)
+        group_obj = group_repo.get_by_id(match_orm.group_id)
+        event_type = detect_event_type(group_obj.category) if group_obj else "singles"
 
         # Get all matches for this group
         group_match_orms = match_repo.get_by_group(match_orm.group_id)
@@ -1262,8 +1287,8 @@ async def save_result(
             ]
             match = Match(
                 id=m_orm.id,
-                player1_id=m_orm.player1_id,
-                player2_id=m_orm.player2_id,
+                player1_id=m_orm.competitor1_id,
+                player2_id=m_orm.competitor2_id,
                 group_id=m_orm.group_id,
                 round_type=m_orm.round_type,
                 status=m_orm.status,
@@ -1273,7 +1298,10 @@ async def save_result(
             matches.append(match)
 
         # Calculate standings
-        standings, _ = calculate_standings(matches, match_orm.group_id, player_repo)
+        standings, _ = calculate_standings(
+            matches, match_orm.group_id, player_repo,
+            event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+        )
 
         # Delete old standings and save new ones
         standing_repo.delete_by_group(match_orm.group_id)
@@ -1291,14 +1319,17 @@ async def save_result(
         # Group match - redirect to group matches page
         return RedirectResponse(url=f"/group/{match_orm.group_id}/matches", status_code=303)
     else:
-        # Bracket match - get category from player and redirect to bracket page
-        player_repo = PlayerRepository(session)
-        player = player_repo.get_by_id(match_orm.player1_id)
-        if player:
-            return RedirectResponse(url=f"/bracket/{player.categoria}", status_code=303)
+        # Bracket match - use match category field directly (works for singles, doubles, teams)
+        if hasattr(match_orm, 'category') and match_orm.category:
+            return RedirectResponse(url=f"/bracket/{match_orm.category}", status_code=303)
         else:
-            # Fallback to home if player not found
-            return RedirectResponse(url="/", status_code=303)
+            # Fallback: get category from player
+            player_repo = PlayerRepository(session)
+            player = player_repo.get_by_id(match_orm.player1_id)
+            if player:
+                return RedirectResponse(url=f"/bracket/{player.categoria}", status_code=303)
+            else:
+                return RedirectResponse(url="/", status_code=303)
 
 
 @app.post("/match/{match_id}/delete-result")
@@ -1369,6 +1400,13 @@ async def delete_result(request: Request, match_id: int):
     # For group matches, recalculate standings after deleting result
     if match_orm.group_id is not None:
         standing_repo = StandingRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
+
+        # Detect event type from category
+        group_repo = GroupRepository(session)
+        group_obj = group_repo.get_by_id(match_orm.group_id)
+        event_type = detect_event_type(group_obj.category) if group_obj else "singles"
 
         # Get all matches for this group
         group_match_orms = match_repo.get_by_group(match_orm.group_id)
@@ -1386,8 +1424,8 @@ async def delete_result(request: Request, match_id: int):
             ]
             match = Match(
                 id=m_orm.id,
-                player1_id=m_orm.player1_id,
-                player2_id=m_orm.player2_id,
+                player1_id=m_orm.competitor1_id,
+                player2_id=m_orm.competitor2_id,
                 group_id=m_orm.group_id,
                 round_type=m_orm.round_type,
                 status=m_orm.status,
@@ -1397,7 +1435,10 @@ async def delete_result(request: Request, match_id: int):
             matches.append(match)
 
         # Calculate standings
-        standings, _ = calculate_standings(matches, match_orm.group_id, player_repo)
+        standings, _ = calculate_standings(
+            matches, match_orm.group_id, player_repo,
+            event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+        )
 
         # Delete old standings and save new ones
         standing_repo.delete_by_group(match_orm.group_id)
@@ -1432,6 +1473,7 @@ async def view_standings(request: Request, group_id: int):
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     standing_repo = StandingRepository(session)
 
     # Get group
@@ -1471,13 +1513,19 @@ async def view_standings(request: Request, group_id: int):
     # Calculate standings
     standings, tiebreaker_info = calculate_standings(
         matches, group_id, player_repo,
-        event_type=event_type, pair_repo=pair_repo,
+        event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
     )
 
     # Get competitor details
     standings_data = []
     for standing in standings:
-        if event_type == "doubles":
+        if event_type == "teams":
+            team_orm = team_repo.get_by_id(standing.player_id)
+            if team_orm:
+                competitor = CompetitorDisplay.from_team(team_orm, player_repo=player_repo)
+            else:
+                competitor = CompetitorDisplay.tbd()
+        elif event_type == "doubles":
             pair_orm = pair_repo.get_by_id(standing.player_id)
             if pair_orm:
                 p1 = player_repo.get_by_id(pair_orm.player1_id)
@@ -1514,6 +1562,8 @@ async def view_category_standings(request: Request, category: str):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     tournament_repo = TournamentRepository(session)
 
     # Get current tournament
@@ -1531,12 +1581,14 @@ async def view_category_standings(request: Request, category: str):
             "total_groups": 0
         })
 
+    event_type = detect_event_type(category)
+
     # Calculate standings for each group
     groups_standings = []
     for group in groups:
         match_orms = match_repo.get_by_group(group.id)
 
-        # Convert to domain models
+        # Convert to domain models using competitor IDs
         matches = []
         for m_orm in match_orms:
             sets = [
@@ -1549,8 +1601,8 @@ async def view_category_standings(request: Request, category: str):
             ]
             match = Match(
                 id=m_orm.id,
-                player1_id=m_orm.player1_id,
-                player2_id=m_orm.player2_id,
+                player1_id=m_orm.competitor1_id or 0,
+                player2_id=m_orm.competitor2_id or 0,
                 group_id=m_orm.group_id,
                 round_type=m_orm.round_type,
                 status=m_orm.status,
@@ -1560,21 +1612,44 @@ async def view_category_standings(request: Request, category: str):
             matches.append(match)
 
         # Calculate standings
-        standings, tiebreakers = calculate_standings(matches, group.id, player_repo)
+        standings, tiebreakers = calculate_standings(
+            matches, group.id, player_repo,
+            event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+        )
 
         # tiebreakers is already a dict with player_id as key
         tiebreaker_lookup = tiebreakers if tiebreakers else {}
 
-        # Get player details
+        # Get competitor details
         standings_data = []
         for standing in standings:
-            player = player_repo.get_by_id(standing.player_id)
-            if player:
-                standings_data.append({
-                    "standing": standing,
-                    "player": player,
-                    "tiebreaker": tiebreaker_lookup.get(standing.player_id)
-                })
+            if event_type == "teams":
+                team_orm = team_repo.get_by_id(standing.player_id)
+                if team_orm:
+                    standings_data.append({
+                        "standing": standing,
+                        "player": team_orm,
+                        "tiebreaker": tiebreaker_lookup.get(standing.player_id)
+                    })
+            elif event_type == "doubles":
+                pair_orm = pair_repo.get_by_id(standing.player_id)
+                if pair_orm:
+                    p1 = player_repo.get_by_id(pair_orm.player1_id)
+                    p2 = player_repo.get_by_id(pair_orm.player2_id)
+                    display = CompetitorDisplay.from_pair(pair_orm, p1, p2)
+                    standings_data.append({
+                        "standing": standing,
+                        "player": display,
+                        "tiebreaker": tiebreaker_lookup.get(standing.player_id)
+                    })
+            else:
+                player = player_repo.get_by_id(standing.player_id)
+                if player:
+                    standings_data.append({
+                        "standing": standing,
+                        "player": player,
+                        "tiebreaker": tiebreaker_lookup.get(standing.player_id)
+                    })
 
         # Count completed matches
         completed = sum(1 for m in match_orms if m.status != "pending")
@@ -1604,6 +1679,8 @@ async def view_group_sheet(request: Request, group_id: int):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     schedule_repo = ScheduleSlotRepository(session)
 
     # Get group
@@ -1611,8 +1688,17 @@ async def view_group_sheet(request: Request, group_id: int):
     if not group:
         return HTMLResponse(content="Group not found", status_code=404)
 
-    # Get players sorted by group_number (original seeding order)
-    all_players = [player_repo.get_by_id(pid) for pid in group.player_ids]
+    event_type = detect_event_type(group.category)
+
+    # Get competitors sorted by group_number (original seeding order)
+    def _get_competitor(pid):
+        if event_type == "teams":
+            return team_repo.get_by_id(pid)
+        elif event_type == "doubles":
+            return pair_repo.get_by_id(pid)
+        return player_repo.get_by_id(pid)
+
+    all_players = [_get_competitor(pid) for pid in group.player_ids]
     players = sorted([p for p in all_players if p], key=lambda p: p.group_number or 999)
 
     # Get all matches for this group
@@ -1621,8 +1707,8 @@ async def view_group_sheet(request: Request, group_id: int):
     # Build play order list with schedule info
     play_order = []
     for m_orm in match_orms:
-        p1 = player_repo.get_by_id(m_orm.player1_id)
-        p2 = player_repo.get_by_id(m_orm.player2_id)
+        p1 = _get_competitor(m_orm.competitor1_id)
+        p2 = _get_competitor(m_orm.competitor2_id)
         if p1 and p2:
             schedule_slot = schedule_repo.get_by_match(m_orm.id)
             play_order.append({
@@ -1644,8 +1730,8 @@ async def view_group_sheet(request: Request, group_id: int):
         if not m_orm.status or m_orm.status == MatchStatus.PENDING.value:
             continue
 
-        p1 = player_repo.get_by_id(m_orm.player1_id)
-        p2 = player_repo.get_by_id(m_orm.player2_id)
+        p1 = _get_competitor(m_orm.competitor1_id)
+        p2 = _get_competitor(m_orm.competitor2_id)
 
         if not p1 or not p2:
             continue
@@ -1661,8 +1747,8 @@ async def view_group_sheet(request: Request, group_id: int):
         ]
         match = Match(
             id=m_orm.id,
-            player1_id=m_orm.player1_id,
-            player2_id=m_orm.player2_id,
+            player1_id=m_orm.competitor1_id,
+            player2_id=m_orm.competitor2_id,
             group_id=m_orm.group_id,
             round_type=m_orm.round_type,
             status=m_orm.status,
@@ -1689,8 +1775,8 @@ async def view_group_sheet(request: Request, group_id: int):
         [
             Match(
                 id=m.id,
-                player1_id=m.player1_id,
-                player2_id=m.player2_id,
+                player1_id=m.competitor1_id,
+                player2_id=m.competitor2_id,
                 group_id=m.group_id,
                 round_type=m.round_type,
                 status=m.status,
@@ -1708,6 +1794,7 @@ async def view_group_sheet(request: Request, group_id: int):
         ],
         group_id,
         player_repo,
+        event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
     )
 
     # Create dict for quick lookup
@@ -1740,6 +1827,10 @@ async def recalculate_standings(category: str):
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     standing_repo = StandingRepository(session)
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
+
+    event_type = detect_event_type(category)
 
     # Get all groups for category
     groups = group_repo.get_by_category(category)
@@ -1761,8 +1852,8 @@ async def recalculate_standings(category: str):
             ]
             match = Match(
                 id=m_orm.id,
-                player1_id=m_orm.player1_id,
-                player2_id=m_orm.player2_id,
+                player1_id=m_orm.competitor1_id,
+                player2_id=m_orm.competitor2_id,
                 group_id=m_orm.group_id,
                 round_type=m_orm.round_type,
                 status=m_orm.status,
@@ -1772,7 +1863,10 @@ async def recalculate_standings(category: str):
             matches.append(match)
 
         # Calculate standings
-        standings, _ = calculate_standings(matches, group.id, player_repo)
+        standings, _ = calculate_standings(
+            matches, group.id, player_repo,
+            event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+        )
 
         # Delete old standings
         standing_repo.delete_by_group(group.id)
@@ -1799,6 +1893,7 @@ async def view_bracket(request: Request, category: str):
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
         standing_repo = StandingRepository(session)
         tournament_repo = TournamentRepository(session)
@@ -1891,7 +1986,7 @@ async def view_bracket(request: Request, category: str):
             slots_with_players[round_type] = []
             for slot in slots:
                 from ettem.webapp.helpers import get_bracket_slot_display
-                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo, team_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
                     "player": competitor
@@ -1909,8 +2004,9 @@ async def view_bracket(request: Request, category: str):
             # Only include standings from current tournament's groups
             if standing_orm.group_id not in current_group_ids:
                 continue
-            player_orm = player_repo.get_by_id(standing_orm.player_id)
-            if player_orm and player_orm.categoria == category:
+            # Use group category to match (works for singles, doubles, and teams)
+            group = groups_dict.get(standing_orm.group_id)
+            if group and group.category == category:
                 standings_dict[standing_orm.player_id] = standing_orm
 
         # Check if there's a champion (final match completed)
@@ -2004,13 +2100,14 @@ async def view_bracket(request: Request, category: str):
 @app.get("/bracket/{category}", response_class=HTMLResponse)
 async def view_bracket_matches(request: Request, category: str):
     """View knockout bracket with matches for a category."""
-    from ettem.models import RoundType
+    from ettem.models import RoundType, is_teams_category
     from collections import defaultdict
 
     session = get_db_session()
     match_repo = MatchRepository(session)
     player_repo = PlayerRepository(session)
     pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     bracket_repo = BracketRepository(session)
     tournament_repo = TournamentRepository(session)
 
@@ -2038,14 +2135,14 @@ async def view_bracket_matches(request: Request, category: str):
     for round_type in matches_by_round:
         matches_by_round[round_type].sort(key=lambda m: m.match_number)
 
-    # Prepare matches with player details (using CompetitorDisplay for doubles support)
+    # Prepare matches with player details (using CompetitorDisplay for doubles/teams support)
     from ettem.webapp.helpers import get_competitor_display as _get_cd
     matches_with_players = {}
     for round_type, matches in matches_by_round.items():
         matches_with_players[round_type] = []
         for match_orm in matches:
-            player1 = _get_cd(match_orm, 1, player_repo, pair_repo)
-            player2 = _get_cd(match_orm, 2, player_repo, pair_repo)
+            player1 = _get_cd(match_orm, 1, player_repo, pair_repo, team_repo=team_repo)
+            player2 = _get_cd(match_orm, 2, player_repo, pair_repo, team_repo=team_repo)
 
             # Parse sets from JSON
             sets = []
@@ -2078,7 +2175,7 @@ async def view_bracket_matches(request: Request, category: str):
         for match_data in matches_with_players[RoundType.FINAL.value]:
             if match_data["match"].winner_id:
                 champion_id = match_data["match"].winner_id
-                champion = get_champion_display(champion_id, category, player_repo, pair_repo)
+                champion = get_champion_display(champion_id, category, player_repo, pair_repo, team_repo=team_repo)
                 break
 
     # Determine active round (first round with incomplete matches)
@@ -2121,6 +2218,8 @@ async def view_bracket_matches(request: Request, category: str):
     all_groups = group_repo.get_all(tournament_id=tournament_id)
     has_groups = any(g.category == category for g in all_groups)
 
+    is_teams_cat = is_teams_category(category)
+
     return render_template("bracket_matches.html", {
         "request": request,
         "category": category,
@@ -2131,13 +2230,14 @@ async def view_bracket_matches(request: Request, category: str):
         "champion_id": champion_id,
         "pending_byes": total_pending,  # Combined count for button display
         "has_groups": has_groups,
+        "is_teams": is_teams_cat,
     })
 
 
 @app.get("/category/{category}/results", response_class=HTMLResponse)
 async def view_final_results(request: Request, category: str):
     """View final results and podium for a category."""
-    from ettem.models import RoundType, MatchStatus, is_doubles_category
+    from ettem.models import RoundType, MatchStatus, is_doubles_category, is_teams_category
     from ettem.webapp.helpers import get_competitor_display, CompetitorDisplay
 
     session = get_db_session()
@@ -2146,7 +2246,9 @@ async def view_final_results(request: Request, category: str):
     bracket_repo = BracketRepository(session)
     tournament_repo = TournamentRepository(session)
     pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
     _is_doubles = is_doubles_category(category)
+    _is_teams = is_teams_category(category)
 
     # Get current tournament
     current_tournament = tournament_repo.get_current()
@@ -2178,14 +2280,14 @@ async def view_final_results(request: Request, category: str):
 
     if final_match and final_match.winner_id:
         # Tournament is complete
-        if _is_doubles:
-            # For doubles, use competitor display to show pairs
+        if _is_teams or _is_doubles:
+            # For teams/doubles, use competitor display
             if final_match.winner_id == final_match.player1_id:
-                champion = get_competitor_display(final_match, 1, player_repo, pair_repo)
-                second_place = get_competitor_display(final_match, 2, player_repo, pair_repo)
+                champion = get_competitor_display(final_match, 1, player_repo, pair_repo, team_repo)
+                second_place = get_competitor_display(final_match, 2, player_repo, pair_repo, team_repo)
             else:
-                champion = get_competitor_display(final_match, 2, player_repo, pair_repo)
-                second_place = get_competitor_display(final_match, 1, player_repo, pair_repo)
+                champion = get_competitor_display(final_match, 2, player_repo, pair_repo, team_repo)
+                second_place = get_competitor_display(final_match, 1, player_repo, pair_repo, team_repo)
         else:
             champion = player_repo.get_by_id(final_match.winner_id)
             loser_id = final_match.player2_id if final_match.winner_id == final_match.player1_id else final_match.player1_id
@@ -2203,12 +2305,12 @@ async def view_final_results(request: Request, category: str):
         for sf_match in semifinal_matches:
             if not sf_match.winner_id:
                 continue
-            if _is_doubles:
+            if _is_teams or _is_doubles:
                 # Determine loser side and get display
                 if sf_match.winner_id == sf_match.player1_id:
-                    loser_display = get_competitor_display(sf_match, 2, player_repo, pair_repo)
+                    loser_display = get_competitor_display(sf_match, 2, player_repo, pair_repo, team_repo)
                 else:
-                    loser_display = get_competitor_display(sf_match, 1, player_repo, pair_repo)
+                    loser_display = get_competitor_display(sf_match, 1, player_repo, pair_repo, team_repo)
                 if loser_display.id != 0:
                     third_fourth.append(loser_display)
             else:
@@ -2223,7 +2325,75 @@ async def view_final_results(request: Request, category: str):
     # Build complete ranking
     player_rankings = []
 
-    if _is_doubles:
+    # Helper to determine position from rounds reached
+    def _get_position_and_round(competitor_id, rounds_reached):
+        if champion and competitor_id == champion.id:
+            return 1, 'Campeón'
+        elif second_place and competitor_id == second_place.id:
+            return 2, 'Subcampeón'
+        elif any(competitor_id == p.id for p in third_fourth):
+            return 3, 'Semifinal'
+        elif RoundType.SEMIFINAL.value in rounds_reached:
+            return 3, 'Semifinal'
+        elif RoundType.QUARTERFINAL.value in rounds_reached:
+            return 5, 'Cuartos de Final'
+        elif RoundType.ROUND_OF_16.value in rounds_reached:
+            return 9, 'Ronda de 16'
+        elif RoundType.ROUND_OF_32.value in rounds_reached:
+            return 17, 'Ronda de 32'
+        else:
+            return 20, 'Primera Ronda'
+
+    if _is_teams:
+        # For teams, iterate over teams
+        all_teams = [t for t in team_repo.get_by_category(category)]
+        all_bracket_matches = [
+            m for m in match_repo.get_all()
+            if m.group_id is None and m.tournament_id == tournament_id and m.category == category
+        ]
+
+        for team in all_teams:
+            team_display = CompetitorDisplay.from_team(team, player_repo=player_repo)
+
+            # Check if team is in bracket
+            team_in_bracket = any(
+                (getattr(slot, 'team_id', None) == team.id or slot.player_id == team.id)
+                for slot in bracket_slots if slot.player_id
+            )
+
+            if not team_in_bracket:
+                player_rankings.append({
+                    'player': team_display,
+                    'final_position': 99,
+                    'elimination_round': 'Fase de Grupos'
+                })
+                continue
+
+            # Find bracket matches for this team
+            team_matches = [
+                m for m in all_bracket_matches
+                if (m.team1_id == team.id or m.team2_id == team.id)
+                and m.status == MatchStatus.COMPLETED.value
+            ]
+
+            if not team_matches:
+                player_rankings.append({
+                    'player': team_display,
+                    'final_position': 50,
+                    'elimination_round': 'Por Jugar'
+                })
+                continue
+
+            rounds_reached = [m.round_type for m in team_matches]
+            position, round_name = _get_position_and_round(team_display.id, rounds_reached)
+
+            player_rankings.append({
+                'player': team_display,
+                'final_position': position,
+                'elimination_round': round_name
+            })
+
+    elif _is_doubles:
         # For doubles, iterate over pairs
         all_pairs = [p for p in pair_repo.get_all() if p.categoria == category]
         all_bracket_matches = [
@@ -2266,31 +2436,7 @@ async def view_final_results(request: Request, category: str):
                 continue
 
             rounds_reached = [m.round_type for m in pair_matches]
-
-            if champion and pair_display.id == champion.id:
-                position = 1
-                round_name = 'Campeón'
-            elif second_place and pair_display.id == second_place.id:
-                position = 2
-                round_name = 'Subcampeón'
-            elif any(pair_display.id == p.id for p in third_fourth):
-                position = 3
-                round_name = 'Semifinal'
-            elif RoundType.SEMIFINAL.value in rounds_reached:
-                position = 3
-                round_name = 'Semifinal'
-            elif RoundType.QUARTERFINAL.value in rounds_reached:
-                position = 5
-                round_name = 'Cuartos de Final'
-            elif RoundType.ROUND_OF_16.value in rounds_reached:
-                position = 9
-                round_name = 'Ronda de 16'
-            elif RoundType.ROUND_OF_32.value in rounds_reached:
-                position = 17
-                round_name = 'Ronda de 32'
-            else:
-                position = 20
-                round_name = 'Primera Ronda'
+            position, round_name = _get_position_and_round(pair_display.id, rounds_reached)
 
             player_rankings.append({
                 'player': pair_display,
@@ -2334,31 +2480,7 @@ async def view_final_results(request: Request, category: str):
                 continue
 
             rounds_reached = [m.round_type for m in player_matches]
-
-            if player.id == champion.id if champion else None:
-                position = 1
-                round_name = 'Campeón'
-            elif player.id == second_place.id if second_place else None:
-                position = 2
-                round_name = 'Subcampeón'
-            elif any(player.id == p.id for p in third_fourth):
-                position = 3
-                round_name = 'Semifinal'
-            elif RoundType.SEMIFINAL.value in rounds_reached:
-                position = 3
-                round_name = 'Semifinal'
-            elif RoundType.QUARTERFINAL.value in rounds_reached:
-                position = 5
-                round_name = 'Cuartos de Final'
-            elif RoundType.ROUND_OF_16.value in rounds_reached:
-                position = 9
-                round_name = 'Ronda de 16'
-            elif RoundType.ROUND_OF_32.value in rounds_reached:
-                position = 17
-                round_name = 'Ronda de 32'
-            else:
-                position = 20
-                round_name = 'Primera Ronda'
+            position, round_name = _get_position_and_round(player.id, rounds_reached)
 
             player_rankings.append({
                 'player': player,
@@ -3306,6 +3428,761 @@ async def admin_delete_pair(request: Request, pair_id: int):
     return RedirectResponse(url="/admin/import-pairs", status_code=303)
 
 
+# ============================================================
+# TEAMS IMPORT ROUTES
+# ============================================================
+
+@app.get("/admin/import-teams", response_class=HTMLResponse)
+async def admin_import_teams_form(request: Request):
+    """Show import teams form with existing teams list."""
+    session = get_db_session()
+    player_repo = PlayerRepository(session)
+    team_repo = TeamRepository(session)
+    tournament_repo = TournamentRepository(session)
+
+    current_tournament = tournament_repo.get_current()
+
+    if not current_tournament:
+        return render_template(
+            "admin_import_teams.html",
+            {"request": request, "tournament": None},
+        )
+
+    tournament_id = current_tournament.id
+
+    # Get all teams for current tournament
+    teams = team_repo.get_by_tournament(tournament_id)
+
+    # Build display data for each team
+    teams_display = []
+    for team_orm in teams:
+        player_names = []
+        for pid in team_orm.player_ids:
+            p = player_repo.get_by_id(pid)
+            if p:
+                player_names.append(f"{p.nombre} {p.apellido}")
+        # Find group name if assigned
+        group_name = None
+        if team_orm.group_id:
+            group_repo = GroupRepository(session)
+            grp = group_repo.get_by_id(team_orm.group_id)
+            if grp:
+                group_name = grp.name
+        teams_display.append({
+            "id": team_orm.id,
+            "name": team_orm.name,
+            "pais_cd": team_orm.pais_cd,
+            "categoria": team_orm.categoria,
+            "ranking_pts": team_orm.ranking_pts,
+            "seed": team_orm.seed,
+            "group_id": team_orm.group_id,
+            "group_name": group_name,
+            "player_names": player_names,
+        })
+
+    # Get all players for manual team creation
+    all_players = player_repo.get_all(tournament_id=tournament_id)
+
+    # Get team categories that already have teams
+    from ettem.models import is_teams_category
+    team_categories = sorted(set(t.categoria for t in teams))
+
+    return render_template(
+        "admin_import_teams.html",
+        {
+            "request": request,
+            "tournament": current_tournament,
+            "teams_display": teams_display,
+            "all_players": all_players,
+            "team_categories": team_categories,
+        },
+    )
+
+
+@app.post("/admin/import-teams/csv")
+async def admin_import_teams_csv(
+    request: Request,
+    csv_file: UploadFile = File(...),
+    auto_seeds: Optional[str] = Form(None),
+):
+    """Import teams from CSV. Creates players automatically if they don't exist.
+
+    CSV format: team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,
+                nombre3,apellido3,pais3,ranking_pts,categoria
+    Optional: nombre4,apellido4,pais4,nombre5,apellido5,pais5
+    """
+    import csv
+    import io
+    from ettem.models import Player, Gender, Team, is_teams_category
+
+    try:
+        content = await csv_file.read()
+        text = content.decode("utf-8-sig")
+
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        team_repo = TeamRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        reader = csv.DictReader(io.StringIO(text))
+        imported_teams = 0
+        created_players = 0
+        errors = []
+
+        # Pre-load existing players for dedup
+        all_players = player_repo.get_all(tournament_id=tournament_id)
+        player_index = {}
+        for p in all_players:
+            key = (p.nombre.strip().lower(), p.apellido.strip().lower(), p.pais_cd.strip().upper())
+            player_index[key] = p
+
+        # Pre-load existing teams for dedup
+        existing_teams = team_repo.get_all(tournament_id=tournament_id)
+        existing_team_names = {(t.name.strip().lower(), t.categoria.strip().upper()) for t in existing_teams}
+
+        def infer_gender(categoria: str) -> str:
+            cat = categoria.upper().strip()
+            if cat.endswith("WT") or cat.endswith("GT"):
+                return "F"
+            return "M"
+
+        def find_or_create_player(nombre, apellido, pais_cd, categoria, tournament_id):
+            nonlocal created_players
+            key = (nombre.strip().lower(), apellido.strip().lower(), pais_cd.strip().upper())
+            if key in player_index:
+                return player_index[key]
+            genero = infer_gender(categoria)
+            player = Player(
+                id=0,
+                nombre=nombre.strip(),
+                apellido=apellido.strip(),
+                genero=Gender.MALE if genero == "M" else Gender.FEMALE,
+                pais_cd=pais_cd.strip().upper(),
+                ranking_pts=0,
+                categoria=categoria.strip().upper(),
+            )
+            player_orm = player_repo.create(player, tournament_id=tournament_id)
+            player_index[key] = player_orm
+            created_players += 1
+            return player_orm
+
+        for row_num, row in enumerate(reader, start=2):
+            try:
+                team_name = row.get("team_name", "").strip()
+                pais_cd = row.get("pais_cd", "").strip().upper()
+                categoria = row.get("categoria", "").strip().upper()
+                ranking_pts = float(row.get("ranking_pts", "0").strip() or "0")
+
+                if not all([team_name, pais_cd, categoria]):
+                    errors.append(f"Fila {row_num}: campos requeridos vacíos (team_name, pais_cd, categoria)")
+                    continue
+
+                if not is_teams_category(categoria):
+                    errors.append(f"Fila {row_num}: {categoria} no es categoría de equipos (debe terminar en BT, GT, MT o WT)")
+                    continue
+
+                if len(pais_cd) != 3:
+                    errors.append(f"Fila {row_num}: código de país debe ser 3 letras")
+                    continue
+
+                # Skip if team already exists
+                if (team_name.lower(), categoria) in existing_team_names:
+                    errors.append(f"Fila {row_num}: equipo '{team_name}' ya existe en {categoria}")
+                    continue
+
+                # Find or create 3-5 players
+                player_ids = []
+                for j in range(1, 6):
+                    nombre_key = f"nombre{j}"
+                    apellido_key = f"apellido{j}"
+                    pais_key = f"pais{j}"
+
+                    nombre = row.get(nombre_key, "").strip()
+                    apellido = row.get(apellido_key, "").strip()
+                    pais = row.get(pais_key, "").strip().upper()
+
+                    if nombre and apellido and pais:
+                        p = find_or_create_player(nombre, apellido, pais, categoria, tournament_id)
+                        player_ids.append(p.id)
+
+                if len(player_ids) < 3:
+                    errors.append(f"Fila {row_num}: se requieren al menos 3 jugadores, solo se encontraron {len(player_ids)}")
+                    continue
+
+                # Create team
+                team = Team(
+                    id=0,
+                    name=team_name,
+                    categoria=categoria,
+                    pais_cd=pais_cd,
+                    ranking_pts=ranking_pts,
+                    player_ids=player_ids,
+                )
+                team_repo.create(team, tournament_id=tournament_id)
+                imported_teams += 1
+                existing_team_names.add((team_name.lower(), categoria))
+
+            except (ValueError, KeyError) as e:
+                errors.append(f"Fila {row_num}: {str(e)}")
+
+        # Assign seeds if requested
+        if auto_seeds == "1" and imported_teams > 0:
+            all_teams = team_repo.get_all(tournament_id=tournament_id)
+            cats = set(t.categoria for t in all_teams)
+            for cat in cats:
+                team_repo.assign_seeds(cat, tournament_id=tournament_id)
+
+        # Build message
+        parts = []
+        if imported_teams > 0:
+            parts.append(f"{imported_teams} equipos importados")
+        if created_players > 0:
+            parts.append(f"{created_players} jugadores creados")
+        msg = ", ".join(parts) + "." if parts else "No se importaron equipos."
+        if errors:
+            msg += f" ({len(errors)} errores: {'; '.join(errors[:5])})"
+
+        request.session["flash_message"] = msg
+        request.session["flash_type"] = "success" if imported_teams > 0 else "warning"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al importar CSV: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+
+@app.post("/admin/import-teams/manual")
+async def admin_import_teams_manual(
+    request: Request,
+    team_name: str = Form(...),
+    pais_cd: str = Form(...),
+    categoria: str = Form(...),
+    ranking_pts: float = Form(0),
+    player1_id: int = Form(...),
+    player2_id: int = Form(...),
+    player3_id: int = Form(...),
+    player4_id: Optional[int] = Form(None),
+    player5_id: Optional[int] = Form(None),
+):
+    """Create a team manually from form data."""
+    from ettem.models import Team, is_teams_category
+
+    try:
+        session = get_db_session()
+        player_repo = PlayerRepository(session)
+        team_repo = TeamRepository(session)
+        tournament_repo = TournamentRepository(session)
+
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+
+        categoria = categoria.strip().upper()
+        if not is_teams_category(categoria):
+            request.session["flash_message"] = f"{categoria} no es una categoría de equipos."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+        # Collect player IDs
+        player_ids = [player1_id, player2_id, player3_id]
+        if player4_id:
+            player_ids.append(player4_id)
+        if player5_id:
+            player_ids.append(player5_id)
+
+        # Validate all players exist
+        for pid in player_ids:
+            p = player_repo.get_by_id(pid)
+            if not p:
+                request.session["flash_message"] = f"Jugador con ID {pid} no encontrado."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+        # Check no duplicate player IDs
+        if len(set(player_ids)) != len(player_ids):
+            request.session["flash_message"] = "Un jugador no puede aparecer dos veces en el mismo equipo."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+        team = Team(
+            id=0,
+            name=team_name.strip(),
+            categoria=categoria,
+            pais_cd=pais_cd.strip().upper(),
+            ranking_pts=ranking_pts,
+            player_ids=player_ids,
+        )
+        team_repo.create(team, tournament_id=tournament_id)
+
+        # Auto-assign seeds for the category
+        team_repo.assign_seeds(categoria, tournament_id=tournament_id)
+
+        request.session["flash_message"] = f"Equipo '{team_name}' creado exitosamente en {categoria}."
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al crear equipo: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+
+@app.post("/admin/team/{team_id}/delete")
+async def admin_delete_team(request: Request, team_id: int):
+    """Delete a team."""
+    try:
+        session = get_db_session()
+        team_repo = TeamRepository(session)
+
+        team = team_repo.get_by_id(team_id)
+        if not team:
+            request.session["flash_message"] = "Equipo no encontrado."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+        # Don't allow deleting teams that are already in groups
+        if team.group_id:
+            request.session["flash_message"] = "No se puede eliminar un equipo que ya está en un grupo."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+        categoria = team.categoria
+        team_repo.delete(team_id)
+
+        # Recalculate seeds
+        tournament_repo = TournamentRepository(session)
+        current_tournament = tournament_repo.get_current()
+        tournament_id = current_tournament.id if current_tournament else None
+        team_repo.assign_seeds(categoria, tournament_id=tournament_id)
+
+        request.session["flash_message"] = "Equipo eliminado exitosamente."
+        request.session["flash_type"] = "success"
+
+    except Exception as e:
+        request.session["flash_message"] = f"Error al eliminar equipo: {str(e)}"
+        request.session["flash_type"] = "error"
+
+    return RedirectResponse(url="/admin/import-teams", status_code=303)
+
+
+# ============================================================
+# TEAM MATCH (ENCOUNTER) ROUTES
+# ============================================================
+
+@app.get("/team-match/{match_id}", response_class=HTMLResponse)
+async def team_match_view(request: Request, match_id: int):
+    """View a team encounter with its individual matches."""
+    from ettem.models import TEAM_MATCH_ORDERS, TeamMatchSystem, get_team_match_majority
+
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+    team_repo = TeamRepository(session)
+    player_repo = PlayerRepository(session)
+    detail_repo = TeamMatchDetailRepository(session)
+
+    match_orm = match_repo.get_by_id(match_id)
+    if not match_orm:
+        return HTMLResponse(content="Encuentro no encontrado", status_code=404)
+
+    # Get teams
+    team1 = team_repo.get_by_id(match_orm.team1_id) if match_orm.team1_id else None
+    team2 = team_repo.get_by_id(match_orm.team2_id) if match_orm.team2_id else None
+    team1_name = team1.name if team1 else "Equipo 1"
+    team2_name = team2.name if team2 else "Equipo 2"
+    team1_pais = team1.pais_cd if team1 else "---"
+    team2_pais = team2.pais_cd if team2 else "---"
+
+    # Team match system
+    system = match_orm.team_match_system or TeamMatchSystem.SWAYTHLING
+    system_labels = {
+        TeamMatchSystem.SWAYTHLING: "Swaythling (5S)",
+        TeamMatchSystem.CORBILLON: "Corbillon (4S+1D)",
+        TeamMatchSystem.OLYMPIC: "Olimpico (4S+1D)",
+        TeamMatchSystem.BEST_OF_7: "Best of 7 (6S+1D)",
+        TeamMatchSystem.BEST_OF_9: "Best of 9 (9S)",
+    }
+    system_label = system_labels.get(system, system)
+    order = TEAM_MATCH_ORDERS.get(system, [])
+    total_matches = len(order)
+    majority = get_team_match_majority(system)
+
+    # Get individual match details
+    detail_orms = detail_repo.get_by_parent_match(match_id)
+
+    # Check if players are assigned
+    players_assigned = len(detail_orms) > 0 and any(d.player1_id for d in detail_orms)
+
+    # Build details display
+    details = []
+    for d in detail_orms:
+        p1 = player_repo.get_by_id(d.player1_id) if d.player1_id else None
+        p2 = player_repo.get_by_id(d.player2_id) if d.player2_id else None
+        p1b = player_repo.get_by_id(d.player1b_id) if d.player1b_id else None
+        p2b = player_repo.get_by_id(d.player2b_id) if d.player2b_id else None
+
+        details.append({
+            "id": d.id,
+            "match_number": d.match_number,
+            "match_type": d.match_type,
+            "home_label": d.label_home or "",
+            "away_label": d.label_away or "",
+            "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else None,
+            "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else None,
+            "player1b_name": f"{p1b.nombre} {p1b.apellido}" if p1b else None,
+            "player2b_name": f"{p2b.nombre} {p2b.apellido}" if p2b else None,
+            "status": d.status,
+            "winner_side": d.winner_side,
+            "sets": [{"player1_points": s["player1_points"], "player2_points": s["player2_points"]} for s in d.sets],
+        })
+
+    # Team scores
+    team1_score = match_orm.team1_score or 0
+    team2_score = match_orm.team2_score or 0
+
+    # Winner name
+    winner_name = ""
+    if match_orm.winner_id:
+        winner_team = team_repo.get_by_id(match_orm.winner_id)
+        winner_name = winner_team.name if winner_team else ""
+
+    # Get player labels needed for assignment
+    home_labels = sorted(set(lbl for _, _, lbl, _ in order if lbl != "doubles"))
+    away_labels = sorted(set(lbl for _, _, _, lbl in order if lbl != "doubles"))
+    # For compound labels like "B&C", split into individual letters
+    all_home_letters = set()
+    for lbl in home_labels:
+        for part in lbl.split("&"):
+            all_home_letters.add(part.strip())
+    all_away_letters = set()
+    for lbl in away_labels:
+        for part in lbl.split("&"):
+            all_away_letters.add(part.strip())
+    home_labels = sorted(all_home_letters)
+    away_labels = sorted(all_away_letters)
+
+    # Get team players for assignment dropdowns
+    team1_players = []
+    team2_players = []
+    if team1:
+        for pid in team1.player_ids:
+            p = player_repo.get_by_id(pid)
+            if p:
+                team1_players.append(p)
+    if team2:
+        for pid in team2.player_ids:
+            p = player_repo.get_by_id(pid)
+            if p:
+                team2_players.append(p)
+
+    return render_template(
+        "team_match.html",
+        {
+            "request": request,
+            "match": match_orm,
+            "match_status": match_orm.status,
+            "team1_name": team1_name,
+            "team2_name": team2_name,
+            "team1_pais": team1_pais,
+            "team2_pais": team2_pais,
+            "team1_score": team1_score,
+            "team2_score": team2_score,
+            "winner_name": winner_name,
+            "system": system,
+            "system_label": system_label,
+            "total_matches": total_matches,
+            "majority": majority,
+            "players_assigned": players_assigned,
+            "details": details,
+            "home_labels": home_labels,
+            "away_labels": away_labels,
+            "team1_players": team1_players,
+            "team2_players": team2_players,
+        },
+    )
+
+
+@app.post("/team-match/{match_id}/assign-players")
+async def team_match_assign_players(request: Request, match_id: int):
+    """Assign players to positions and create individual match details."""
+    from ettem.models import TEAM_MATCH_ORDERS, TeamMatchSystem
+
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+    team_repo = TeamRepository(session)
+    detail_repo = TeamMatchDetailRepository(session)
+
+    match_orm = match_repo.get_by_id(match_id)
+    if not match_orm:
+        request.session["flash_message"] = "Encuentro no encontrado."
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/", status_code=303)
+
+    form = await request.form()
+    system = match_orm.team_match_system or TeamMatchSystem.SWAYTHLING
+    order = TEAM_MATCH_ORDERS.get(system, [])
+
+    # Parse player assignments from form: home_A=player_id, away_X=player_id, etc.
+    home_assignments = {}
+    away_assignments = {}
+    for key, value in form.items():
+        if key.startswith("home_") and value:
+            label = key[5:]  # "A", "B", "C", etc.
+            home_assignments[label] = int(value)
+        elif key.startswith("away_") and value:
+            label = key[5:]
+            away_assignments[label] = int(value)
+
+    # Delete existing details (in case of re-assignment)
+    detail_repo.delete_by_parent_match(match_id)
+
+    # Create individual match details
+    details = []
+    for match_num, match_type, home_label, away_label in order:
+        d = TeamMatchDetailORM(
+            parent_match_id=match_id,
+            match_number=match_num,
+            match_type=match_type,
+            label_home=home_label,
+            label_away=away_label,
+            best_of=5,
+            status="pending",
+        )
+
+        if match_type == "singles":
+            d.player1_id = home_assignments.get(home_label)
+            d.player2_id = away_assignments.get(away_label)
+        elif match_type == "doubles":
+            # Parse compound labels like "B&C" -> assign both players
+            if "&" in home_label:
+                parts = home_label.split("&")
+                d.player1_id = home_assignments.get(parts[0].strip())
+                d.player1b_id = home_assignments.get(parts[1].strip())
+            else:
+                # Generic "doubles" label — use first two available home players
+                home_players = list(home_assignments.values())
+                if len(home_players) >= 2:
+                    d.player1_id = home_players[0]
+                    d.player1b_id = home_players[1]
+
+            if "&" in away_label:
+                parts = away_label.split("&")
+                d.player2_id = away_assignments.get(parts[0].strip())
+                d.player2b_id = away_assignments.get(parts[1].strip())
+            else:
+                away_players = list(away_assignments.values())
+                if len(away_players) >= 2:
+                    d.player2_id = away_players[0]
+                    d.player2b_id = away_players[1]
+
+        details.append(d)
+
+    detail_repo.create_bulk(details)
+
+    # Mark the encounter as in_progress
+    if match_orm.status == "pending":
+        match_orm.status = "in_progress"
+        match_repo.update(match_orm)
+
+    request.session["flash_message"] = f"Jugadores asignados. {len(details)} partidos individuales creados."
+    request.session["flash_type"] = "success"
+
+    return RedirectResponse(url=f"/team-match/{match_id}", status_code=303)
+
+
+@app.get("/team-match/{match_id}/detail/{detail_id}/enter-result", response_class=HTMLResponse)
+async def team_match_detail_result_form(request: Request, match_id: int, detail_id: int):
+    """Show form to enter result for an individual team match."""
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+    team_repo = TeamRepository(session)
+    player_repo = PlayerRepository(session)
+    detail_repo = TeamMatchDetailRepository(session)
+
+    match_orm = match_repo.get_by_id(match_id)
+    detail = detail_repo.get_by_id(detail_id)
+    if not match_orm or not detail:
+        return HTMLResponse(content="Partido no encontrado", status_code=404)
+
+    team1 = team_repo.get_by_id(match_orm.team1_id) if match_orm.team1_id else None
+    team2 = team_repo.get_by_id(match_orm.team2_id) if match_orm.team2_id else None
+
+    # Build player names
+    p1 = player_repo.get_by_id(detail.player1_id) if detail.player1_id else None
+    p2 = player_repo.get_by_id(detail.player2_id) if detail.player2_id else None
+    p1b = player_repo.get_by_id(detail.player1b_id) if detail.player1b_id else None
+    p2b = player_repo.get_by_id(detail.player2b_id) if detail.player2b_id else None
+
+    home_name = f"{p1.nombre} {p1.apellido}" if p1 else "Home"
+    if p1b:
+        home_name += f" / {p1b.nombre} {p1b.apellido}"
+    away_name = f"{p2.nombre} {p2.apellido}" if p2 else "Away"
+    if p2b:
+        away_name += f" / {p2b.nombre} {p2b.apellido}"
+
+    from ettem.models import get_team_match_best_of
+    total_matches = get_team_match_best_of(match_orm.team_match_system or "swaythling")
+    max_sets = detail.best_of
+
+    return render_template(
+        "team_match_detail_result.html",
+        {
+            "request": request,
+            "parent_match_id": match_id,
+            "detail": detail,
+            "team1_name": team1.name if team1 else "Equipo 1",
+            "team2_name": team2.name if team2 else "Equipo 2",
+            "home_name": home_name,
+            "away_name": away_name,
+            "max_sets": max_sets,
+            "total_matches": total_matches,
+            "existing_sets": detail.sets,
+        },
+    )
+
+
+@app.post("/team-match/{match_id}/detail/{detail_id}/save-result")
+async def team_match_detail_save_result(request: Request, match_id: int, detail_id: int):
+    """Save result for an individual match within a team encounter."""
+    from ettem.models import get_team_match_majority
+
+    session = get_db_session()
+    match_repo = MatchRepository(session)
+    team_repo = TeamRepository(session)
+    detail_repo = TeamMatchDetailRepository(session)
+
+    match_orm = match_repo.get_by_id(match_id)
+    detail = detail_repo.get_by_id(detail_id)
+    if not match_orm or not detail or detail.parent_match_id != match_id:
+        request.session["flash_message"] = "Partido no encontrado."
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url="/", status_code=303)
+
+    form = await request.form()
+
+    # Parse sets from form
+    sets_data = []
+    p1_sets_won = 0
+    p2_sets_won = 0
+    for i in range(1, detail.best_of + 1):
+        p1_raw = form.get(f"set{i}_p1", "")
+        p2_raw = form.get(f"set{i}_p2", "")
+        if p1_raw == "" or p2_raw == "":
+            break
+        p1_pts = int(p1_raw)
+        p2_pts = int(p2_raw)
+        if p1_pts == 0 and p2_pts == 0:
+            break
+        sets_data.append({
+            "set_number": i,
+            "player1_points": p1_pts,
+            "player2_points": p2_pts,
+        })
+        if p1_pts > p2_pts:
+            p1_sets_won += 1
+        elif p2_pts > p1_pts:
+            p2_sets_won += 1
+
+    # Determine winner of individual match
+    sets_to_win = (detail.best_of // 2) + 1
+    winner_side = None
+    if p1_sets_won >= sets_to_win:
+        winner_side = 1
+    elif p2_sets_won >= sets_to_win:
+        winner_side = 2
+
+    # Update detail
+    detail.sets = sets_data
+    detail.winner_side = winner_side
+    detail.status = "completed" if winner_side else "in_progress"
+    detail_repo.update(detail)
+
+    # Recalculate team scores from all completed details
+    all_details = detail_repo.get_by_parent_match(match_id)
+    team1_score = sum(1 for d in all_details if d.winner_side == 1)
+    team2_score = sum(1 for d in all_details if d.winner_side == 2)
+
+    match_orm.team1_score = team1_score
+    match_orm.team2_score = team2_score
+
+    # Check if encounter is decided
+    system = match_orm.team_match_system or "swaythling"
+    majority = get_team_match_majority(system)
+
+    if team1_score >= majority or team2_score >= majority:
+        # Encounter decided
+        if team1_score >= majority:
+            match_orm.winner_id = match_orm.team1_id
+        else:
+            match_orm.winner_id = match_orm.team2_id
+        match_orm.status = "completed"
+
+        # Store individual match wins as sets on parent MatchORM (for standings)
+        parent_sets = []
+        for d in all_details:
+            if d.winner_side:
+                parent_sets.append({
+                    "set_number": d.match_number,
+                    "player1_points": 1 if d.winner_side == 1 else 0,
+                    "player2_points": 1 if d.winner_side == 2 else 0,
+                })
+        match_orm.sets_json = __import__("json").dumps(parent_sets)
+
+        # Mark remaining pending matches as not_needed
+        for d in all_details:
+            if d.status == "pending":
+                d.status = "not_needed"
+                detail_repo.update(d)
+
+        match_repo.update(match_orm)
+
+        # Recalculate and persist group standings for team matches
+        if match_orm.group_id is not None:
+            standing_repo = StandingRepository(session)
+            player_repo = PlayerRepository(session)
+            pair_repo = PairRepository(session)
+            team_repo_standings = TeamRepository(session)
+            event_type = detect_event_type(match_orm.category) if match_orm.category else "teams"
+            group_matches_orm = match_repo.get_by_group(match_orm.group_id)
+            matches_domain = []
+            for gm in group_matches_orm:
+                sets_list = [
+                    Set(set_number=s["set_number"], player1_points=s["player1_points"], player2_points=s["player2_points"])
+                    for s in gm.sets
+                ]
+                matches_domain.append(Match(
+                    id=gm.id, player1_id=gm.competitor1_id, player2_id=gm.competitor2_id,
+                    group_id=gm.group_id, round_type=gm.round_type, status=gm.status,
+                    sets=sets_list, winner_id=gm.winner_id,
+                ))
+            standings, _ = calculate_standings(
+                matches_domain, match_orm.group_id, player_repo,
+                event_type=event_type, pair_repo=pair_repo, team_repo=team_repo_standings,
+            )
+            standing_repo.delete_by_group(match_orm.group_id)
+            for standing in standings:
+                standing_repo.create(standing)
+
+        # For bracket matches, advance the winner to the next round
+        if match_orm.group_id is None and match_orm.winner_id:
+            tournament_repo = TournamentRepository(session)
+            current_tournament = tournament_repo.get_current()
+            tournament_id = current_tournament.id if current_tournament else None
+            category = match_orm.category
+            if category:
+                advance_bracket_winner(match_orm, match_orm.winner_id, category, session, tournament_id=tournament_id)
+    else:
+        match_orm.status = "in_progress"
+        match_repo.update(match_orm)
+
+    request.session["flash_message"] = f"Resultado guardado. Marcador: {team1_score}-{team2_score}"
+    request.session["flash_type"] = "success"
+
+    return RedirectResponse(url=f"/team-match/{match_id}", status_code=303)
+
+
 @app.get("/admin/create-groups", response_class=HTMLResponse)
 async def admin_create_groups_form(request: Request):
     """Show create groups form."""
@@ -3314,6 +4191,7 @@ async def admin_create_groups_form(request: Request):
     group_repo = GroupRepository(session)
     match_repo = MatchRepository(session)
     tournament_repo = TournamentRepository(session)
+    team_repo = TeamRepository(session)
 
     # Get current tournament - show empty state if none exists
     current_tournament = tournament_repo.get_current()
@@ -3330,7 +4208,16 @@ async def admin_create_groups_form(request: Request):
     categories_dict = {}
     countries_by_category = {}  # Track country distribution per category
 
+    # Collect team categories first so we can skip individual players in those categories
+    all_teams = team_repo.get_all(tournament_id=tournament_id)
+    team_categories = set()
+    for team_orm in all_teams:
+        team_categories.add(team_orm.categoria)
+
     for player in all_players:
+        # Skip individual players in team categories (teams are counted separately)
+        if player.categoria in team_categories:
+            continue
         if player.categoria not in categories_dict:
             categories_dict[player.categoria] = 0
             countries_by_category[player.categoria] = {}
@@ -3340,6 +4227,18 @@ async def admin_create_groups_form(request: Request):
         if player.pais_cd not in countries_by_category[player.categoria]:
             countries_by_category[player.categoria][player.pais_cd] = 0
         countries_by_category[player.categoria][player.pais_cd] += 1
+
+    # Add teams categories (count teams, not individual players)
+    for team_orm in all_teams:
+        cat = team_orm.categoria
+        if cat not in categories_dict:
+            categories_dict[cat] = 0
+            countries_by_category[cat] = {}
+        categories_dict[cat] += 1
+        pais = team_orm.pais_cd or "---"
+        if pais not in countries_by_category[cat]:
+            countries_by_category[cat][pais] = 0
+        countries_by_category[cat][pais] += 1
 
     # Convert to list for template with country stats
     import json
@@ -3389,11 +4288,72 @@ async def admin_create_groups_preview(
         session = get_db_session()
         player_repo = PlayerRepository(session)
         tournament_repo = TournamentRepository(session)
+        team_repo = TeamRepository(session)
 
         # Get current tournament
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
 
+        event_type = detect_event_type(category)
+
+        if event_type == "teams":
+            # Get teams for this category
+            team_orms = team_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+            if not team_orms:
+                return JSONResponse({"error": f"No se encontraron equipos para la categoría {category}."}, status_code=400)
+
+            # Auto-assign seeds if needed
+            if any(t.seed is None for t in team_orms):
+                team_repo.assign_seeds(category, tournament_id=tournament_id)
+                team_orms = team_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+
+            # Convert to domain models (Team has .id, .seed, .pais_cd — works with create_groups)
+            competitors = []
+            for t_orm in team_orms:
+                t = Team(
+                    id=t_orm.id,
+                    name=t_orm.name,
+                    categoria=t_orm.categoria,
+                    pais_cd=t_orm.pais_cd,
+                    ranking_pts=t_orm.ranking_pts,
+                    seed=t_orm.seed,
+                    player_ids=t_orm.player_ids,
+                )
+                competitors.append(t)
+
+            groups, _ = create_groups(
+                players=competitors,
+                category=category,
+                group_size_preference=group_size_preference,
+                random_seed=random_seed if random_seed else 42,
+                event_type=event_type,
+            )
+
+            groups_preview = []
+            for group in groups:
+                group_items = []
+                for team_id in group.player_ids:
+                    team = next((t for t in competitors if t.id == team_id), None)
+                    if team:
+                        group_items.append({
+                            "id": team.id,
+                            "nombre": team.name,
+                            "apellido": "",
+                            "pais_cd": team.pais_cd,
+                            "ranking_pts": team.ranking_pts,
+                            "seed": team.seed,
+                        })
+                groups_preview.append({"name": group.name, "players": group_items})
+
+            return JSONResponse({
+                "category": category,
+                "group_size_preference": group_size_preference,
+                "random_seed": random_seed if random_seed else 42,
+                "groups": groups_preview,
+                "total_players": len(competitors),
+            })
+
+        # Singles / Doubles — original logic
         # Get players for this category in current tournament
         player_orms = player_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
 
@@ -3479,7 +4439,7 @@ async def admin_create_groups_execute(
     manual_assignments: Optional[str] = Form(None),
     best_of: int = Form(5)
 ):
-    """Execute group creation. Supports both singles and doubles categories."""
+    """Execute group creation. Supports singles, doubles, and teams categories."""
     from ettem.group_builder import create_groups
     import json
 
@@ -3488,6 +4448,7 @@ async def admin_create_groups_execute(
         session = get_db_session()
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
         tournament_repo = TournamentRepository(session)
@@ -3499,7 +4460,36 @@ async def admin_create_groups_execute(
         # Detect event type from category
         event_type = detect_event_type(category)
 
-        if event_type == "doubles":
+        if event_type == "teams":
+            # Get teams for this teams category
+            team_orms = team_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+            if not team_orms:
+                request.session["flash_message"] = f"No se encontraron equipos para la categoría {category}. Importa equipos primero."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/create-groups", status_code=303)
+
+            # Auto-assign seeds if needed
+            if any(t.seed is None for t in team_orms):
+                team_repo.assign_seeds(category, tournament_id=tournament_id)
+                team_orms = team_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
+
+            # Convert ORM to domain Team models
+            competitors = []
+            for t_orm in team_orms:
+                t = Team(
+                    id=t_orm.id,
+                    name=t_orm.name,
+                    categoria=t_orm.categoria,
+                    pais_cd=t_orm.pais_cd,
+                    ranking_pts=t_orm.ranking_pts,
+                    seed=t_orm.seed,
+                    group_id=t_orm.group_id,
+                    group_number=t_orm.group_number,
+                    player_ids=t_orm.player_ids,
+                )
+                competitors.append(t)
+
+        elif event_type == "doubles":
             # Get pairs for this doubles category
             pair_orms = pair_repo.get_by_category_sorted_by_seed(category, tournament_id=tournament_id)
             if not pair_orms:
@@ -3573,7 +4563,7 @@ async def admin_create_groups_execute(
             group_repo.delete(group.id)
 
         # Check if we have manual assignments
-        if manual_assignments and manual_assignments.strip() and event_type != "doubles":
+        if manual_assignments and manual_assignments.strip() and event_type not in ("doubles", "teams"):
             assignments = json.loads(manual_assignments)
             groups, matches = create_groups_from_manual_assignments(
                 players=competitors,
@@ -3595,7 +4585,16 @@ async def admin_create_groups_execute(
 
             # Update group assignment on competitors
             for entity_id in group.player_ids:
-                if event_type == "doubles":
+                if event_type == "teams":
+                    t_orm = team_repo.get_by_id(entity_id)
+                    if t_orm:
+                        t_orm.group_id = group_orm.id
+                        for c in competitors:
+                            if c.id == entity_id:
+                                t_orm.group_number = c.group_number
+                                break
+                    team_repo.session.commit()
+                elif event_type == "doubles":
                     pair_orm = pair_repo.get_by_id(entity_id)
                     if pair_orm:
                         pair_orm.group_id = group_orm.id
@@ -3618,7 +4617,13 @@ async def admin_create_groups_execute(
             for match in matches:
                 if match.player1_id in group.player_ids and match.player2_id in group.player_ids:
                     match.group_id = group_orm.id
-                    match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
+                    # For teams, also set team1_id/team2_id and default match system
+                    match_orm = match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
+                    if event_type == "teams" and match_orm:
+                        match_orm.team1_id = match.player1_id
+                        match_orm.team2_id = match.player2_id
+                        match_orm.team_match_system = "swaythling"
+                        match_repo.session.commit()
 
         # Create empty bracket structure
         advance_per_group = 2
@@ -3632,6 +4637,7 @@ async def admin_create_groups_execute(
             tournament_id=tournament_id
         )
 
+        entity_label = "equipos" if event_type == "teams" else "jugadores"
         request.session["flash_message"] = f"Se crearon {len(groups)} grupos con {len(matches)} partidos + {bracket_matches} partidos de bracket para {category}"
         request.session["flash_type"] = "success"
 
@@ -3723,6 +4729,8 @@ async def admin_calculate_standings_all(request: Request):
         match_repo = MatchRepository(session)
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         tournament_repo = TournamentRepository(session)
 
         # Get current tournament
@@ -3742,6 +4750,7 @@ async def admin_calculate_standings_all(request: Request):
 
         for group_orm in all_groups:
             categories_processed.add(group_orm.category)
+            event_type = detect_event_type(group_orm.category)
 
             # Get matches for this group
             match_orms = match_repo.get_by_group(group_orm.id)
@@ -3759,8 +4768,8 @@ async def admin_calculate_standings_all(request: Request):
                 ]
                 match = Match(
                     id=m_orm.id,
-                    player1_id=m_orm.player1_id,
-                    player2_id=m_orm.player2_id,
+                    player1_id=m_orm.competitor1_id,
+                    player2_id=m_orm.competitor2_id,
                     group_id=m_orm.group_id,
                     round_type=m_orm.round_type,
                     round_name=m_orm.round_name,
@@ -3772,7 +4781,10 @@ async def admin_calculate_standings_all(request: Request):
                 matches.append(match)
 
             # Calculate standings
-            standings, _ = calculate_standings(matches, group_orm.id, player_repo)
+            standings, _ = calculate_standings(
+                matches, group_orm.id, player_repo,
+                event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+            )
 
             # Delete old standings for this group
             standing_repo.delete_by_group(group_orm.id)
@@ -3805,6 +4817,10 @@ async def admin_calculate_standings_category(
         match_repo = MatchRepository(session)
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
+
+        event_type = detect_event_type(category)
 
         # Get all groups for this category
         group_orms = group_repo.get_by_category(category)
@@ -3833,8 +4849,8 @@ async def admin_calculate_standings_category(
                 ]
                 match = Match(
                     id=m_orm.id,
-                    player1_id=m_orm.player1_id,
-                    player2_id=m_orm.player2_id,
+                    player1_id=m_orm.competitor1_id,
+                    player2_id=m_orm.competitor2_id,
                     group_id=m_orm.group_id,
                     round_type=m_orm.round_type,
                     round_name=m_orm.round_name,
@@ -3846,7 +4862,10 @@ async def admin_calculate_standings_category(
                 matches.append(match)
 
             # Calculate standings
-            standings, _ = calculate_standings(matches, group_orm.id, player_repo)
+            standings, _ = calculate_standings(
+                matches, group_orm.id, player_repo,
+                event_type=event_type, pair_repo=pair_repo, team_repo=team_repo,
+            )
 
             # Delete old standings for this group
             standing_repo.delete_by_group(group_orm.id)
@@ -4143,36 +5162,44 @@ async def admin_direct_bracket_manual_save(request: Request, category: str):
             current_round = next_round
             current_size = next_size
 
-        # For doubles, set pair_id
-        if _is_doubles:
+        # For doubles/teams, set pair_id/team_id on bracket slots
+        if event_type in ("doubles", "teams"):
             saved_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
             for slot_orm in saved_slots:
                 if slot_orm.player_id and not slot_orm.is_bye:
-                    slot_orm.pair_id = slot_orm.player_id
+                    if event_type == "doubles":
+                        slot_orm.pair_id = slot_orm.player_id
+                    elif event_type == "teams":
+                        slot_orm.team_id = slot_orm.player_id
             session.commit()
 
         # Create matches
         matches_created = create_bracket_matches(
             category, bracket_repo, match_repo,
-            tournament_id=tournament_id, best_of=best_of
+            tournament_id=tournament_id, best_of=best_of, event_type=event_type
         )
 
         # Set event_type on matches
         bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
         for m in bracket_matches:
             m.event_type = event_type
-            if _is_doubles:
+            if event_type == "doubles":
                 if m.player1_id:
                     m.pair1_id = m.player1_id
                 if m.player2_id:
                     m.pair2_id = m.player2_id
+            elif event_type == "teams":
+                if m.player1_id:
+                    m.team1_id = m.player1_id
+                if m.player2_id:
+                    m.team2_id = m.player2_id
         session.commit()
 
         # Process BYE advancements
         process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
 
         # Sync matches
-        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
         request.session["flash_message"] = f"Bracket manual generado: {matches_created} partidos creados para {category}."
         request.session["flash_type"] = "success"
@@ -4480,18 +5507,21 @@ async def admin_direct_bracket_execute(
                 bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
                 total_slots += 1
 
-        # For doubles, set pair_id on the bracket slots
-        if event_type == "doubles":
+        # For doubles/teams, set pair_id/team_id on the bracket slots
+        if event_type in ("doubles", "teams"):
             saved_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
             for slot_orm in saved_slots:
                 if slot_orm.player_id and not slot_orm.is_bye:
-                    slot_orm.pair_id = slot_orm.player_id
+                    if event_type == "doubles":
+                        slot_orm.pair_id = slot_orm.player_id
+                    elif event_type == "teams":
+                        slot_orm.team_id = slot_orm.player_id
             session.commit()
 
         # Create matches from bracket slots
         matches_created = create_bracket_matches(
             category, bracket_repo, match_repo,
-            tournament_id=tournament_id, best_of=best_of
+            tournament_id=tournament_id, best_of=best_of, event_type=event_type
         )
 
         # Set event_type on created matches
@@ -4499,33 +5529,46 @@ async def admin_direct_bracket_execute(
         for m in bracket_matches:
             m.event_type = event_type
             if event_type == "doubles":
-                # Set pair IDs on matches
                 if m.player1_id:
                     m.pair1_id = m.player1_id
                 if m.player2_id:
                     m.pair2_id = m.player2_id
+            elif event_type == "teams":
+                if m.player1_id:
+                    m.team1_id = m.player1_id
+                if m.player2_id:
+                    m.team2_id = m.player2_id
         session.commit()
 
         # Process BYE advancements
         process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
 
         # Sync matches with updated slots
-        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+        sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
-        # For doubles, refresh pair IDs after BYE advancement (BYEs may have
+        # For doubles/teams, refresh IDs after BYE advancement (BYEs may have
         # populated player1_id/player2_id in downstream rounds without setting
-        # pair1_id/pair2_id).
-        if event_type == "doubles":
+        # pair1_id/pair2_id or team1_id/team2_id).
+        if event_type in ("doubles", "teams"):
             bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
             for m in bracket_matches:
-                if m.player1_id and not m.pair1_id:
-                    m.pair1_id = m.player1_id
-                if m.player2_id and not m.pair2_id:
-                    m.pair2_id = m.player2_id
+                if event_type == "doubles":
+                    if m.player1_id and not m.pair1_id:
+                        m.pair1_id = m.player1_id
+                    if m.player2_id and not m.pair2_id:
+                        m.pair2_id = m.player2_id
+                elif event_type == "teams":
+                    if m.player1_id and not m.team1_id:
+                        m.team1_id = m.player1_id
+                    if m.player2_id and not m.team2_id:
+                        m.team2_id = m.player2_id
             saved_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
             for slot_orm in saved_slots:
-                if slot_orm.player_id and not slot_orm.is_bye and not slot_orm.pair_id:
-                    slot_orm.pair_id = slot_orm.player_id
+                if slot_orm.player_id and not slot_orm.is_bye:
+                    if event_type == "doubles" and not slot_orm.pair_id:
+                        slot_orm.pair_id = slot_orm.player_id
+                    elif event_type == "teams" and not slot_orm.team_id:
+                        slot_orm.team_id = slot_orm.player_id
             session.commit()
 
         request.session["flash_message"] = f"KO Directo generado: {len(competitors)} competidores, {total_slots} slots, {matches_created} partidos"
@@ -4565,16 +5608,22 @@ async def admin_generate_bracket_form(request: Request):
     all_standings = standing_repo.get_all()
 
     # Count standings per category (filter by current tournament via group_id)
+    # Build group_id -> category map for quick lookup
+    group_category_map = {g.id: g.category for g in all_groups}
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
+
     standings_by_category = {}
     for standing in all_standings:
         # Only include standings from current tournament's groups
         if standing.group_id not in current_group_ids:
             continue
-        player = player_repo.get_by_id(standing.player_id)
-        if player:
-            if player.categoria not in standings_by_category:
-                standings_by_category[player.categoria] = 0
-            standings_by_category[player.categoria] += 1
+        # Determine category from the group
+        cat = group_category_map.get(standing.group_id)
+        if cat:
+            if cat not in standings_by_category:
+                standings_by_category[cat] = 0
+            standings_by_category[cat] += 1
 
     # Count groups per category
     groups_by_category = {}
@@ -4662,10 +5711,14 @@ async def admin_generate_bracket_execute(
         session = get_db_session()
         standing_repo = StandingRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         bracket_repo = BracketRepository(session)
         tournament_repo = TournamentRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
+
+        event_type = detect_event_type(category)
 
         # Get current tournament
         current_tournament = tournament_repo.get_current()
@@ -4692,6 +5745,14 @@ async def admin_generate_bracket_execute(
 
         all_standings = standing_repo.get_all()
 
+        # Helper to look up competitor by event_type
+        def _get_competitor_orm(competitor_id):
+            if event_type == "teams":
+                return team_repo.get_by_id(competitor_id)
+            elif event_type == "doubles":
+                return pair_repo.get_by_id(competitor_id)
+            return player_repo.get_by_id(competitor_id)
+
         # Filter by category, tournament (via group_id), and get top N per group
         category_standings = []
         groups_processed = set()
@@ -4701,8 +5762,8 @@ async def admin_generate_bracket_execute(
             if standing_orm.group_id not in current_group_ids:
                 continue
 
-            player_orm = player_repo.get_by_id(standing_orm.player_id)
-            if not player_orm or player_orm.categoria != category:
+            competitor_orm = _get_competitor_orm(standing_orm.player_id)
+            if not competitor_orm or competitor_orm.categoria != category:
                 continue
 
             if standing_orm.group_id not in groups_processed:
@@ -4717,21 +5778,40 @@ async def admin_generate_bracket_execute(
             request.session["flash_type"] = "error"
             return RedirectResponse(url="/admin/generate-bracket", status_code=303)
 
-        # Convert to domain models with players
+        # Convert to domain models with competitors
         qualifiers = []
         for standing_orm in category_standings:
-            player_orm = player_repo.get_by_id(standing_orm.player_id)
-            if player_orm:
-                player = Player(
-                    id=player_orm.id,
-                    nombre=player_orm.nombre,
-                    apellido=player_orm.apellido,
-                    genero=player_orm.genero,
-                    pais_cd=player_orm.pais_cd,
-                    ranking_pts=player_orm.ranking_pts,
-                    categoria=player_orm.categoria,
-                    seed=player_orm.seed,
-                )
+            competitor_orm = _get_competitor_orm(standing_orm.player_id)
+            if competitor_orm:
+                if event_type == "teams":
+                    competitor = Team(
+                        id=competitor_orm.id,
+                        name=competitor_orm.name,
+                        categoria=competitor_orm.categoria,
+                        pais_cd=competitor_orm.pais_cd,
+                        ranking_pts=competitor_orm.ranking_pts,
+                        seed=competitor_orm.seed,
+                    )
+                elif event_type == "doubles":
+                    competitor = Pair(
+                        id=competitor_orm.id,
+                        player1_id=competitor_orm.player1_id,
+                        player2_id=competitor_orm.player2_id,
+                        categoria=competitor_orm.categoria,
+                        ranking_pts=competitor_orm.ranking_pts,
+                        seed=competitor_orm.seed,
+                    )
+                else:
+                    competitor = Player(
+                        id=competitor_orm.id,
+                        nombre=competitor_orm.nombre,
+                        apellido=competitor_orm.apellido,
+                        genero=competitor_orm.genero,
+                        pais_cd=competitor_orm.pais_cd,
+                        ranking_pts=competitor_orm.ranking_pts,
+                        categoria=competitor_orm.categoria,
+                        seed=competitor_orm.seed,
+                    )
                 standing = GroupStanding(
                     player_id=standing_orm.player_id,
                     group_id=standing_orm.group_id,
@@ -4744,7 +5824,7 @@ async def admin_generate_bracket_execute(
                     points_l=standing_orm.points_l,
                     position=standing_orm.position,
                 )
-                qualifiers.append((player, standing))
+                qualifiers.append((competitor, standing))
 
         # Build bracket (creates in-memory structure with player placements)
         bracket = build_bracket(
@@ -4752,6 +5832,8 @@ async def admin_generate_bracket_execute(
             category=category,
             random_seed=random_seed if random_seed else 42,
             player_repo=player_repo,
+            event_type=event_type,
+            pair_repo=pair_repo,
         )
 
         match_repo = MatchRepository(session)
@@ -4778,27 +5860,33 @@ async def admin_generate_bracket_execute(
                         if slot.slot_number in existing_by_round[round_key]:
                             db_slot = existing_by_round[round_key][slot.slot_number]
                             db_slot.player_id = slot.player_id
+                            if event_type == "teams":
+                                db_slot.team_id = slot.player_id
+                            elif event_type == "doubles":
+                                db_slot.pair_id = slot.player_id
                             db_slot.is_bye = slot.is_bye
                             db_slot.same_country_warning = slot.same_country_warning
                             total_updated += 1
 
             session.commit()
 
-            # Update best_of on existing bracket matches
+            # Update best_of and event_type on existing bracket matches
             bracket_matches = match_repo.get_bracket_matches_by_category(category, tournament_id=tournament_id)
             for match_orm in bracket_matches:
                 if match_orm.best_of != best_of:
                     match_orm.best_of = best_of
+                if match_orm.event_type != event_type:
+                    match_orm.event_type = event_type
             session.commit()
 
             # Sync matches with updated slots (updates player IDs in existing matches)
-            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
             # Process BYE advancements (and delete BYE matches)
             process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
 
             # Sync again after BYE processing
-            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
             request.session["flash_message"] = f"Bracket actualizado: {total_updated} slots con jugadores asignados"
         else:
@@ -4808,17 +5896,23 @@ async def admin_generate_bracket_execute(
             total_slots = 0
             for round_type, slots in bracket.slots.items():
                 for slot in slots:
-                    bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+                    slot_orm = bracket_repo.create_slot(slot, category, tournament_id=tournament_id)
+                    if event_type == "teams" and slot.player_id:
+                        slot_orm.team_id = slot.player_id
+                    elif event_type == "doubles" and slot.player_id:
+                        slot_orm.pair_id = slot.player_id
                     total_slots += 1
+            if event_type in ("teams", "doubles"):
+                session.commit()
 
             # Create matches from bracket slots
-            matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of)
+            matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
 
             # Process BYE advancements (and delete BYE matches)
             process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
 
             # Sync matches with updated slots
-            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id)
+            sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
             request.session["flash_message"] = f"Bracket generado: {total_slots} slots, {matches_created} partidos creados"
         request.session["flash_type"] = "success"
@@ -5252,13 +6346,19 @@ def validate_bracket_round_order(match_orm, category, session) -> tuple[bool, st
 
     # Get all bracket matches for this category
     match_repo = MatchRepository(session)
-    player_repo = PlayerRepository(session)
 
     all_matches = match_repo.get_all()
     bracket_matches = []
     for m in all_matches:
         if m.group_id is None:  # Bracket match
-            if m.player1_id:
+            # Use the match's category field directly (more reliable than player lookup
+            # which fails for doubles/teams where player1_id is a pair/team ID)
+            if hasattr(m, 'category') and m.category:
+                if m.category == category:
+                    bracket_matches.append(m)
+            elif m.player1_id:
+                # Fallback: lookup player category (legacy)
+                player_repo = PlayerRepository(session)
                 player = player_repo.get_by_id(m.player1_id)
                 if player and player.categoria == category:
                     bracket_matches.append(m)
@@ -5295,10 +6395,11 @@ def advance_bracket_winner(match_orm, winner_id, category, session, tournament_i
     Returns:
         True if advancement was successful, False if this is the final
     """
-    from ettem.models import RoundType, Match, MatchStatus, is_doubles_category
+    from ettem.models import RoundType, Match, MatchStatus, is_doubles_category, is_teams_category
     from ettem.storage import BracketSlotORM
 
     is_doubles = is_doubles_category(category)
+    is_teams = is_teams_category(category)
 
     # Map rounds to next round
     round_progression = {
@@ -5346,6 +6447,8 @@ def advance_bracket_winner(match_orm, winner_id, category, session, tournament_i
         update_data = {"player_id": winner_id, "is_bye": False}
         if is_doubles:
             update_data["pair_id"] = winner_id
+        if is_teams:
+            update_data["team_id"] = winner_id
         bracket_repo.session.query(BracketSlotORM).filter(
             BracketSlotORM.id == target_slot.id
         ).update(update_data)
@@ -5364,6 +6467,8 @@ def advance_bracket_winner(match_orm, winner_id, category, session, tournament_i
         )
         if is_doubles:
             new_slot_orm.pair_id = winner_id
+        if is_teams:
+            new_slot_orm.team_id = winner_id
         bracket_repo.session.add(new_slot_orm)
         bracket_repo.session.commit()
         next_round_slots = bracket_repo.get_by_category_and_round(category, next_round, tournament_id=tournament_id)  # Refresh slots list
@@ -5428,6 +6533,12 @@ def advance_bracket_winner(match_orm, winner_id, category, session, tournament_i
                 update_data["pair1_id"] = player1_id
                 update_data["pair2_id"] = player2_id
                 update_data["event_type"] = "doubles"
+            if is_teams:
+                update_data["team1_id"] = player1_id
+                update_data["team2_id"] = player2_id
+                update_data["event_type"] = "teams"
+                if not existing_match.team_match_system:
+                    update_data["team_match_system"] = match_orm.team_match_system or "swaythling"
             match_repo.session.query(MatchORM).filter(
                 MatchORM.id == existing_match.id
             ).update(update_data)
@@ -5445,12 +6556,18 @@ def advance_bracket_winner(match_orm, winner_id, category, session, tournament_i
             )
             match_repo.create(new_match, category=category)
             if is_doubles:
-                # Set pair IDs on fallback-created match
                 created = match_repo.get_bracket_match_by_round_and_number(category, next_round, next_match_number)
                 if created:
                     created.pair1_id = player1_id
                     created.pair2_id = player2_id
                     created.event_type = "doubles"
+            if is_teams:
+                created = match_repo.get_bracket_match_by_round_and_number(category, next_round, next_match_number)
+                if created:
+                    created.team1_id = player1_id
+                    created.team2_id = player2_id
+                    created.event_type = "teams"
+                    created.team_match_system = match_orm.team_match_system or "swaythling"
 
         match_repo.session.commit()
 
@@ -5573,7 +6690,7 @@ def rollback_bracket_advancement(match_orm, winner_id, category, session, tourna
     return False
 
 
-def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_id: int = None, best_of: int = 5):
+def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_id: int = None, best_of: int = 5, event_type: str = "singles"):
     """
     Create Match objects for all bracket rounds based on bracket slots.
 
@@ -5586,6 +6703,7 @@ def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_i
         match_repo: MatchRepository instance
         tournament_id: Optional tournament ID to filter by
         best_of: Match format (3, 5, or 7 sets)
+        event_type: 'singles', 'doubles', or 'teams'
 
     Returns:
         Number of matches created
@@ -5676,7 +6794,7 @@ def create_bracket_matches(category: str, bracket_repo, match_repo, tournament_i
                 match_number=match_number,
                 status=MatchStatus.PENDING,
             )
-            match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of)
+            match_repo.create(match, category=category, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
             matches_created += 1
 
     return matches_created
@@ -5778,7 +6896,7 @@ def create_empty_bracket_structure(category: str, num_groups: int, advance_per_g
     return slots_created, matches_created
 
 
-def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, session, tournament_id: int = None):
+def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, session, tournament_id: int = None, event_type: str = "singles"):
     """
     Synchronize bracket matches with their corresponding slots.
 
@@ -5826,9 +6944,28 @@ def sync_bracket_matches_with_slots(category: str, bracket_repo, match_repo, ses
                     player1_id = slot1.player_id if not slot1.is_bye else None
                     player2_id = slot2.player_id if not slot2.is_bye else None
 
+                    changed = False
                     if match_orm.player1_id != player1_id or match_orm.player2_id != player2_id:
                         match_orm.player1_id = player1_id
                         match_orm.player2_id = player2_id
+                        changed = True
+                    # Also set team/pair IDs for non-singles event types
+                    if event_type == "teams":
+                        match_orm.team1_id = player1_id
+                        match_orm.team2_id = player2_id
+                        if match_orm.event_type != "teams":
+                            match_orm.event_type = "teams"
+                            changed = True
+                        if not match_orm.team_match_system:
+                            match_orm.team_match_system = "swaythling"
+                            changed = True
+                    elif event_type == "doubles":
+                        match_orm.pair1_id = player1_id
+                        match_orm.pair2_id = player2_id
+                        if match_orm.event_type != "doubles":
+                            match_orm.event_type = "doubles"
+                            changed = True
+                    if changed:
                         session.commit()
                     break
 
@@ -7011,7 +8148,7 @@ async def print_all_category_match_sheets(category: str):
 @app.get("/tournament-status", response_class=HTMLResponse)
 async def tournament_status(request: Request):
     """Show consolidated tournament status."""
-    from ettem.models import RoundType, is_doubles_category
+    from ettem.models import RoundType, is_doubles_category, is_teams_category
     from ettem.webapp.helpers import get_champion_display
 
     with get_db_session() as session:
@@ -7022,6 +8159,7 @@ async def tournament_status(request: Request):
         bracket_repo = BracketRepository(session)
         standing_repo = StandingRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         current_tournament = tournament_repo.get_current()
         if not current_tournament:
@@ -7033,25 +8171,33 @@ async def tournament_status(request: Request):
 
         tournament_id = current_tournament.id
 
-        # Get all categories from groups, players, AND pairs
+        # Get all categories from groups, players, pairs, AND teams
         all_groups = group_repo.get_all(tournament_id=tournament_id)
         group_categories = set(g.category for g in all_groups)
 
         all_players = player_repo.get_all(tournament_id=tournament_id)
-        player_categories = set(p.categoria for p in all_players if not is_doubles_category(p.categoria))
+        player_categories = set(p.categoria for p in all_players if not is_doubles_category(p.categoria) and not is_teams_category(p.categoria))
 
         all_pairs = pair_repo.get_all(tournament_id=tournament_id)
         pair_categories = set(p.categoria for p in all_pairs)
 
-        categories = sorted(group_categories | player_categories | pair_categories)
+        all_teams = team_repo.get_by_tournament(tournament_id)
+        team_categories = set(t.categoria for t in all_teams)
+
+        categories = sorted(group_categories | player_categories | pair_categories | team_categories)
 
         categories_status = {}
         for category in categories:
             cat_groups = [g for g in all_groups if g.category == category]
             _is_doubles = is_doubles_category(category)
+            _is_teams = is_teams_category(category)
 
             # Competitor count
-            if _is_doubles:
+            if _is_teams:
+                cat_competitors = [t for t in all_teams if t.categoria == category]
+                competitor_count = len(cat_competitors)
+                competitor_unit = "equipos"
+            elif _is_doubles:
                 cat_competitors = [p for p in all_pairs if p.categoria == category]
                 competitor_count = len(cat_competitors)
                 competitor_unit = "parejas"
@@ -7090,17 +8236,10 @@ async def tournament_status(request: Request):
             if has_bracket:
                 all_matches = match_repo.get_all()
                 for m in all_matches:
-                    if m.group_id is None and m.player1_id:
-                        if _is_doubles and m.pair1_id:
-                            pair = pair_repo.get_by_id(m.pair1_id)
-                            if pair:
-                                p1_player = player_repo.get_by_id(pair.player1_id)
-                                if p1_player and p1_player.categoria == category:
-                                    bracket_matches.append(m)
-                        else:
-                            player = player_repo.get_by_id(m.player1_id)
-                            if player and player.categoria == category:
-                                bracket_matches.append(m)
+                    if m.group_id is None and m.tournament_id == tournament_id:
+                        # Use match's category field directly (avoids player/pair/team lookup issues)
+                        if hasattr(m, 'category') and m.category == category:
+                            bracket_matches.append(m)
 
                 # Group by round
                 round_order = [
@@ -7125,7 +8264,7 @@ async def tournament_status(request: Request):
                 # Check for champion
                 final_matches = [m for m in bracket_matches if m.round_type == RoundType.FINAL.value]
                 if final_matches and final_matches[0].winner_id:
-                    champion = get_champion_display(final_matches[0].winner_id, category, player_repo, pair_repo)
+                    champion = get_champion_display(final_matches[0].winner_id, category, player_repo, pair_repo, team_repo=team_repo)
 
             # Determine phase
             if has_bracket:
@@ -7331,6 +8470,7 @@ async def admin_print_center(request: Request):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         tournament = tournament_repo.get_current()
         tournament_id = tournament.id if tournament else None
@@ -7395,14 +8535,19 @@ async def admin_print_center(request: Request):
                     "matches": [],
                 }
 
-            # Get competitor names (handle both singles and doubles)
-            from ettem.models import is_doubles_category
+            # Get competitor names (handle singles, doubles, and teams)
+            from ettem.models import is_doubles_category, is_teams_category
             p1_name = "TBD"
             p2_name = "TBD"
             is_ready = False  # Match is ready to play (both competitors known)
 
             is_doubles = is_doubles_category(category)
-            if is_doubles and match_orm.pair1_id:
+            is_teams = is_teams_category(category)
+            if is_teams and match_orm.team1_id:
+                team1 = team_repo.get_by_id(match_orm.team1_id)
+                if team1:
+                    p1_name = team1.name
+            elif is_doubles and match_orm.pair1_id:
                 pair1 = pair_repo.get_by_id(match_orm.pair1_id)
                 if pair1:
                     pl1 = player_repo.get_by_id(pair1.player1_id)
@@ -7413,7 +8558,11 @@ async def admin_print_center(request: Request):
                 if p1:
                     p1_name = f"{p1.nombre} {p1.apellido}"
 
-            if is_doubles and match_orm.pair2_id:
+            if is_teams and match_orm.team2_id:
+                team2 = team_repo.get_by_id(match_orm.team2_id)
+                if team2:
+                    p2_name = team2.name
+            elif is_doubles and match_orm.pair2_id:
                 pair2 = pair_repo.get_by_id(match_orm.pair2_id)
                 if pair2:
                     pl1 = player_repo.get_by_id(pair2.player1_id)
@@ -7424,7 +8573,10 @@ async def admin_print_center(request: Request):
                 if p2:
                     p2_name = f"{p2.nombre} {p2.apellido}"
 
-            if is_doubles:
+            if is_teams:
+                if match_orm.team1_id and match_orm.team2_id:
+                    is_ready = True
+            elif is_doubles:
                 if match_orm.pair1_id and match_orm.pair2_id:
                     is_ready = True
             else:
@@ -8471,6 +9623,7 @@ async def preview_bracket_tree(request: Request, category: str):
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        team_repo = TeamRepository(session)
         pair_repo = PairRepository(session)
         tournament_repo = TournamentRepository(session)
 
@@ -8546,7 +9699,7 @@ async def preview_bracket_tree(request: Request, category: str):
         for round_type, slots in complete_bracket.items():
             slots_with_players[round_type] = []
             for slot in slots:
-                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo, team_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
                     "player": competitor
@@ -8588,7 +9741,7 @@ async def preview_bracket_tree(request: Request, category: str):
 
             # Check for champion (final match winner)
             if match.round_type == 'F' and match.winner_id:
-                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo)
+                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo, team_repo=team_repo)
 
         # Round display names
         round_names = {
@@ -8633,6 +9786,7 @@ async def print_bracket_tree(category: str):
         bracket_repo = BracketRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        team_repo = TeamRepository(session)
         pair_repo = PairRepository(session)
         tournament_repo = TournamentRepository(session)
 
@@ -8708,7 +9862,7 @@ async def print_bracket_tree(category: str):
         for round_type, slots in complete_bracket.items():
             slots_with_players[round_type] = []
             for slot in slots:
-                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo)
+                competitor = get_bracket_slot_display(slot, category, player_repo, pair_repo, team_repo)
                 slots_with_players[round_type].append({
                     "slot": slot,
                     "player": competitor
@@ -8750,7 +9904,7 @@ async def print_bracket_tree(category: str):
 
             # Check for champion (final match winner)
             if match.round_type == 'F' and match.winner_id:
-                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo)
+                champion = get_champion_display(match.winner_id, category, player_repo, pair_repo, team_repo=team_repo)
 
         # Round display names
         round_names = {

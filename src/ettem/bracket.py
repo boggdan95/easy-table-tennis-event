@@ -4,7 +4,7 @@ import math
 import random
 from typing import Optional, Union
 
-from ettem.models import Bracket, BracketSlot, GroupStanding, Pair, Player, RoundType
+from ettem.models import Bracket, BracketSlot, GroupStanding, Pair, Player, RoundType, Team
 from ettem.storage import PairRepository, PlayerRepository
 
 
@@ -213,7 +213,7 @@ def _adjust_seed_positions_for_byes(
 
 
 def build_bracket_direct(
-    competitors: list[Union[Player, Pair]],
+    competitors: list[Union[Player, Pair, Team]],
     category: str,
     random_seed: Optional[int] = None,
     player_repo: Optional[PlayerRepository] = None,
@@ -338,7 +338,7 @@ def build_bracket_direct(
 
 
 def build_bracket(
-    qualifiers: list[tuple[Union[Player, Pair], GroupStanding]],
+    qualifiers: list[tuple[Union[Player, Pair, Team], GroupStanding]],
     category: str,
     random_seed: Optional[int] = None,
     player_repo: Optional[PlayerRepository] = None,

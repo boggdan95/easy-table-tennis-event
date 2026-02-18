@@ -58,14 +58,33 @@ class CompetitorDisplay:
         return cls.tbd()
 
     @classmethod
-    def from_team(cls, team) -> "CompetitorDisplay":
-        """Create from a Team object."""
+    def from_team(cls, team, player_repo=None) -> "CompetitorDisplay":
+        """Create from a TeamORM object.
+
+        If player_repo is provided, fetches team members for full display.
+        """
+        name = getattr(team, "name", f"Team {team.id}")
+        pais = getattr(team, "pais_cd", "---") or "---"
+
+        # Try to build full name with member surnames
+        full = name
+        if player_repo:
+            player_ids = team.player_ids if hasattr(team, "player_ids") else []
+            if player_ids:
+                members = []
+                for pid in player_ids:
+                    p = player_repo.get_by_id(pid)
+                    if p:
+                        members.append(p.apellido)
+                if members:
+                    full = f"{name} ({', '.join(members)})"
+
         return cls(
             id=team.id,
-            nombre=team.name,
+            nombre=name,
             apellido="",
-            full_name=team.name,
-            pais_cd=getattr(team, "pais_cd", "---") or "---",
+            full_name=full,
+            pais_cd=pais,
             seed=getattr(team, "seed", None),
             is_team=True,
         )
@@ -85,12 +104,20 @@ class CompetitorDisplay:
         )
 
 
-def get_competitor_display(match_orm, side: int, player_repo, pair_repo=None):
+def get_competitor_display(match_orm, side: int, player_repo, pair_repo=None, team_repo=None):
     """Get display data for side 1 or 2 of a match.
 
     Returns a CompetitorDisplay that works uniformly in templates.
     """
     event_type = getattr(match_orm, "event_type", "singles") or "singles"
+
+    if event_type == "teams" and team_repo:
+        team_id = match_orm.team1_id if side == 1 else match_orm.team2_id
+        if team_id:
+            team_orm = team_repo.get_by_id(team_id)
+            if team_orm:
+                return CompetitorDisplay.from_team(team_orm, player_repo=player_repo)
+        return CompetitorDisplay.tbd()
 
     if event_type == "doubles" and pair_repo:
         pair_id = match_orm.pair1_id if side == 1 else match_orm.pair2_id
@@ -111,16 +138,25 @@ def get_competitor_display(match_orm, side: int, player_repo, pair_repo=None):
     return CompetitorDisplay.tbd()
 
 
-def get_bracket_slot_display(slot_orm, category, player_repo, pair_repo=None):
+def get_bracket_slot_display(slot_orm, category, player_repo, pair_repo=None, team_repo=None):
     """Get CompetitorDisplay for a bracket slot.
 
-    For doubles categories, uses slot.pair_id to fetch pair and build display.
-    For singles, uses slot.player_id as before.
+    For teams categories, uses slot.team_id.
+    For doubles categories, uses slot.pair_id.
+    For singles, uses slot.player_id.
     """
-    from ettem.models import is_doubles_category
+    from ettem.models import is_doubles_category, is_teams_category
 
     if slot_orm.is_bye:
         return CompetitorDisplay.bye()
+
+    if is_teams_category(category) and team_repo:
+        team_id = getattr(slot_orm, "team_id", None) or slot_orm.player_id
+        if team_id:
+            team_orm = team_repo.get_by_id(team_id)
+            if team_orm:
+                return CompetitorDisplay.from_team(team_orm, player_repo=player_repo)
+        return CompetitorDisplay.tbd()
 
     if is_doubles_category(category) and pair_repo:
         pair_id = getattr(slot_orm, "pair_id", None) or slot_orm.player_id
@@ -140,15 +176,22 @@ def get_bracket_slot_display(slot_orm, category, player_repo, pair_repo=None):
     return CompetitorDisplay.tbd()
 
 
-def get_champion_display(winner_id, category, player_repo, pair_repo=None):
+def get_champion_display(winner_id, category, player_repo, pair_repo=None, team_repo=None):
     """Get CompetitorDisplay for a match winner.
 
-    For doubles, winner_id is a pair_id. For singles, it's a player_id.
+    For teams, winner_id is a team_id.
+    For doubles, winner_id is a pair_id.
+    For singles, it's a player_id.
     """
-    from ettem.models import is_doubles_category
+    from ettem.models import is_doubles_category, is_teams_category
 
     if not winner_id:
         return None
+
+    if is_teams_category(category) and team_repo:
+        team_orm = team_repo.get_by_id(winner_id)
+        if team_orm:
+            return CompetitorDisplay.from_team(team_orm, player_repo=player_repo)
 
     if is_doubles_category(category) and pair_repo:
         pair_orm = pair_repo.get_by_id(winner_id)
