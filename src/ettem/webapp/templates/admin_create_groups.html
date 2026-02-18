@@ -60,6 +60,7 @@
                     <select name="group_size_preference" required class="form-control">
                         <option value="3">3 jugadores (más grupos pequeños)</option>
                         <option value="4" selected>4 jugadores (recomendado)</option>
+                        <option value="5">5 jugadores (grupo grande)</option>
                     </select>
                 </div>
             </div>
@@ -233,24 +234,29 @@ function updatePlayerCount() {
         // Filter existing groups by category
         filterExistingGroups(selectedCategory);
 
-        // Calculate group distribution
+        // Calculate group distribution (mirrors group_builder.py logic)
+        let groups5 = 0;
         let groups4 = 0;
         let groups3 = 0;
 
-        if (groupSize === 4) {
+        if (groupSize === 5) {
+            const remainder = count % 5;
+            if (remainder === 0) { groups5 = count / 5; }
+            else if (remainder === 1) { groups3 = 2; groups4 = 0; groups5 = Math.floor(count / 5) - 1; if (groups5 < 0) groups5 = 0; }
+            else if (remainder === 2) { groups4 = 1; groups3 = 1; groups5 = Math.max(0, Math.floor(count / 5) - 1); }
+            else if (remainder === 3) { groups3 = 1; groups5 = Math.floor(count / 5); }
+            else if (remainder === 4) { groups4 = 1; groups5 = Math.floor(count / 5); }
+        } else if (groupSize === 4) {
             const remainder = count % 4;
             if (remainder === 0) {
                 groups4 = count / 4;
             } else if (remainder === 1) {
-                // 1 extra: create 1 group of 3 and rest of 4
-                groups3 = 1;
-                groups4 = Math.floor(count / 4) - 1;
+                if (count <= 5) { groups5 = 1; }
+                else { groups3 = Math.floor(count / 4) + 1; }
             } else if (remainder === 2) {
-                // 2 extra: create 2 groups of 3
                 groups3 = 2;
                 groups4 = Math.floor(count / 4) - 1;
             } else {
-                // 3 extra: create 1 group of 3 + round up
                 groups3 = 1;
                 groups4 = Math.floor(count / 4);
             }
@@ -259,11 +265,9 @@ function updatePlayerCount() {
             if (remainder === 0) {
                 groups3 = count / 3;
             } else if (remainder === 1) {
-                // 1 extra: create 1 group of 4
-                groups4 = 1;
-                groups3 = Math.floor(count / 3) - 1;
+                if (count <= 5) { groups5 = 1; }
+                else { groups4 = 1; groups3 = Math.floor(count / 3) - 1; }
             } else {
-                // 2 extra: create 1 group of 4 + round up
                 groups4 = 1;
                 groups3 = Math.floor(count / 3);
             }
@@ -271,10 +275,11 @@ function updatePlayerCount() {
 
         let text = `Se crearán aproximadamente `;
         const parts = [];
-        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4 jugadores`);
-        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3 jugadores`);
+        if (groups5 > 0) parts.push(`${groups5} grupo(s) de 5`);
+        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4`);
+        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3`);
         text += parts.join(' y ');
-        text += ` para ${count} jugadores en total.`;
+        text += ` para ${count} en total.`;
 
         previewText.textContent = text;
         playerInfo.style.display = 'block';

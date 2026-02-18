@@ -32,8 +32,8 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
     if num_players < 3:
         raise ValueError(f"Cannot create groups with {num_players} players (minimum 3)")
 
-    if preferred_size not in (3, 4):
-        raise ValueError(f"Preferred size must be 3 or 4, got {preferred_size}")
+    if preferred_size not in (3, 4, 5):
+        raise ValueError(f"Preferred size must be 3, 4 or 5, got {preferred_size}")
 
     # Try to fit as many preferred-size groups as possible
     num_preferred_groups = num_players // preferred_size
@@ -43,7 +43,26 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
         # Perfect fit
         return [preferred_size] * num_preferred_groups
 
-    if preferred_size == 4:
+    if preferred_size == 5:
+        if remainder == 1:
+            if num_preferred_groups >= 1:
+                # e.g. 6 players: [3, 3] or 11: [4, 4, 3]
+                return [4] * (num_preferred_groups - 1) + [3, 3] if num_preferred_groups >= 2 else [3, 3]
+            else:
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
+        elif remainder == 2:
+            if num_preferred_groups >= 1:
+                # e.g. 7: [4, 3], 12: [5, 4, 3]
+                return [5] * (num_preferred_groups - 1) + [4, 3] if num_preferred_groups >= 2 else [4, 3]
+            else:
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
+        elif remainder == 3:
+            # Add one group of 3: e.g. 8: [5, 3]
+            return [5] * num_preferred_groups + [3]
+        elif remainder == 4:
+            # Add one group of 4: e.g. 9: [5, 4]
+            return [5] * num_preferred_groups + [4]
+    elif preferred_size == 4:
         if remainder == 1:
             if num_preferred_groups >= 2:
                 # Convert two 4s into three 3s: e.g. 9 players -> [3, 3, 3]
