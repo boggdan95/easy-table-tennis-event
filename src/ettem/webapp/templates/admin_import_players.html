@@ -46,11 +46,11 @@
                 <span class="import-type-name">Parejas (Dobles)</span>
                 <span class="import-type-desc">CSV con parejas completas</span>
             </label>
-            <label class="import-type-option disabled" id="type-label-equipos">
-                <input type="radio" name="import_type" value="equipos" disabled>
+            <label class="import-type-option" id="type-label-equipos">
+                <input type="radio" name="import_type" value="equipos" onchange="switchImportType('equipos')">
                 <span class="import-type-icon">🏅</span>
                 <span class="import-type-name">Equipos</span>
-                <span class="import-type-desc">Próximamente</span>
+                <span class="import-type-desc">CSV con equipos completos</span>
             </label>
         </div>
     </div>
@@ -153,6 +153,30 @@
                         <pre style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.8rem; overflow-x: auto;">nombre1,apellido1,pais1,nombre2,apellido2,pais2,ranking_pts,categoria
 Juan,Perez,ESP,Pedro,Lopez,ESP,2900,MD
 Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Format Info - Equipos -->
+            <div class="alert alert-info" id="csv-format-equipos" style="display: none;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Formato del CSV - Equipos</div>
+                    <div>
+                        <p style="margin: 0.25rem 0;">Cada fila es un equipo completo con 3-5 jugadores. Los jugadores se crean automáticamente si no existen.</p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>team_name</strong>: Nombre del equipo</li>
+                            <li><strong>pais_cd</strong>: País del equipo (ISO-3)</li>
+                            <li><strong>nombre1, apellido1, pais1</strong>: Jugador 1 (requerido)</li>
+                            <li><strong>nombre2, apellido2, pais2</strong>: Jugador 2 (requerido)</li>
+                            <li><strong>nombre3, apellido3, pais3</strong>: Jugador 3 (requerido)</li>
+                            <li><strong>nombre4/5</strong>: Jugadores 4 y 5 (opcionales)</li>
+                            <li><strong>ranking_pts</strong>: Ranking del equipo (opcional, default 0)</li>
+                            <li><strong>categoria</strong>: Categoría equipos (MT, WT, BT, GT)</li>
+                        </ul>
+                        <pre style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.8rem; overflow-x: auto;">team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,nombre3,apellido3,pais3,ranking_pts,categoria
+Spain A,ESP,Juan,Perez,ESP,Carlos,Rodriguez,ESP,Pedro,Lopez,ESP,5000,MT
+Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                     </div>
                 </div>
             </div>
@@ -284,14 +308,69 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
                 </button>
             </div>
         </form>
+
+        <!-- Equipos manual form (hidden by default) -->
+        <form method="post" action="/admin/import-teams/manual" id="manual-form-equipos" style="display: none;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label>Nombre del Equipo *</label>
+                    <input type="text" name="team_name" class="form-control" required placeholder="Spain A">
+                </div>
+                <div class="form-group">
+                    <label>Pais (ISO-3) *</label>
+                    <input type="text" name="pais_cd" class="form-control" required placeholder="ESP" maxlength="3">
+                </div>
+                <div class="form-group">
+                    <label>Categoria *</label>
+                    <select name="categoria" class="form-control" required>
+                        <option value="">Seleccionar...</option>
+                        {% for cat in team_categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                        <option value="MT">MT (Men's Teams)</option>
+                        <option value="WT">WT (Women's Teams)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ranking Pts</label>
+                    <input type="number" name="ranking_pts" class="form-control" value="0" min="0" step="0.1">
+                </div>
+            </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Jugadores del Equipo</h4>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Selecciona 3-5 jugadores registrados en el torneo.</p>
+
+            {% for i in range(1, 6) %}
+            <div class="form-group" {% if i > 3 %}style="opacity: 0.7;"{% endif %}>
+                <label>Jugador {{ i }} {% if i <= 3 %}*{% else %}(opcional){% endif %}</label>
+                <select name="player{{ i }}_id" class="form-control" {% if i <= 3 %}required{% endif %}>
+                    <option value="">-- Seleccionar jugador --</option>
+                    {% for p in all_players %}
+                    <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.pais_cd }}) - {{ p.categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex gap-2" style="margin-top: 1rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Equipo</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
 <!-- Categories Summary -->
-{% if singles_categories or doubles_categories %}
+{% if singles_categories or doubles_categories or teams_categories %}
 <div class="card mb-3">
     <div class="card-header">
-        <h3 class="card-title">Categorías ({{ (singles_categories.keys() | list + doubles_categories.keys() | list) | unique | list | length }})</h3>
+        <h3 class="card-title">Categorías ({{ (singles_categories.keys() | list + doubles_categories.keys() | list + teams_categories.keys() | list) | unique | list | length }})</h3>
     </div>
     <div class="card-body">
         <div class="grid grid-3" style="gap: 1rem;">
@@ -321,6 +400,19 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
                 </div>
             </div>
             {% endfor %}
+            {% for cat, count in teams_categories.items() | sort %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ count }} equipos</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ count }})" title="Eliminar categoría">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -329,11 +421,13 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
 <!-- Inscritos por Categoría (Tabs) -->
 {% set has_players = players | length > 0 %}
 {% set has_pairs = pairs_display | length > 0 %}
+{% set has_teams = teams_display | length > 0 %}
 
-{% if has_players or has_pairs %}
+{% if has_players or has_pairs or has_teams %}
 {% set player_cats = players | map(attribute='categoria') | unique | sort | list if has_players else [] %}
 {% set pair_cats = pairs_display | map(attribute='categoria') | unique | sort | list if has_pairs else [] %}
-{% set all_cats = player_cats + pair_cats %}
+{% set team_cats = teams_display | map(attribute='categoria') | unique | sort | list if has_teams else [] %}
+{% set all_cats = player_cats + pair_cats + team_cats %}
 
 <div class="card mb-3">
     <div class="card-header" style="padding-bottom: 0;">
@@ -345,10 +439,15 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
             <button type="button" class="cat-tab {% if loop.first %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
                 {{ cat }} <span class="cat-tab-count">{{ cat_players|length }}</span>
             </button>
-            {% else %}
+            {% elif cat in pair_cats %}
             {% set cat_pairs = pairs_display | selectattr('categoria', 'equalto', cat) | list %}
             <button type="button" class="cat-tab {% if loop.first and not player_cats %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
                 {{ cat }} <span class="cat-tab-count">{{ cat_pairs|length }}</span>
+            </button>
+            {% elif cat in team_cats %}
+            {% set cat_teams = teams_display | selectattr('categoria', 'equalto', cat) | list %}
+            <button type="button" class="cat-tab {% if loop.first and not player_cats and not pair_cats %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
+                {{ cat }} <span class="cat-tab-count">{{ cat_teams|length }}</span>
             </button>
             {% endif %}
             {% endfor %}
@@ -427,6 +526,50 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
                                 <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePair({{ pair.id }})" title="Eliminar pareja">
                                     🗑️
                                 </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% for cat in team_cats %}
+        {% set cat_teams = teams_display | selectattr('categoria', 'equalto', cat) | list %}
+        <div class="cat-panel" id="cat-panel-{{ cat }}" {% if player_cats or pair_cats or not loop.first %}style="display: none;"{% endif %}>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Siembra</th>
+                            <th>Equipo</th>
+                            <th>País</th>
+                            <th>Jugadores</th>
+                            <th>Ranking</th>
+                            <th>Grupo</th>
+                            <th style="width: 80px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in cat_teams %}
+                        <tr>
+                            <td><span class="badge badge-secondary">{{ team.seed or '-' }}</span></td>
+                            <td><strong>{{ team.name }}</strong></td>
+                            <td><span class="badge badge-secondary">{{ team.pais_cd }}</span></td>
+                            <td>
+                                {% for pname in team.player_names %}
+                                <span style="font-size: 0.85rem;">{{ pname }}{% if not loop.last %}, {% endif %}</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ team.ranking_pts }}</td>
+                            <td>{% if team.group_id %}<span class="badge badge-success">G{{ team.group_name or '?' }}</span>{% else %}-{% endif %}</td>
+                            <td style="text-align: center;">
+                                <form method="post" action="/admin/delete-team/{{ team.id }}" style="display: inline;" data-confirm="Eliminar equipo {{ team.name }}?">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar equipo">
+                                        🗑️
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}
@@ -809,6 +952,7 @@ function switchImportType(type) {
     // Toggle format info visibility
     document.getElementById('csv-format-individual').style.display = (type === 'individual') ? 'block' : 'none';
     document.getElementById('csv-format-parejas').style.display = (type === 'parejas') ? 'block' : 'none';
+    document.getElementById('csv-format-equipos').style.display = (type === 'equipos') ? 'block' : 'none';
 
     // Toggle individual-specific options
     document.getElementById('csv-options-individual').style.display = (type === 'individual') ? 'block' : 'none';
@@ -819,6 +963,8 @@ function switchImportType(type) {
         form.action = '/admin/import-players/csv';
     } else if (type === 'parejas') {
         form.action = '/admin/import-pairs/csv-unified';
+    } else if (type === 'equipos') {
+        form.action = '/admin/import-teams/csv';
     }
 
     // Update section titles
@@ -828,11 +974,15 @@ function switchImportType(type) {
     } else if (type === 'parejas') {
         document.getElementById('csv-section-title').textContent = 'Importar Parejas desde CSV';
         document.getElementById('manual-section-title').textContent = 'Agregar Pareja Manualmente';
+    } else if (type === 'equipos') {
+        document.getElementById('csv-section-title').textContent = 'Importar Equipos desde CSV';
+        document.getElementById('manual-section-title').textContent = 'Crear Equipo Manualmente';
     }
 
     // Toggle manual forms
     document.getElementById('manual-form-individual').style.display = (type === 'individual') ? 'block' : 'none';
     document.getElementById('manual-form-parejas').style.display = (type === 'parejas') ? 'block' : 'none';
+    document.getElementById('manual-form-equipos').style.display = (type === 'equipos') ? 'block' : 'none';
 
     // Reset file and preview if open
     hideImportSections();

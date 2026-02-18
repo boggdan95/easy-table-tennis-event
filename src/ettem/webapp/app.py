@@ -2583,6 +2583,10 @@ async def admin_import_players_form(request: Request):
         return render_template("admin_import_players.html", {
             "request": request,
             "tournament": None,
+            "teams_display": [],
+            "teams_categories": {},
+            "team_categories": [],
+            "all_players": [],
         })
 
     tournament_id = current_tournament.id
@@ -2600,13 +2604,15 @@ async def admin_import_players_form(request: Request):
         pair_member_ids.add(p.player1_id)
         pair_member_ids.add(p.player2_id)
 
-    # Separate singles players from doubles-only pair members
+    # Separate singles players from doubles pair members and team members
     # A player shows in "Jugadores" only if:
-    # - Their category is NOT doubles, OR
+    # - Their category is NOT doubles and NOT teams, OR
     # - They are NOT a member of any pair (orphan doubles player)
     singles_players = [
         p for p in all_players
-        if not is_doubles_category(p.categoria) or p.id not in pair_member_ids
+        if not is_teams_category(p.categoria) and (
+            not is_doubles_category(p.categoria) or p.id not in pair_member_ids
+        )
     ]
 
     # Build player lookup for pair display
@@ -2638,6 +2644,41 @@ async def admin_import_players_form(request: Request):
             "group_number": p.group_number,
         })
 
+    # Get teams for team categories
+    team_repo = TeamRepository(session)
+    teams_orm = team_repo.get_by_tournament(tournament_id)
+
+    teams_categories = {}
+    teams_display = []
+    for team_orm in teams_orm:
+        cat = team_orm.categoria
+        teams_categories[cat] = teams_categories.get(cat, 0) + 1
+        player_names = []
+        for pid in team_orm.player_ids:
+            p = players_by_id.get(pid)
+            if p:
+                player_names.append(f"{p.nombre} {p.apellido}")
+        group_name = None
+        if team_orm.group_id:
+            group_repo = GroupRepository(session)
+            grp = group_repo.get_by_id(team_orm.group_id)
+            if grp:
+                group_name = grp.name
+        teams_display.append({
+            "id": team_orm.id,
+            "name": team_orm.name,
+            "pais_cd": team_orm.pais_cd,
+            "categoria": team_orm.categoria,
+            "ranking_pts": team_orm.ranking_pts,
+            "seed": team_orm.seed,
+            "group_id": team_orm.group_id,
+            "group_name": group_name,
+            "player_names": player_names,
+        })
+
+    # Get existing team categories for manual form dropdown
+    team_categories = sorted(set(t.categoria for t in teams_orm))
+
     return render_template(
         "admin_import_players.html",
         {
@@ -2646,6 +2687,10 @@ async def admin_import_players_form(request: Request):
             "pairs_display": pairs_display,
             "singles_categories": singles_categories,
             "doubles_categories": doubles_categories,
+            "teams_display": teams_display,
+            "teams_categories": teams_categories,
+            "team_categories": team_categories,
+            "all_players": all_players,
             "current_tournament": current_tournament,
             "tournament": current_tournament
         }
@@ -3432,71 +3477,10 @@ async def admin_delete_pair(request: Request, pair_id: int):
 # TEAMS IMPORT ROUTES
 # ============================================================
 
-@app.get("/admin/import-teams", response_class=HTMLResponse)
+@app.get("/admin/import-teams")
 async def admin_import_teams_form(request: Request):
-    """Show import teams form with existing teams list."""
-    session = get_db_session()
-    player_repo = PlayerRepository(session)
-    team_repo = TeamRepository(session)
-    tournament_repo = TournamentRepository(session)
-
-    current_tournament = tournament_repo.get_current()
-
-    if not current_tournament:
-        return render_template(
-            "admin_import_teams.html",
-            {"request": request, "tournament": None},
-        )
-
-    tournament_id = current_tournament.id
-
-    # Get all teams for current tournament
-    teams = team_repo.get_by_tournament(tournament_id)
-
-    # Build display data for each team
-    teams_display = []
-    for team_orm in teams:
-        player_names = []
-        for pid in team_orm.player_ids:
-            p = player_repo.get_by_id(pid)
-            if p:
-                player_names.append(f"{p.nombre} {p.apellido}")
-        # Find group name if assigned
-        group_name = None
-        if team_orm.group_id:
-            group_repo = GroupRepository(session)
-            grp = group_repo.get_by_id(team_orm.group_id)
-            if grp:
-                group_name = grp.name
-        teams_display.append({
-            "id": team_orm.id,
-            "name": team_orm.name,
-            "pais_cd": team_orm.pais_cd,
-            "categoria": team_orm.categoria,
-            "ranking_pts": team_orm.ranking_pts,
-            "seed": team_orm.seed,
-            "group_id": team_orm.group_id,
-            "group_name": group_name,
-            "player_names": player_names,
-        })
-
-    # Get all players for manual team creation
-    all_players = player_repo.get_all(tournament_id=tournament_id)
-
-    # Get team categories that already have teams
-    from ettem.models import is_teams_category
-    team_categories = sorted(set(t.categoria for t in teams))
-
-    return render_template(
-        "admin_import_teams.html",
-        {
-            "request": request,
-            "tournament": current_tournament,
-            "teams_display": teams_display,
-            "all_players": all_players,
-            "team_categories": team_categories,
-        },
-    )
+    """Redirect to unified import page."""
+    return RedirectResponse(url="/admin/import-players", status_code=302)
 
 
 @app.post("/admin/import-teams/csv")
@@ -3652,7 +3636,7 @@ async def admin_import_teams_csv(
         request.session["flash_message"] = f"Error al importar CSV: {str(e)}"
         request.session["flash_type"] = "error"
 
-    return RedirectResponse(url="/admin/import-teams", status_code=303)
+    return RedirectResponse(url="/admin/import-players", status_code=303)
 
 
 @app.post("/admin/import-teams/manual")
@@ -3684,7 +3668,7 @@ async def admin_import_teams_manual(
         if not is_teams_category(categoria):
             request.session["flash_message"] = f"{categoria} no es una categoría de equipos."
             request.session["flash_type"] = "error"
-            return RedirectResponse(url="/admin/import-teams", status_code=303)
+            return RedirectResponse(url="/admin/import-players", status_code=303)
 
         # Collect player IDs
         player_ids = [player1_id, player2_id, player3_id]
@@ -3699,13 +3683,13 @@ async def admin_import_teams_manual(
             if not p:
                 request.session["flash_message"] = f"Jugador con ID {pid} no encontrado."
                 request.session["flash_type"] = "error"
-                return RedirectResponse(url="/admin/import-teams", status_code=303)
+                return RedirectResponse(url="/admin/import-players", status_code=303)
 
         # Check no duplicate player IDs
         if len(set(player_ids)) != len(player_ids):
             request.session["flash_message"] = "Un jugador no puede aparecer dos veces en el mismo equipo."
             request.session["flash_type"] = "error"
-            return RedirectResponse(url="/admin/import-teams", status_code=303)
+            return RedirectResponse(url="/admin/import-players", status_code=303)
 
         team = Team(
             id=0,
@@ -3727,7 +3711,7 @@ async def admin_import_teams_manual(
         request.session["flash_message"] = f"Error al crear equipo: {str(e)}"
         request.session["flash_type"] = "error"
 
-    return RedirectResponse(url="/admin/import-teams", status_code=303)
+    return RedirectResponse(url="/admin/import-players", status_code=303)
 
 
 @app.post("/admin/team/{team_id}/delete")
@@ -3741,13 +3725,13 @@ async def admin_delete_team(request: Request, team_id: int):
         if not team:
             request.session["flash_message"] = "Equipo no encontrado."
             request.session["flash_type"] = "error"
-            return RedirectResponse(url="/admin/import-teams", status_code=303)
+            return RedirectResponse(url="/admin/import-players", status_code=303)
 
         # Don't allow deleting teams that are already in groups
         if team.group_id:
             request.session["flash_message"] = "No se puede eliminar un equipo que ya está en un grupo."
             request.session["flash_type"] = "error"
-            return RedirectResponse(url="/admin/import-teams", status_code=303)
+            return RedirectResponse(url="/admin/import-players", status_code=303)
 
         categoria = team.categoria
         team_repo.delete(team_id)
@@ -3765,7 +3749,7 @@ async def admin_delete_team(request: Request, team_id: int):
         request.session["flash_message"] = f"Error al eliminar equipo: {str(e)}"
         request.session["flash_type"] = "error"
 
-    return RedirectResponse(url="/admin/import-teams", status_code=303)
+    return RedirectResponse(url="/admin/import-players", status_code=303)
 
 
 # ============================================================
