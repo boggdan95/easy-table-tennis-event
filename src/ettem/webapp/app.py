@@ -5867,7 +5867,7 @@ async def admin_generate_bracket_execute(
             sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
 
             # Process BYE advancements (and delete BYE matches)
-            process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
+            process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
 
             # Sync again after BYE processing
             sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
@@ -5893,7 +5893,7 @@ async def admin_generate_bracket_execute(
             matches_created = create_bracket_matches(category, bracket_repo, match_repo, tournament_id=tournament_id, best_of=best_of, event_type=event_type)
 
             # Process BYE advancements (and delete BYE matches)
-            process_bye_advancements(category, bracket_repo, session, match_repo=match_repo)
+            process_bye_advancements(category, bracket_repo, session, tournament_id=tournament_id, match_repo=match_repo)
 
             # Sync matches with updated slots
             sync_bracket_matches_with_slots(category, bracket_repo, match_repo, session, tournament_id=tournament_id, event_type=event_type)
