@@ -2059,8 +2059,8 @@ async def view_bracket(request: Request, category: str):
                 if match.round_type not in matches_by_round:
                     matches_by_round[match.round_type] = []
 
-                p1 = get_competitor_display(match, 1, player_repo, pair_repo)
-                p2 = get_competitor_display(match, 2, player_repo, pair_repo)
+                p1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+                p2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
                 matches_by_round[match.round_type].append({
                     "match": match,
                     "player1": p1,
@@ -7735,14 +7735,25 @@ async def print_group_sheet(group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
             return Response(content="Grupo no encontrado", status_code=404)
 
-        # Get players in group (filter by group_id)
-        all_players = player_repo.get_all()
-        players_orm = [p for p in all_players if p.group_id == group_id]
+        event_type = detect_event_type(group.category)
+
+        # Get entities in group (players, pairs, or teams depending on event type)
+        if event_type == "teams":
+            all_teams = team_repo.get_all()
+            players_orm = [t for t in all_teams if t.group_id == group_id]
+        elif event_type == "doubles":
+            all_pairs = pair_repo.get_all()
+            players_orm = [p for p in all_pairs if getattr(p, 'group_id', None) == group_id]
+        else:
+            all_players = player_repo.get_all()
+            players_orm = [p for p in all_players if p.group_id == group_id]
         players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
 
         # Get matches
@@ -7766,10 +7777,11 @@ async def print_group_sheet(group_id: int):
             results_matrix[p.id] = {}
 
         # Build matches with player info and results
+        from ettem.webapp.helpers import get_competitor_display
         matches = []
         for m in matches_orm:
-            p1 = player_repo.get_by_id(m.player1_id)
-            p2 = player_repo.get_by_id(m.player2_id)
+            cd1 = get_competitor_display(m, 1, player_repo, pair_repo=pair_repo, team_repo=team_repo)
+            cd2 = get_competitor_display(m, 2, player_repo, pair_repo=pair_repo, team_repo=team_repo)
 
             # Calculate result from sets
             result = None
@@ -7806,17 +7818,19 @@ async def print_group_sheet(group_id: int):
             # Determine winner's group number
             winner_group_number = None
             if m.winner_id:
-                if m.winner_id == m.player1_id and p1:
-                    winner_group_number = p1.group_number
-                elif m.winner_id == m.player2_id and p2:
-                    winner_group_number = p2.group_number
+                p1_orm = player_repo.get_by_id(m.player1_id)
+                p2_orm = player_repo.get_by_id(m.player2_id)
+                if m.winner_id == m.player1_id and p1_orm:
+                    winner_group_number = p1_orm.group_number
+                elif m.winner_id == m.player2_id and p2_orm:
+                    winner_group_number = p2_orm.group_number
 
             matches.append({
                 "match_order": m.match_number,
                 "result": result,
                 "winner_group_number": winner_group_number,
-                "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
-                "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+                "player1": {"nombre": cd1.nombre, "apellido": cd1.apellido},
+                "player2": {"nombre": cd2.nombre, "apellido": cd2.apellido},
             })
 
         # Build player dicts with stats
@@ -7828,12 +7842,36 @@ async def print_group_sheet(group_id: int):
             sets_lost = stats.get("sets_lost", 0)
             sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
 
+            # Resolve display name (team/pair-aware)
+            if event_type == "teams" and team_repo:
+                team_orm = team_repo.get_by_id(p.id)
+                display_nombre = team_orm.name if team_orm else p.nombre
+                display_apellido = ""
+                display_pais = (team_orm.pais_cd if team_orm else p.pais_cd) or p.pais_cd
+            elif event_type == "doubles" and pair_repo:
+                pair_orm = pair_repo.get_by_id(p.id)
+                if pair_orm:
+                    p1_d = player_repo.get_by_id(pair_orm.player1_id)
+                    p2_d = player_repo.get_by_id(pair_orm.player2_id)
+                    cd = CompetitorDisplay.from_pair(pair_orm, p1_d, p2_d)
+                    display_nombre = cd.nombre
+                    display_apellido = cd.apellido
+                    display_pais = cd.pais_cd
+                else:
+                    display_nombre = p.nombre
+                    display_apellido = p.apellido
+                    display_pais = p.pais_cd
+            else:
+                display_nombre = p.nombre
+                display_apellido = p.apellido
+                display_pais = p.pais_cd
+
             players.append({
                 "player": {
                     "id": p.id,
-                    "nombre": p.nombre,
-                    "apellido": p.apellido,
-                    "pais_cd": p.pais_cd,
+                    "nombre": display_nombre,
+                    "apellido": display_apellido,
+                    "pais_cd": display_pais,
                     "group_number": p.group_number,
                 },
                 "stats": {
@@ -7887,6 +7925,7 @@ async def print_group_matches(group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         match_repo = MatchRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         from ettem.webapp.helpers import get_competitor_display
@@ -7905,8 +7944,8 @@ async def print_group_matches(group_id: int):
         # Build matches with player info
         matches = []
         for m in matches_orm:
-            p1 = get_competitor_display(m, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(m, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule_slot = schedule_repo.get_by_match(m.id)
@@ -7964,6 +8003,7 @@ async def print_all_group_match_sheets(group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         match_repo = MatchRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         from ettem.webapp.helpers import get_competitor_display
@@ -7988,8 +8028,8 @@ async def print_all_group_match_sheets(group_id: int):
         # Build matches data
         matches_data = []
         for idx, m in enumerate(matches_orm):
-            p1 = get_competitor_display(m, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(m, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule_slot = schedule_repo.get_by_match(m.id)
@@ -8615,21 +8655,32 @@ async def preview_group_sheet(request: Request, group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         group = group_repo.get_by_id(group_id)
         if not group:
             return Response(content="Grupo no encontrado", status_code=404)
 
-        # Get players in group
-        all_players = player_repo.get_all()
-        players_orm = [p for p in all_players if p.group_id == group_id]
+        event_type = detect_event_type(group.category)
+
+        # Get entities in group (players, pairs, or teams depending on event type)
+        if event_type == "teams":
+            all_teams = team_repo.get_all()
+            players_orm = [t for t in all_teams if t.group_id == group_id]
+        elif event_type == "doubles":
+            all_pairs = pair_repo.get_all()
+            players_orm = [p for p in all_pairs if getattr(p, 'group_id', None) == group_id]
+        else:
+            all_players = player_repo.get_all()
+            players_orm = [p for p in all_players if p.group_id == group_id]
         players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
 
         # Get matches
         matches_orm = match_repo.get_by_group(group_id)
         matches_orm = sorted(matches_orm, key=lambda m: m.match_number or 999)
 
-        # Initialize player stats
+        # Initialize player stats (keyed by entity ID: player/pair/team)
         player_stats = {}
         for p in players_orm:
             player_stats[p.id] = {
@@ -8641,16 +8692,17 @@ async def preview_group_sheet(request: Request, group_id: int):
             }
 
         # Build results matrix from actual match results
-        # Matrix format: results_matrix[player1_id][player2_id] = "3-1" (sets won)
+        # Matrix format: results_matrix[entity1_id][entity2_id] = "3-1" (sets won)
         results_matrix = {}
         for p in players_orm:
             results_matrix[p.id] = {}
 
         # Build matches with results and calculate stats
+        from ettem.webapp.helpers import get_competitor_display
         matches = []
         for m in matches_orm:
-            p1 = player_repo.get_by_id(m.player1_id)
-            p2 = player_repo.get_by_id(m.player2_id)
+            cd1 = get_competitor_display(m, 1, player_repo, pair_repo=pair_repo, team_repo=team_repo)
+            cd2 = get_competitor_display(m, 2, player_repo, pair_repo=pair_repo, team_repo=team_repo)
 
             # Calculate result from sets
             result = None
@@ -8688,17 +8740,19 @@ async def preview_group_sheet(request: Request, group_id: int):
             # Determine winner's group number
             winner_group_number = None
             if m.winner_id:
-                if m.winner_id == m.player1_id and p1:
-                    winner_group_number = p1.group_number
-                elif m.winner_id == m.player2_id and p2:
-                    winner_group_number = p2.group_number
+                p1_orm = player_repo.get_by_id(m.player1_id)
+                p2_orm = player_repo.get_by_id(m.player2_id)
+                if m.winner_id == m.player1_id and p1_orm:
+                    winner_group_number = p1_orm.group_number
+                elif m.winner_id == m.player2_id and p2_orm:
+                    winner_group_number = p2_orm.group_number
 
             matches.append({
                 "match_order": m.match_number,
                 "result": result,
                 "winner_group_number": winner_group_number,
-                "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
-                "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+                "player1": {"nombre": cd1.nombre, "apellido": cd1.apellido},
+                "player2": {"nombre": cd2.nombre, "apellido": cd2.apellido},
             })
 
         # Build player dicts with stats
@@ -8710,12 +8764,36 @@ async def preview_group_sheet(request: Request, group_id: int):
             sets_lost = stats.get("sets_lost", 0)
             sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
 
+            # Resolve display name (team/pair-aware)
+            if event_type == "teams" and team_repo:
+                team_orm = team_repo.get_by_id(p.id)
+                display_nombre = team_orm.name if team_orm else p.nombre
+                display_apellido = ""
+                display_pais = (team_orm.pais_cd if team_orm else p.pais_cd) or p.pais_cd
+            elif event_type == "doubles" and pair_repo:
+                pair_orm = pair_repo.get_by_id(p.id)
+                if pair_orm:
+                    p1_orm = player_repo.get_by_id(pair_orm.player1_id)
+                    p2_orm = player_repo.get_by_id(pair_orm.player2_id)
+                    cd = CompetitorDisplay.from_pair(pair_orm, p1_orm, p2_orm)
+                    display_nombre = cd.nombre
+                    display_apellido = cd.apellido
+                    display_pais = cd.pais_cd
+                else:
+                    display_nombre = p.nombre
+                    display_apellido = p.apellido
+                    display_pais = p.pais_cd
+            else:
+                display_nombre = p.nombre
+                display_apellido = p.apellido
+                display_pais = p.pais_cd
+
             players.append({
                 "player": {
                     "id": p.id,
-                    "nombre": p.nombre,
-                    "apellido": p.apellido,
-                    "pais_cd": p.pais_cd,
+                    "nombre": display_nombre,
+                    "apellido": display_apellido,
+                    "pais_cd": display_pais,
                     "group_number": p.group_number,
                 },
                 "stats": {
@@ -8769,8 +8847,12 @@ async def preview_all_group_sheets(request: Request, category: str):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         match_repo = MatchRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         tournament_repo = TournamentRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
+
+        event_type = detect_event_type(category)
 
         # Get current tournament
         tournament = tournament_repo.get_current()
@@ -8786,9 +8868,16 @@ async def preview_all_group_sheets(request: Request, category: str):
 
         groups_data = []
         for group in groups_in_category:
-            # Get players in group
-            all_players = player_repo.get_all()
-            players_orm = [p for p in all_players if p.group_id == group.id]
+            # Get entities in group (players, pairs, or teams depending on event type)
+            if event_type == "teams":
+                all_teams = team_repo.get_all()
+                players_orm = [t for t in all_teams if t.group_id == group.id]
+            elif event_type == "doubles":
+                all_pairs = pair_repo.get_all()
+                players_orm = [p for p in all_pairs if getattr(p, 'group_id', None) == group.id]
+            else:
+                all_players = player_repo.get_all()
+                players_orm = [p for p in all_players if p.group_id == group.id]
             players_orm = sorted(players_orm, key=lambda p: p.group_number or 999)
 
             # Get matches
@@ -8812,10 +8901,11 @@ async def preview_all_group_sheets(request: Request, category: str):
                 results_matrix[p.id] = {}
 
             # Build matches with results and calculate stats
+            from ettem.webapp.helpers import get_competitor_display
             matches = []
             for m in matches_orm:
-                p1 = player_repo.get_by_id(m.player1_id)
-                p2 = player_repo.get_by_id(m.player2_id)
+                cd1 = get_competitor_display(m, 1, player_repo, pair_repo=pair_repo, team_repo=team_repo)
+                cd2 = get_competitor_display(m, 2, player_repo, pair_repo=pair_repo, team_repo=team_repo)
 
                 result = None
                 if m.sets and len(m.sets) > 0:
@@ -8853,8 +8943,8 @@ async def preview_all_group_sheets(request: Request, category: str):
                 matches.append({
                     "match_order": m.match_number,
                     "result": result,
-                    "player1": {"nombre": p1.nombre if p1 else "?", "apellido": p1.apellido if p1 else "?"},
-                    "player2": {"nombre": p2.nombre if p2 else "?", "apellido": p2.apellido if p2 else "?"},
+                    "player1": {"nombre": cd1.nombre, "apellido": cd1.apellido},
+                    "player2": {"nombre": cd2.nombre, "apellido": cd2.apellido},
                     "table_number": table_number,
                     "scheduled_time": scheduled_time,
                 })
@@ -8867,12 +8957,36 @@ async def preview_all_group_sheets(request: Request, category: str):
                 sets_lost = stats.get("sets_lost", 0)
                 sets_ratio = sets_won / sets_lost if sets_lost > 0 else (float('inf') if sets_won > 0 else 0)
 
+                # Resolve display name (team/pair-aware)
+                if event_type == "teams" and team_repo:
+                    team_orm = team_repo.get_by_id(p.id)
+                    display_nombre = team_orm.name if team_orm else p.nombre
+                    display_apellido = ""
+                    display_pais = (team_orm.pais_cd if team_orm else p.pais_cd) or p.pais_cd
+                elif event_type == "doubles" and pair_repo:
+                    pair_orm = pair_repo.get_by_id(p.id)
+                    if pair_orm:
+                        p1_d = player_repo.get_by_id(pair_orm.player1_id)
+                        p2_d = player_repo.get_by_id(pair_orm.player2_id)
+                        cd = CompetitorDisplay.from_pair(pair_orm, p1_d, p2_d)
+                        display_nombre = cd.nombre
+                        display_apellido = cd.apellido
+                        display_pais = cd.pais_cd
+                    else:
+                        display_nombre = p.nombre
+                        display_apellido = p.apellido
+                        display_pais = p.pais_cd
+                else:
+                    display_nombre = p.nombre
+                    display_apellido = p.apellido
+                    display_pais = p.pais_cd
+
                 players.append({
                     "player": {
                         "id": p.id,
-                        "nombre": p.nombre,
-                        "apellido": p.apellido,
-                        "pais_cd": p.pais_cd,
+                        "nombre": display_nombre,
+                        "apellido": display_apellido,
+                        "pais_cd": display_pais,
                         "group_number": p.group_number,
                     },
                     "stats": {
@@ -8926,6 +9040,7 @@ async def preview_group_matches(request: Request, group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         match_repo = MatchRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         from ettem.webapp.helpers import get_competitor_display
@@ -8944,8 +9059,8 @@ async def preview_group_matches(request: Request, group_id: int):
         # Build matches with player info
         matches = []
         for m in matches_orm:
-            p1 = get_competitor_display(m, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(m, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule_slot = schedule_repo.get_by_match(m.id)
@@ -8999,6 +9114,7 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
         group_repo = GroupRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         match_repo = MatchRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         from ettem.webapp.helpers import get_competitor_display
@@ -9023,8 +9139,8 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
         # Build matches data
         matches_data = []
         for idx, m in enumerate(matches_orm):
-            p1 = get_competitor_display(m, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(m, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule_slot = schedule_repo.get_by_match(m.id)
@@ -9176,6 +9292,7 @@ async def preview_bracket_match_sheet(request: Request, match_id: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         match_orm = match_repo.get_by_id(match_id)
         if not match_orm:
@@ -9196,8 +9313,8 @@ async def preview_bracket_match_sheet(request: Request, match_id: int):
                 category = player.categoria
 
         _is_doubles = is_doubles_category(category)
-        p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-        p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+        p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+        p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
         # Round type display names
         round_names = {
@@ -9251,6 +9368,7 @@ async def preview_bracket_all_match_sheets(request: Request, category: str):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         from ettem.webapp.helpers import get_competitor_display
         from ettem.models import is_doubles_category
@@ -9273,8 +9391,8 @@ async def preview_bracket_all_match_sheets(request: Request, category: str):
 
         matches_data = []
         for match_orm in all_matches:
-            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
             # Only include matches with both competitors defined
             if p1.id == 0 or p2.id == 0:
@@ -9334,14 +9452,15 @@ async def print_bracket_match_sheet(match_id: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         match_orm = match_repo.get_by_id(match_id)
         if not match_orm:
             return Response(content="Partido no encontrado", status_code=404)
 
         from ettem.webapp.helpers import get_competitor_display
-        p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-        p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+        p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+        p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
         # Determine category from pair or player
         from ettem.models import is_doubles_category
@@ -9426,6 +9545,7 @@ async def print_bracket_selected_matches(
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
 
         from ettem.webapp.helpers import get_competitor_display
@@ -9454,8 +9574,8 @@ async def print_bracket_selected_matches(
             if not match_orm:
                 continue
 
-            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule_slot = schedule_lookup.get(match_id)
@@ -9522,6 +9642,7 @@ async def print_bracket_all_match_sheets(category: str):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         _is_doubles = is_doubles_category(category)
         bracket_matches = match_repo.get_bracket_matches_by_category(category)
@@ -9538,8 +9659,8 @@ async def print_bracket_all_match_sheets(category: str):
         from ettem.webapp.helpers import get_competitor_display
         matches_data = []
         for match_orm in bracket_matches:
-            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+            p1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+            p2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
             if p1.id == 0 and p2.id == 0:
                 continue
@@ -9713,8 +9834,8 @@ async def preview_bracket_tree(request: Request, category: str):
             if match.round_type not in matches_by_round:
                 matches_by_round[match.round_type] = []
 
-            cd1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            cd2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            cd1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            cd2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
             matches_by_round[match.round_type].append({
                 "match": match,
                 "player1": cd1,
@@ -9876,8 +9997,8 @@ async def print_bracket_tree(category: str):
             if match.round_type not in matches_by_round:
                 matches_by_round[match.round_type] = []
 
-            cd1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            cd2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            cd1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            cd2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
             matches_by_round[match.round_type].append({
                 "match": match,
                 "player1": cd1,
@@ -10151,6 +10272,7 @@ async def scheduler_grid(request: Request, session_id: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
 
         # Get session info
@@ -10202,8 +10324,8 @@ async def scheduler_grid(request: Request, session_id: int):
         for slot in scheduled_slots:
             match_orm = match_repo.get_by_id(slot.match_id)
             if match_orm and slot.start_time in grid_data:
-                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
                 # Get group/round info
                 if match_orm.group_id:
@@ -10293,8 +10415,8 @@ async def scheduler_grid(request: Request, session_id: int):
                 category = m.category
                 round_type = m.round_type or "Bracket"
 
-            d1 = get_competitor_display(m, 1, player_repo, pair_repo)
-            d2 = get_competitor_display(m, 2, player_repo, pair_repo)
+            d1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+            d2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
             unscheduled_matches.append({
                 "id": m.id,
@@ -10366,6 +10488,7 @@ async def scheduler_grid_print(request: Request, session_id: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
 
         session_obj = session_repo.get_by_id(session_id)
@@ -10405,8 +10528,8 @@ async def scheduler_grid_print(request: Request, session_id: int):
         for slot in scheduled_slots:
             match_orm = match_repo.get_by_id(slot.match_id)
             if match_orm and slot.start_time in grid_data:
-                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
                 if match_orm.group_id:
                     group = group_repo.get_by_id(match_orm.group_id)
@@ -10477,6 +10600,7 @@ async def print_scheduler_grid_pdf(session_id: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
 
         session_obj = session_repo.get_by_id(session_id)
@@ -10516,8 +10640,8 @@ async def print_scheduler_grid_pdf(session_id: int):
         for slot in scheduled_slots:
             match_orm = match_repo.get_by_id(slot.match_id)
             if match_orm and slot.start_time in grid_data:
-                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo)
-                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo)
+                display1 = get_competitor_display(match_orm, 1, player_repo, pair_repo, team_repo)
+                display2 = get_competitor_display(match_orm, 2, player_repo, pair_repo, team_repo)
 
                 if match_orm.group_id:
                     group = group_repo.get_by_id(match_orm.group_id)
@@ -10787,6 +10911,8 @@ async def admin_live_results(request: Request, category: Optional[str] = None):
         tournament_repo = TournamentRepository(session)
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         session_repo = SessionRepository(session)
@@ -10835,8 +10961,8 @@ async def admin_live_results(request: Request, category: Optional[str] = None):
         for group in groups:
             group_matches = match_repo.get_by_group(group.id)
             for match in group_matches:
-                player1 = get_competitor_display(match, 1, player_repo, pair_repo)
-                player2 = get_competitor_display(match, 2, player_repo, pair_repo)
+                player1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+                player2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
                 schedule_info = schedule_lookup.get(match.id)
 
@@ -10870,8 +10996,8 @@ async def admin_live_results(request: Request, category: Optional[str] = None):
             if match.category not in group_categories and category is None:
                 continue
 
-            player1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            player2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            player1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            player2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             schedule_info = schedule_lookup.get(match.id)
 
@@ -11280,6 +11406,7 @@ async def referee_scoreboard(request: Request, table_number: int):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         schedule_repo = ScheduleSlotRepository(session)
         group_repo = GroupRepository(session)
         from ettem.webapp.helpers import get_competitor_display
@@ -11313,8 +11440,8 @@ async def referee_scoreboard(request: Request, table_number: int):
                     m = match_repo.get_by_id(slot.match_id)
                     # Only show matches with both players assigned (no TBD/BYE)
                     if m and m.player1_id and m.player2_id and m.status in (MatchStatus.PENDING.value, MatchStatus.IN_PROGRESS.value, "pending", "in_progress"):
-                        cd1 = get_competitor_display(m, 1, player_repo, pair_repo)
-                        cd2 = get_competitor_display(m, 2, player_repo, pair_repo)
+                        cd1 = get_competitor_display(m, 1, player_repo, pair_repo, team_repo)
+                        cd2 = get_competitor_display(m, 2, player_repo, pair_repo, team_repo)
 
                         # Get group/round info
                         round_name = m.round_name or ""
@@ -11335,8 +11462,8 @@ async def referee_scoreboard(request: Request, table_number: int):
                         })
 
         if match:
-            player1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            player2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            player1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            player2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             # If match doesn't have category, try to get it from the group
             if not match.category and match.group_id:
@@ -11792,6 +11919,7 @@ async def public_display(request: Request):
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
         table_config_repo = TableConfigRepository(session)
 
@@ -11808,8 +11936,8 @@ async def public_display(request: Request):
             if match.tournament_id != tournament.id:
                 continue
 
-            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             # Get table number
             table_number = None
@@ -11845,8 +11973,8 @@ async def public_display(request: Request):
         recent_results = []
 
         for match in completed[:10]:
-            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             # Calculate score
             sets = match.sets or []
@@ -11871,8 +11999,8 @@ async def public_display(request: Request):
         upcoming_matches = []
 
         for match in pending[:15]:
-            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             # Get schedule info
             schedule = schedule_repo.get_by_match(match.id)
@@ -11929,6 +12057,7 @@ async def api_get_live_scores():
         match_repo = MatchRepository(session)
         player_repo = PlayerRepository(session)
         pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
 
         scores = live_score_repo.get_all_active()
 
@@ -11942,8 +12071,8 @@ async def api_get_live_scores():
             if tournament and match.tournament_id != tournament.id:
                 continue
 
-            c1 = get_competitor_display(match, 1, player_repo, pair_repo)
-            c2 = get_competitor_display(match, 2, player_repo, pair_repo)
+            c1 = get_competitor_display(match, 1, player_repo, pair_repo, team_repo)
+            c2 = get_competitor_display(match, 2, player_repo, pair_repo, team_repo)
 
             result.append({
                 "match_id": score.match_id,
