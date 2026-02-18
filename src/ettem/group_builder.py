@@ -194,9 +194,25 @@ def generate_round_robin_fixtures(group_size: int) -> list[tuple[int, int]]:
             (1, 2),  # Round 2
             (2, 3),  # Round 3 <- Most important match for 2nd place
         ]
+    elif group_size == 5:
+        # Order A for 5 players (Berger table)
+        # No player plays two consecutive matches.
+        # 1 vs 2 (crucial match) is the very last match.
+        # Player gaps: 1→{1,4,7,10} 2→{2,5,8,10} 3→{3,5,7,9} 4→{1,3,6,8} 5→{2,4,6,9}
+        return [
+            (1, 4),  # Round 1
+            (2, 5),
+            (3, 4),  # Round 2
+            (1, 5),
+            (2, 3),  # Round 3
+            (4, 5),
+            (1, 3),  # Round 4
+            (2, 4),
+            (3, 5),  # Round 5
+            (1, 2),  # <- Most important match last
+        ]
     else:
         # For other sizes, fall back to standard round-robin
-        # This shouldn't normally happen with our group distribution
         matches = []
         for i in range(1, group_size + 1):
             for j in range(i + 1, group_size + 1):

@@ -51,16 +51,16 @@
                     <select name="category" required class="form-control" id="category-select" onchange="updatePlayerCount()">
                         <option value="">-Seleccionar Categoría-</option>
                         {% for cat in available_categories %}
-                        <option value="{{ cat.name }}" data-count="{{ cat.count }}" data-countries='{{ cat.countries|safe }}'>{{ cat.name }} ({{ cat.count }} jugadores)</option>
+                        <option value="{{ cat.name }}" data-count="{{ cat.count }}" data-countries='{{ cat.countries|safe }}'>{{ cat.name }} ({{ cat.count }} inscritos)</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-section">
                     <label class="form-label">Tamaño Preferido de Grupo *</label>
                     <select name="group_size_preference" required class="form-control">
-                        <option value="3">3 jugadores (más grupos pequeños)</option>
-                        <option value="4" selected>4 jugadores (recomendado)</option>
-                        <option value="5">5 jugadores (grupo grande)</option>
+                        <option value="3">3 inscritos</option>
+                        <option value="4" selected>4 inscritos</option>
+                        <option value="5">5 inscritos</option>
                     </select>
                 </div>
             </div>
@@ -292,7 +292,7 @@ function updatePlayerCount() {
             countryHTML += `
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span class="badge" style="background: ${color}; color: white; font-weight: 600; min-width: 42px; text-align: center;">${country}</span>
-                    <span><strong>${countryCount}</strong> jugadores (${percentage}%)</span>
+                    <span><strong>${countryCount}</strong> inscritos (${percentage}%)</span>
                 </div>
             `;
         });
@@ -441,7 +441,7 @@ function renderPreviewModal(data) {
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
                 <div><strong>Categoría:</strong> ${data.category}</div>
                 <div>•</div>
-                <div><strong>Total:</strong> ${data.total_players} jugadores</div>
+                <div><strong>Total:</strong> ${data.total_players} inscritos</div>
                 <div>•</div>
                 <div><strong>Grupos:</strong> ${data.groups.length}</div>
             </div>
@@ -473,7 +473,7 @@ function renderPreviewModal(data) {
             <div class="group-card" data-group-name="${group.name}" style="min-width: 240px; flex-shrink: 0;">
                 <div style="background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)); color: white; padding: 0.75rem; border-radius: 6px 6px 0 0;">
                     <div style="font-weight: 600; font-size: 1.1rem;">${group.name}</div>
-                    <div style="font-size: 0.85rem; opacity: 0.9;" class="group-count">${group.players.length} jugadores</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;" class="group-count">${group.players.length} inscritos</div>
                 </div>
                 <div class="player-drop-zone" style="padding: 0.5rem; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; min-height: 120px;">
         `;
@@ -653,7 +653,7 @@ function updateGroupCounts() {
         const dropZone = card.querySelector('.player-drop-zone');
         const count = dropZone.querySelectorAll('.player-card').length;
         const countDisplay = card.querySelector('.group-count');
-        countDisplay.textContent = `${count} jugadores`;
+        countDisplay.textContent = `${count} inscritos`;
     });
 }
 
