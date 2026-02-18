@@ -2981,6 +2981,8 @@ async def admin_delete_category(request: Request, category: str):
     try:
         session = get_db_session()
         player_repo = PlayerRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
         group_repo = GroupRepository(session)
         match_repo = MatchRepository(session)
         standing_repo = StandingRepository(session)
@@ -2999,6 +3001,8 @@ async def admin_delete_category(request: Request, category: str):
         deleted_standings = 0
         deleted_groups = 0
         deleted_players = 0
+        deleted_teams = 0
+        deleted_pairs = 0
 
         # Delete matches and standings for each group
         for group in groups:
@@ -3024,11 +3028,21 @@ async def admin_delete_category(request: Request, category: str):
         # Delete bracket matches (matches with no group_id)
         all_matches = match_repo.get_all()
         for match in all_matches:
-            if match.group_id is None:
-                player = player_repo.get_by_id(match.player1_id)
-                if player and player.categoria == category:
-                    match_repo.delete(match.id)
-                    deleted_matches += 1
+            if match.group_id is None and getattr(match, 'category', None) == category:
+                match_repo.delete(match.id)
+                deleted_matches += 1
+
+        # Delete teams
+        teams = team_repo.get_by_category(category, tournament_id=tournament_id)
+        for team in teams:
+            team_repo.delete(team.id)
+            deleted_teams += 1
+
+        # Delete pairs
+        pairs = pair_repo.get_by_category(category, tournament_id=tournament_id)
+        for pair in pairs:
+            pair_repo.delete(pair.id)
+            deleted_pairs += 1
 
         # Delete players
         players = player_repo.get_by_category(category, tournament_id=tournament_id)
@@ -3036,7 +3050,16 @@ async def admin_delete_category(request: Request, category: str):
             player_repo.delete(player.id)
             deleted_players += 1
 
-        request.session["flash_message"] = f"Categoría {category} eliminada: {deleted_players} jugadores, {deleted_groups} grupos, {deleted_matches} partidos"
+        # Build result message
+        event_type = detect_event_type(category)
+        if event_type == "teams":
+            entity_msg = f"{deleted_teams} equipos, {deleted_players} jugadores"
+        elif event_type == "doubles":
+            entity_msg = f"{deleted_pairs} parejas, {deleted_players} jugadores"
+        else:
+            entity_msg = f"{deleted_players} jugadores"
+
+        request.session["flash_message"] = f"Categoría {category} eliminada: {entity_msg}, {deleted_groups} grupos, {deleted_matches} partidos"
         request.session["flash_type"] = "success"
 
     except Exception as e:

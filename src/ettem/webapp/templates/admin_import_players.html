@@ -1226,6 +1226,16 @@ function previewCSV() {
         const text = e.target.result;
         let result;
 
+        // Auto-detect CSV type from headers if not manually selected
+        const firstLine = text.trim().split('\n')[0].toLowerCase();
+        if (firstLine.includes('team_name') && currentImportType !== 'equipos') {
+            switchImportType('equipos');
+            document.querySelector('input[name="import_type"][value="equipos"]').checked = true;
+        } else if (firstLine.includes('nombre1') && firstLine.includes('nombre2') && !firstLine.includes('team_name') && currentImportType !== 'parejas') {
+            switchImportType('parejas');
+            document.querySelector('input[name="import_type"][value="parejas"]').checked = true;
+        }
+
         if (currentImportType === 'parejas') {
             result = parseCSVParejas(text);
         } else if (currentImportType === 'equipos') {
