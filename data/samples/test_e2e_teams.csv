@@ -1,0 +1,5 @@
+team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,nombre3,apellido3,pais3,ranking_pts,categoria
+Spain A,ESP,Alberto,Ruiz,ESP,Pablo,Navarro,ESP,Javier,Romero,ESP,5000,MT
+Argentina,ARG,Mateo,Sosa,ARG,Tomas,Aguirre,ARG,Franco,Medina,ARG,4000,MT
+Brazil,BRA,Thiago,Santos,BRA,Bruno,Oliveira,BRA,Pedro,Costa,BRA,3000,MT
+Mexico,MEX,Emilio,Cruz,MEX,Ricardo,Mendoza,MEX,Hugo,Vargas,MEX,2000,MT

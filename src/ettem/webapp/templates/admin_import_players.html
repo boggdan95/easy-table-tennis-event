@@ -1156,6 +1156,62 @@ function parseCSVParejas(text) {
     return { headers: displayHeaders, data: displayData, rawData: data, errors };
 }
 
+function parseCSVEquipos(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return { headers: [], data: [], errors: ['El archivo está vacío o no tiene datos'] };
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const requiredHeaders = ['team_name', 'pais_cd', 'nombre1', 'apellido1', 'pais1', 'nombre2', 'apellido2', 'pais2', 'nombre3', 'apellido3', 'pais3', 'ranking_pts', 'categoria'];
+    const errors = [];
+
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+        errors.push('Columnas faltantes: ' + missingHeaders.join(', '));
+    }
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',').map(v => v.trim());
+        if (values.length !== headers.length) {
+            errors.push(`Fila ${i + 1}: número incorrecto de columnas (${values.length} vs ${headers.length})`);
+            continue;
+        }
+
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+
+        if (!row.team_name) errors.push(`Fila ${i + 1}: Nombre de equipo vacío`);
+        if (!row.pais_cd || row.pais_cd.length !== 3) errors.push(`Fila ${i + 1}: País inválido "${row.pais_cd}"`);
+        if (!row.nombre1) errors.push(`Fila ${i + 1}: Nombre1 vacío`);
+        if (!row.apellido1) errors.push(`Fila ${i + 1}: Apellido1 vacío`);
+        if (!row.nombre2) errors.push(`Fila ${i + 1}: Nombre2 vacío`);
+        if (!row.apellido2) errors.push(`Fila ${i + 1}: Apellido2 vacío`);
+        if (!row.nombre3) errors.push(`Fila ${i + 1}: Nombre3 vacío`);
+        if (!row.apellido3) errors.push(`Fila ${i + 1}: Apellido3 vacío`);
+        if (!row.categoria) errors.push(`Fila ${i + 1}: Categoría vacía`);
+
+        data.push(row);
+    }
+
+    // Build friendly display headers for preview
+    const displayHeaders = ['#', 'Equipo', 'País', 'Jugador 1', 'Jugador 2', 'Jugador 3', 'Ranking', 'Categoría'];
+    const displayData = data.map((row, idx) => ({
+        '#': idx + 1,
+        'Equipo': row.team_name,
+        'País': row.pais_cd,
+        'Jugador 1': `${row.nombre1} ${row.apellido1}`,
+        'Jugador 2': `${row.nombre2} ${row.apellido2}`,
+        'Jugador 3': `${row.nombre3} ${row.apellido3}`,
+        'Ranking': row.ranking_pts || '0',
+        'Categoría': row.categoria
+    }));
+
+    return { headers: displayHeaders, data: displayData, rawData: data, errors };
+}
+
 function previewCSV() {
     const fileInput = document.getElementById('csv-file-input');
     if (!fileInput.files || fileInput.files.length === 0) {
@@ -1172,6 +1228,8 @@ function previewCSV() {
 
         if (currentImportType === 'parejas') {
             result = parseCSVParejas(text);
+        } else if (currentImportType === 'equipos') {
+            result = parseCSVEquipos(text);
         } else {
             result = parseCSVIndividual(text);
         }
@@ -1193,7 +1251,7 @@ function previewCSV() {
 
         // Show summary
         const count = rawData.length;
-        const entityName = currentImportType === 'parejas' ? 'parejas' : 'jugadores';
+        const entityName = currentImportType === 'parejas' ? 'parejas' : (currentImportType === 'equipos' ? 'equipos' : 'jugadores');
         document.getElementById('csv-preview-summary').innerHTML =
             `<strong>${count}</strong> ${entityName} encontrados` +
             (catSummary ? ` — Categorías: ${catSummary}` : '');

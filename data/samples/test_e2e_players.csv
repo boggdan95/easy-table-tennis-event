@@ -1,0 +1,9 @@
+id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Marco,Silva,M,ESP,1500,U15BS
+2,Lucas,Fernandez,M,ARG,1400,U15BS
+3,Diego,Torres,M,MEX,1300,U15BS
+4,Rafael,Moreno,M,BRA,1200,U15BS
+5,Gabriel,Castro,M,COL,1100,U15BS
+6,Nicolas,Herrera,M,CHI,1000,U15BS
+7,Alejandro,Vega,M,PER,900,U15BS
+8,Sebastian,Rios,M,CUB,800,U15BS
