@@ -2742,23 +2742,26 @@ async def admin_import_players_csv(
             current_tournament = tournament_repo.get_current()
             tournament_id = current_tournament.id if current_tournament else None
 
-            # Build set of existing original_ids to detect duplicates (scoped by category)
+            # Build dict of existing original_ids per category to detect duplicates
             existing_players = player_repo.get_all(tournament_id=tournament_id)
-            import_category = players[0].categoria if players else None
-            existing_ids = {p.original_id for p in existing_players if p.original_id is not None and p.categoria == import_category}
+            existing_ids_by_cat = {}
+            for p in existing_players:
+                if p.original_id is not None:
+                    existing_ids_by_cat.setdefault(p.categoria, set()).add(p.original_id)
 
             imported_count = 0
             skipped_count = 0
             for player in players:
-                # Skip duplicates by original_id
-                if player.original_id is not None and player.original_id in existing_ids:
+                # Skip duplicates by (original_id, categoria)
+                cat_ids = existing_ids_by_cat.get(player.categoria, set())
+                if player.original_id is not None and player.original_id in cat_ids:
                     skipped_count += 1
                     continue
                 try:
                     player_repo.create(player, tournament_id=tournament_id)
                     imported_count += 1
                     if player.original_id is not None:
-                        existing_ids.add(player.original_id)
+                        existing_ids_by_cat.setdefault(player.categoria, set()).add(player.original_id)
                 except Exception as e:
                     print(f"[ERROR] Error saving player {player.full_name}: {e}")
 
