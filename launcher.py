@@ -26,10 +26,23 @@ def get_free_port(start_port=8000):
             port += 1
     return start_port  # fallback
 
-def open_browser(port, delay=2):
-    """Open browser after a short delay to allow server to start."""
-    time.sleep(delay)
-    webbrowser.open(f'http://127.0.0.1:{port}')
+def wait_for_server(port, timeout=30):
+    """Wait until the server is accepting connections."""
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(1)
+                s.connect(('127.0.0.1', port))
+                return True
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.5)
+    return False
+
+def open_browser(port):
+    """Open browser once the server is ready."""
+    if wait_for_server(port):
+        webbrowser.open(f'http://127.0.0.1:{port}')
 
 def setup_logging():
     """Redirect stdout/stderr to a log file on frozen macOS (no console)."""
@@ -74,6 +87,7 @@ def main():
 
         # Open browser in background thread
         browser_thread = threading.Thread(target=open_browser, args=(port,), daemon=True)
+
         browser_thread.start()
 
         print(f"""
