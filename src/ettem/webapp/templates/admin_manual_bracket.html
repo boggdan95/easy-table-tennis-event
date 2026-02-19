@@ -232,13 +232,44 @@
 }
 
 .group-badge {
-    background: var(--primary-color);
     color: white;
     padding: 0.125rem 0.5rem;
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: bold;
     margin-right: 0.5rem;
+    background: var(--primary-color);
+}
+
+.pot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    align-items: center;
+}
+
+.pot-legend-title {
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+.pot-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.pot-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.15);
 }
 
 @media (max-width: 768px) {
@@ -280,6 +311,25 @@
 details .details-arrow { transition: transform 0.2s; font-size: 0.7rem; }
 details[open] .details-arrow { transform: rotate(90deg); }
 </style>
+
+<div class="pot-legend">
+    <span class="pot-legend-title">Pots ITTF:</span>
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #E74C3C;"></span> Seed 1-2 (G1-G2)
+    </span>
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #9B59B6;"></span> Seed 3-4 (G3-G4)
+    </span>
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #F1C40F;"></span> Seed 5-8 (G5-G8)
+    </span>
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #27AE60;"></span> Seed 9-16 (G9-G16)
+    </span>
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #e0e0e0;"></span> 2dos de Grupo
+    </span>
+</div>
 
 <div class="drag-container">
     <!-- Players Pool (Left Side) -->
@@ -433,6 +483,85 @@ const halfPoint = Math.floor(bracketSize / 2);
 const category = '{{ category }}';
 const STORAGE_KEY = `ettem_bracket_draft_${category}`;
 
+// ITTF Pot Colors — maps bracket slot positions to seed pots
+const POT_COLORS = {
+    'seed1':   '#E74C3C',  // Red
+    'seed2':   '#E74C3C',  // Red
+    'seed3_4': '#9B59B6',  // Magenta
+    'seed5_8': '#F1C40F',  // Gold
+    'seed9_16':'#27AE60',  // Green
+    'seed17_32':'#1ABC9C', // Cyan
+};
+
+// Get the pot for a bracket slot position (ITTF seeding algorithm)
+function getSlotPot(slotNumber) {
+    if (slotNumber === 1) return 'seed1';
+    if (slotNumber === bracketSize) return 'seed2';
+
+    const half = bracketSize / 2;
+    if (slotNumber === half || slotNumber === half + 1) return 'seed3_4';
+
+    if (bracketSize >= 16) {
+        const quarter = bracketSize / 4;
+        const q_positions = [quarter, quarter + 1, 3 * quarter, 3 * quarter + 1];
+        if (q_positions.includes(slotNumber)) return 'seed5_8';
+    }
+
+    if (bracketSize >= 32) {
+        const eighth = bracketSize / 8;
+        for (let i = 1; i <= 7; i += 2) {
+            if (slotNumber === i * eighth || slotNumber === i * eighth + 1) return 'seed9_16';
+        }
+    }
+
+    if (bracketSize >= 64) {
+        const sixteenth = bracketSize / 16;
+        for (let i = 1; i <= 15; i += 2) {
+            if (slotNumber === i * sixteenth || slotNumber === i * sixteenth + 1) return 'seed17_32';
+        }
+    }
+
+    return null; // 2do de grupo — no special color
+}
+
+// Get pot color for a group number
+function getGroupPotColor(groupNum) {
+    const g = parseInt(groupNum);
+    if (g <= 2) return POT_COLORS.seed1;
+    if (g <= 4) return POT_COLORS.seed3_4;
+    if (g <= 8) return POT_COLORS.seed5_8;
+    if (g <= 16) return POT_COLORS.seed9_16;
+    if (g <= 32) return POT_COLORS.seed17_32;
+    return null;
+}
+
+// Apply pot colors to all bracket slots and group badges
+function applyPotColors() {
+    // Color bracket slot positions (including BYE slots)
+    document.querySelectorAll('.slot-item').forEach(slot => {
+        const slotNum = parseInt(slot.dataset.slotNumber);
+        const pot = getSlotPot(slotNum);
+        if (pot && POT_COLORS[pot]) {
+            slot.style.borderLeftWidth = '4px';
+            slot.style.borderLeftStyle = 'solid';
+            slot.style.borderLeftColor = POT_COLORS[pot];
+        }
+    });
+
+    // Color group badges in player lists
+    document.querySelectorAll('.group-badge').forEach(badge => {
+        const text = badge.textContent.trim(); // e.g. "G1", "G3"
+        const match = text.match(/G(\d+)/);
+        if (match) {
+            const groupNum = parseInt(match[1]);
+            const color = getGroupPotColor(groupNum);
+            if (color) {
+                badge.style.background = color;
+            }
+        }
+    });
+}
+
 // Drag and Drop Event Handlers
 let draggedElement = null;
 
@@ -499,6 +628,9 @@ function discardDraft() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Apply ITTF pot colors to slots and group badges
+    applyPotColors();
+
     // Add event listeners to player items
     const playerItems = document.querySelectorAll('.player-item');
     playerItems.forEach(item => {
@@ -842,9 +974,10 @@ function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, groupName
     slot.classList.add('occupied');
     input.value = playerId;
 
+    const badgeColor = getGroupPotColor(groupName) || 'var(--primary-color)';
     contentDiv.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
-            <span class="group-badge">G${groupName}</span>
+            <span class="group-badge" style="background: ${badgeColor};">G${groupName}</span>
             <span style="font-weight: 600; font-size: 0.85rem;">${playerName}</span>
             <span class="badge badge-secondary" style="font-size: 0.7rem;">${country}</span>
         </div>
