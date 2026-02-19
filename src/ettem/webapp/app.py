@@ -1908,9 +1908,10 @@ async def view_bracket(request: Request, category: str):
         bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
 
         if not bracket_slots:
+            groups = group_repo.get_by_category(category, tournament_id=tournament_id)
             return render_template(
                 "no_bracket.html",
-                {"request": request, "category": category}
+                {"request": request, "category": category, "num_groups": len(groups)}
             )
 
         # Group slots by round
@@ -2118,9 +2119,11 @@ async def view_bracket_matches(request: Request, category: str):
     # Get bracket slots for this category in current tournament
     bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
     if not bracket_slots:
+        group_repo = GroupRepository(session)
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
         return render_template(
             "no_bracket.html",
-            {"request": request, "category": category}
+            {"request": request, "category": category, "num_groups": len(groups)}
         )
 
     # Get all bracket matches for this category directly (filtered by category and tournament)
@@ -2257,9 +2260,11 @@ async def view_final_results(request: Request, category: str):
     # Verify bracket exists
     bracket_slots = bracket_repo.get_by_category(category, tournament_id=tournament_id)
     if not bracket_slots:
+        group_repo = GroupRepository(session)
+        groups = group_repo.get_by_category(category, tournament_id=tournament_id)
         return render_template(
             "no_bracket.html",
-            {"request": request, "category": category}
+            {"request": request, "category": category, "num_groups": len(groups)}
         )
 
     # Get the final match (filtered by tournament)

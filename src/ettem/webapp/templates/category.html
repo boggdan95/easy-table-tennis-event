@@ -55,10 +55,12 @@
                     <span>🧮</span>
                     <span>{{ t('dashboard.calculate_standings') }}</span>
                 </a>
+                {% if groups|length > 1 %}
                 <a href="/admin/generate-bracket" class="btn btn-warning btn-sm">
                     <span>🏆</span>
                     <span>{{ t('dashboard.generate_bracket') }}</span>
                 </a>
+                {% endif %}
                 {% elif has_direct_bracket %}
                 <a href="/bracket/{{ category }}" class="btn btn-primary btn-sm">
                     <span>📋</span>

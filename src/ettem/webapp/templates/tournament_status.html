@@ -90,7 +90,7 @@
                 <span>Calcular Standings</span>
             </a>
             {% endif %}
-            {% if status.standings and not status.bracket.exists %}
+            {% if status.standings and not status.bracket.exists and status.groups.count > 1 %}
             <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-success btn-sm">
                 <span>🏅</span>
                 <span>Generar Bracket</span>
