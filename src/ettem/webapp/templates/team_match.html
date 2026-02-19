@@ -130,24 +130,22 @@
 
                 <!-- Match info -->
                 <div style="flex: 1; min-width: 200px;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div style="font-size: 1.05rem;">
                         {% if d.match_type == 'doubles' %}
-                        <span class="badge badge-warning" style="font-size: 0.7rem;">DOBLES</span>
+                        <span class="badge badge-warning" style="font-size: 0.7rem; vertical-align: middle;">DOBLES</span>
                         {% endif %}
-                        <strong>{{ d.home_label }}</strong>
-                        <span style="color: var(--text-muted);">vs</span>
-                        <strong>{{ d.away_label }}</strong>
-                    </div>
-                    <div style="font-size: 0.85rem; margin-top: 0.25rem;">
                         {% if d.player1_name %}
-                        <span>{{ d.player1_name }}</span>
-                        {% if d.player1b_name %} / {{ d.player1b_name }}{% endif %}
+                        <strong>{{ d.player1_name }}</strong>
+                        {% if d.player1b_name %} / <strong>{{ d.player1b_name }}</strong>{% endif %}
                         <span style="color: var(--text-muted);"> vs </span>
-                        <span>{{ d.player2_name }}</span>
-                        {% if d.player2b_name %} / {{ d.player2b_name }}{% endif %}
+                        <strong>{{ d.player2_name }}</strong>
+                        {% if d.player2b_name %} / <strong>{{ d.player2b_name }}</strong>{% endif %}
                         {% else %}
                         <span style="color: var(--text-muted);">Jugadores no asignados</span>
                         {% endif %}
+                    </div>
+                    <div style="font-size: 0.8rem; margin-top: 0.25rem; color: var(--text-muted);">
+                        {{ d.home_label }} vs {{ d.away_label }}
                     </div>
                 </div>
 
