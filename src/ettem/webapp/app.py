@@ -4090,41 +4090,55 @@ async def team_match_detail_save_result(request: Request, match_id: int, detail_
 
     form = await request.form()
 
-    # Parse sets from form
-    sets_data = []
-    p1_sets_won = 0
-    p2_sets_won = 0
-    for i in range(1, detail.best_of + 1):
-        p1_raw = form.get(f"set{i}_p1", "")
-        p2_raw = form.get(f"set{i}_p2", "")
-        if p1_raw == "" or p2_raw == "":
-            break
-        p1_pts = int(p1_raw)
-        p2_pts = int(p2_raw)
-        if p1_pts == 0 and p2_pts == 0:
-            break
-        sets_data.append({
-            "set_number": i,
-            "player1_points": p1_pts,
-            "player2_points": p2_pts,
-        })
-        if p1_pts > p2_pts:
-            p1_sets_won += 1
-        elif p2_pts > p1_pts:
-            p2_sets_won += 1
+    # Check for walkover
+    is_walkover = form.get("is_walkover") == "true"
+    if is_walkover:
+        wo_winner_side = form.get("winner_side", "")
+        if wo_winner_side not in ("1", "2"):
+            request.session["flash_message"] = "Error: Para walkover debes seleccionar un ganador."
+            request.session["flash_type"] = "error"
+            return RedirectResponse(url=f"/team-match/{match_id}/detail/{detail_id}/enter-result", status_code=303)
+        winner_side = int(wo_winner_side)
+        detail.sets = []
+        detail.winner_side = winner_side
+        detail.status = "completed"
+        detail_repo.update(detail)
+    else:
+        # Parse sets from form
+        sets_data = []
+        p1_sets_won = 0
+        p2_sets_won = 0
+        for i in range(1, detail.best_of + 1):
+            p1_raw = form.get(f"set{i}_p1", "")
+            p2_raw = form.get(f"set{i}_p2", "")
+            if p1_raw == "" or p2_raw == "":
+                break
+            p1_pts = int(p1_raw)
+            p2_pts = int(p2_raw)
+            if p1_pts == 0 and p2_pts == 0:
+                break
+            sets_data.append({
+                "set_number": i,
+                "player1_points": p1_pts,
+                "player2_points": p2_pts,
+            })
+            if p1_pts > p2_pts:
+                p1_sets_won += 1
+            elif p2_pts > p1_pts:
+                p2_sets_won += 1
 
-    # Determine winner of individual match
-    sets_to_win = (detail.best_of // 2) + 1
-    winner_side = None
-    if p1_sets_won >= sets_to_win:
-        winner_side = 1
-    elif p2_sets_won >= sets_to_win:
-        winner_side = 2
+        # Determine winner of individual match
+        sets_to_win = (detail.best_of // 2) + 1
+        winner_side = None
+        if p1_sets_won >= sets_to_win:
+            winner_side = 1
+        elif p2_sets_won >= sets_to_win:
+            winner_side = 2
 
-    # Update detail
-    detail.sets = sets_data
-    detail.winner_side = winner_side
-    detail.status = "completed" if winner_side else "in_progress"
+        # Update detail
+        detail.sets = sets_data
+        detail.winner_side = winner_side
+        detail.status = "completed" if winner_side else "in_progress"
     detail_repo.update(detail)
 
     # Recalculate team scores from all completed details
