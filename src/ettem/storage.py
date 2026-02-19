@@ -1685,6 +1685,9 @@ class TimeSlotRepository:
         if not target_slot:
             return False
 
+        # Save old start_times before modification
+        old_start_times = {slot.slot_number: slot.start_time for slot in slots}
+
         # Update the duration
         target_slot.duration_minutes = new_duration
 
@@ -1698,6 +1701,21 @@ class TimeSlotRepository:
                 new_h = prev_minutes // 60
                 new_m = prev_minutes % 60
                 slot.start_time = f"{new_h:02d}:{new_m:02d}"
+
+        # Update ScheduleSlotORM records whose start_time shifted
+        for slot in slots:
+            old_time = old_start_times.get(slot.slot_number)
+            if old_time and old_time != slot.start_time:
+                schedule_slots = (
+                    self.session.query(ScheduleSlotORM)
+                    .filter(
+                        ScheduleSlotORM.session_id == session_id,
+                        ScheduleSlotORM.start_time == old_time,
+                    )
+                    .all()
+                )
+                for ss in schedule_slots:
+                    ss.start_time = slot.start_time
 
         self.session.commit()
         return True

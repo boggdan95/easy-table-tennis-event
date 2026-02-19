@@ -264,6 +264,35 @@
                 margin: 8mm;
             }
         }
+
+        /* Adaptive styles for many tables */
+        {% if num_tables >= 7 %}
+        .schedule-table th,
+        .schedule-table td {
+            padding: 3px 2px;
+            font-size: 9px;
+        }
+        .schedule-table th { font-size: 10px; }
+        .match-info { padding: 2px; }
+        .match-label { font-size: 8px; }
+        .match-category { font-size: 7px; }
+        .player-name { font-size: 8px; }
+        @media print {
+            body { font-size: 8px; }
+            @page { margin: 5mm; }
+        }
+        {% elif num_tables >= 5 %}
+        .schedule-table th,
+        .schedule-table td {
+            padding: 3px;
+            font-size: 10px;
+        }
+        .player-name { font-size: 9px; }
+        @media print {
+            body { font-size: 9px; }
+            @page { margin: 6mm; }
+        }
+        {% endif %}
     </style>
 </head>
 <body>

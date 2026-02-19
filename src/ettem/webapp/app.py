@@ -9923,6 +9923,15 @@ async def preview_bracket_tree(request: Request, category: str):
             "F": "Final"
         }
 
+        # Build schedule info for bracket matches (time/table)
+        schedule_repo = ScheduleSlotRepository(session)
+        schedule_info = {}
+        for ss in schedule_repo.get_all():
+            schedule_info[ss.match_id] = {
+                "time": ss.start_time,
+                "table": ss.table_number,
+            }
+
         context = {
             "request": request,
             "preview_title": f"Llave - {category}",
@@ -9937,6 +9946,7 @@ async def preview_bracket_tree(request: Request, category: str):
             "best_of": bracket_best_of,
             "champion": champion,
             "is_doubles": _is_doubles,
+            "schedule_info": schedule_info,
             "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
 
@@ -10086,6 +10096,15 @@ async def print_bracket_tree(category: str):
             "F": "Final"
         }
 
+        # Build schedule info for bracket matches (time/table)
+        schedule_repo = ScheduleSlotRepository(session)
+        schedule_info = {}
+        for ss in schedule_repo.get_all():
+            schedule_info[ss.match_id] = {
+                "time": ss.start_time,
+                "table": ss.table_number,
+            }
+
         context = {
             "tournament_name": get_tournament_name(),
             "category": category,
@@ -10096,6 +10115,7 @@ async def print_bracket_tree(category: str):
             "best_of": bracket_best_of,
             "champion": champion,
             "is_doubles": _is_doubles,
+            "schedule_info": schedule_info,
             "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         }
 
