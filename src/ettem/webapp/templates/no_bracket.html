@@ -17,15 +17,21 @@
         <div style="font-size: 4rem; margin-bottom: 1rem;">🏆</div>
         <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay bracket generado</h2>
         <p style="color: var(--text-muted); margin-bottom: 2rem; max-width: 400px; margin-left: auto; margin-right: auto;">
+            {% if num_groups is defined and num_groups <= 1 %}
+            La categoría <strong>{{ category }}</strong> tiene un solo grupo. Las posiciones finales se determinan por la clasificación del grupo.
+            {% else %}
             La categoría <strong>{{ category }}</strong> aún no tiene un bracket de eliminación directa.
             Primero debes completar la fase de grupos y calcular los standings.
+            {% endif %}
         </p>
 
         <div class="d-flex gap-2" style="justify-content: center; flex-wrap: wrap;">
+            {% if num_groups is not defined or num_groups > 1 %}
             <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-primary">
                 <span>🏅</span>
                 <span>Generar Bracket</span>
             </a>
+            {% endif %}
             <a href="/admin/calculate-standings" class="btn btn-secondary">
                 <span>📊</span>
                 <span>Calcular Standings</span>

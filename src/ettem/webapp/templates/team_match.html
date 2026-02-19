@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}{{ team1_name }} vs {{ team2_name }} - ETTEM{% endblock %}
+
+{% block page_title %}Encuentro de Equipos{% endblock %}
+
+{% block topbar_actions %}
+{% if match.group_id %}
+<a href="/group/{{ match.group_id }}/matches" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver a Partidos</span>
+</a>
+{% else %}
+<a href="/bracket/{{ match.category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver a Partidos</span>
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Match Header -->
+<div class="card mb-3">
+    <div class="card-body" style="text-align: center; padding: 1.5rem;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 2rem; flex-wrap: wrap;">
+            <div style="text-align: center;">
+                <span class="badge badge-secondary" style="font-size: 0.8rem;">{{ team1_pais }}</span>
+                <h2 style="margin: 0.25rem 0;">{{ team1_name }}</h2>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ team1_score }}</div>
+            </div>
+            <div style="font-size: 1.5rem; color: var(--text-muted); font-weight: 600;">VS</div>
+            <div style="text-align: center;">
+                <span class="badge badge-secondary" style="font-size: 0.8rem;">{{ team2_pais }}</span>
+                <h2 style="margin: 0.25rem 0;">{{ team2_name }}</h2>
+                <div style="font-size: 2rem; font-weight: 700; color: var(--primary);">{{ team2_score }}</div>
+            </div>
+        </div>
+        {% if match_status == 'completed' %}
+        <div style="margin-top: 1rem;">
+            <span class="badge badge-success" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                Ganador: {{ winner_name }}
+            </span>
+        </div>
+        {% elif match_status == 'in_progress' %}
+        <div style="margin-top: 0.5rem;">
+            <span class="badge badge-warning">En Progreso</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">
+                Sistema: {{ system_label }} ({{ majority }} de {{ total_matches }} para ganar)
+            </span>
+        </div>
+        {% else %}
+        <div style="margin-top: 0.5rem;">
+            <span class="badge badge-secondary">Pendiente</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">
+                Sistema: {{ system_label }} ({{ majority }} de {{ total_matches }} para ganar)
+            </span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Player Assignment -->
+{% if not players_assigned %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Asignar Jugadores</h3>
+    </div>
+    <div class="card-body">
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Orden de juego ({{ system_label }}):</div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                {% for num, mtype, home_lbl, away_lbl in match_order %}
+                <span class="badge {% if mtype == 'doubles' %}badge-warning{% else %}badge-secondary{% endif %}" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">
+                    {{ num }}. {{ home_lbl }} vs {{ away_lbl }}{% if mtype == 'doubles' %} (D){% endif %}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        <form method="post" action="/team-match/{{ match.id }}/assign-players">
+            <input type="hidden" name="team_match_system" value="{{ system }}">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Home Team -->
+                <div>
+                    <h4 style="margin-bottom: 1rem;">{{ team1_name }}</h4>
+                    {% for label in home_labels %}
+                    <div class="form-group">
+                        <label>Posicion {{ label }}</label>
+                        <select name="home_{{ label }}" class="form-control team-select" data-team="home" required>
+                            <option value="">-- Seleccionar --</option>
+                            {% for p in team1_players %}
+                            <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+                <!-- Away Team -->
+                <div>
+                    <h4 style="margin-bottom: 1rem;">{{ team2_name }}</h4>
+                    {% for label in away_labels %}
+                    <div class="form-group">
+                        <label>Posicion {{ label }}</label>
+                        <select name="away_{{ label }}" class="form-control team-select" data-team="away" required>
+                            <option value="">-- Seleccionar --</option>
+                            {% for p in team2_players %}
+                            <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <button type="submit" class="btn btn-primary">
+                    <span>Asignar y Crear Partidos Individuales</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Individual Matches -->
+{% if details %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Partidos Individuales</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% for d in details %}
+        <div style="padding: 1rem; {% if not loop.last %}border-bottom: 1px solid var(--border-color);{% endif %} {% if d.status == 'not_needed' %}opacity: 0.5;{% endif %}">
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                <!-- Match number -->
+                <div style="width: 2.5rem; text-align: center;">
+                    <span class="badge badge-primary" style="font-size: 1rem;">{{ d.match_number }}</span>
+                </div>
+
+                <!-- Match info -->
+                <div style="flex: 1; min-width: 200px;">
+                    <div style="font-size: 1.05rem;">
+                        {% if d.match_type == 'doubles' %}
+                        <span class="badge badge-warning" style="font-size: 0.7rem; vertical-align: middle;">DOBLES</span>
+                        {% endif %}
+                        {% if d.player1_name %}
+                        <strong>{{ d.player1_name }}</strong>
+                        {% if d.player1b_name %} / <strong>{{ d.player1b_name }}</strong>{% endif %}
+                        <span style="color: var(--text-muted);"> vs </span>
+                        <strong>{{ d.player2_name }}</strong>
+                        {% if d.player2b_name %} / <strong>{{ d.player2b_name }}</strong>{% endif %}
+                        {% else %}
+                        <span style="color: var(--text-muted);">Jugadores no asignados</span>
+                        {% endif %}
+                    </div>
+                    <div style="font-size: 0.8rem; margin-top: 0.25rem; color: var(--text-muted);">
+                        {{ d.home_label }} vs {{ d.away_label }}
+                    </div>
+                </div>
+
+                <!-- Score -->
+                <div style="text-align: center; min-width: 100px;">
+                    {% if d.status == 'completed' %}
+                    <div style="font-size: 1.1rem; font-weight: 600;">
+                        {% for s in d.sets %}
+                        <span style="{% if loop.index > 1 %}margin-left: 0.5rem;{% endif %}">{{ s.player1_points }}-{{ s.player2_points }}</span>
+                        {% endfor %}
+                    </div>
+                    <span class="badge badge-success">
+                        {% if d.winner_side == 1 %}{{ team1_name }}{% else %}{{ team2_name }}{% endif %}
+                    </span>
+                    {% elif d.status == 'not_needed' %}
+                    <span class="badge badge-secondary">No necesario</span>
+                    {% elif d.status == 'in_progress' %}
+                    <span class="badge badge-warning">En juego</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Pendiente</span>
+                    {% endif %}
+                </div>
+
+                <!-- Actions -->
+                <div style="min-width: 100px; text-align: right;">
+                    {% if d.status not in ['not_needed', 'completed'] and d.player1_name %}
+                    <a href="/team-match/{{ match.id }}/detail/{{ d.id }}/enter-result" class="btn btn-warning btn-sm">
+                        <span>Resultado</span>
+                    </a>
+                    {% elif d.status == 'completed' %}
+                    <a href="/team-match/{{ match.id }}/detail/{{ d.id }}/enter-result" class="btn btn-secondary btn-sm">
+                        <span>Editar</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Prevent duplicate player selection per team -->
+{% if not players_assigned %}
+<script>
+(function() {
+    function updateOptions(teamName) {
+        var selects = document.querySelectorAll('.team-select[data-team="' + teamName + '"]');
+        var chosen = [];
+        selects.forEach(function(s) { if (s.value) chosen.push(s.value); });
+        selects.forEach(function(s) {
+            var opts = s.querySelectorAll('option');
+            opts.forEach(function(opt) {
+                if (!opt.value) return;
+                opt.disabled = (opt.value !== s.value && chosen.indexOf(opt.value) !== -1);
+            });
+        });
+    }
+    document.querySelectorAll('.team-select').forEach(function(sel) {
+        sel.addEventListener('change', function() { updateOptions(this.dataset.team); });
+    });
+})();
+</script>
+{% endif %}
+
+<!-- Auto-refresh for in_progress encounters -->
+{% if match_status == 'in_progress' %}
+<script>
+setTimeout(function() { window.location.reload(); }, 10000);
+</script>
+{% endif %}
+{% endblock %}

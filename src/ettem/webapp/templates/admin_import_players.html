@@ -12,6 +12,50 @@
 {% endblock %}
 
 {% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📥</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo primero para importar jugadores y parejas.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+<!-- Import Type Selector -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Tipo de Importación</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <label class="import-type-option selected" id="type-label-individual">
+                <input type="radio" name="import_type" value="individual" checked onchange="switchImportType('individual')">
+                <span class="import-type-icon">🏓</span>
+                <span class="import-type-name">Individual</span>
+                <span class="import-type-desc">Jugadores para singles</span>
+            </label>
+            <label class="import-type-option" id="type-label-parejas">
+                <input type="radio" name="import_type" value="parejas" onchange="switchImportType('parejas')">
+                <span class="import-type-icon">👥</span>
+                <span class="import-type-name">Parejas (Dobles)</span>
+                <span class="import-type-desc">CSV con parejas completas</span>
+            </label>
+            <label class="import-type-option" id="type-label-equipos">
+                <input type="radio" name="import_type" value="equipos" onchange="switchImportType('equipos')">
+                <span class="import-type-icon">🏅</span>
+                <span class="import-type-name">Equipos</span>
+                <span class="import-type-desc">CSV con equipos completos</span>
+            </label>
+        </div>
+    </div>
+</div>
+
 <!-- Import Methods Card -->
 <div class="card mb-3">
     <div class="card-header">
@@ -31,10 +75,10 @@
     </div>
 </div>
 
-<!-- CSV Import Section -->
+<!-- CSV Import Section - Individual -->
 <div id="import-csv-section" class="card mb-3" style="display: none;">
     <div class="card-header">
-        <h3 class="card-title">Importar desde CSV</h3>
+        <h3 class="card-title" id="csv-section-title">Importar desde CSV</h3>
     </div>
     <div class="card-body">
         <form method="post" action="/admin/import-players/csv" enctype="multipart/form-data" id="csv-import-form">
@@ -53,13 +97,15 @@
                         <button type="button" class="dropzone-clear" onclick="clearSelectedFile(event)">&times;</button>
                     </div>
                 </div>
-                <p class="form-help">El archivo debe contener las columnas: id, nombre, apellido, genero, pais_cd, ranking_pts, categoria</p>
             </div>
 
-            <div class="form-section">
-                <label class="form-label">Categoría (opcional)</label>
-                <input type="text" name="category" class="form-control" placeholder="Ej: U13, U15, OPEN..." style="max-width: 300px;">
-                <p class="form-help">Si se especifica, solo se importarán jugadores de esta categoría</p>
+            <!-- Individual-specific options -->
+            <div id="csv-options-individual">
+                <div class="form-section">
+                    <label class="form-label">Categoría (opcional)</label>
+                    <input type="text" name="category" class="form-control" placeholder="Ej: U13, U15, OPEN..." style="max-width: 300px;">
+                    <p class="form-help">Si se especifica, solo se importarán jugadores de esta categoría</p>
+                </div>
             </div>
 
             <div class="form-section">
@@ -69,10 +115,11 @@
                 </label>
             </div>
 
-            <div class="alert alert-info">
+            <!-- Format Info - Individual -->
+            <div class="alert alert-info" id="csv-format-individual">
                 <span class="icon">ℹ️</span>
                 <div class="alert-content">
-                    <div class="alert-title">Formato del CSV</div>
+                    <div class="alert-title">Formato del CSV - Individual</div>
                     <div>
                         <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
                             <li><strong>id</strong>: Número único del jugador</li>
@@ -81,8 +128,55 @@
                             <li><strong>genero</strong>: M o F</li>
                             <li><strong>pais_cd</strong>: Código ISO-3 del país (ej: ESP, USA, CHN)</li>
                             <li><strong>ranking_pts</strong>: Puntos de ranking (número)</li>
-                            <li><strong>categoria</strong>: Categoría del torneo (ej: U13, U15, OPEN)</li>
+                            <li><strong>categoria</strong>: Categoría del torneo (ej: U13BS, MS, WS)</li>
                         </ul>
+                        <pre style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.8rem; overflow-x: auto;">id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Juan,Perez,M,ESP,1200,U15BS
+2,Maria,Garcia,F,ESP,1150,U15GS</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Format Info - Parejas -->
+            <div class="alert alert-info" id="csv-format-parejas" style="display: none;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Formato del CSV - Parejas</div>
+                    <div>
+                        <p style="margin: 0.25rem 0;">Cada fila es una pareja completa. Los jugadores se crean automáticamente si no existen.</p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>nombre1, apellido1, pais1</strong>: Datos del jugador 1</li>
+                            <li><strong>nombre2, apellido2, pais2</strong>: Datos del jugador 2</li>
+                            <li><strong>ranking_pts</strong>: Ranking de la pareja (opcional, default 0)</li>
+                            <li><strong>categoria</strong>: Categoría dobles (MD, WD, XD, U15BD, etc.)</li>
+                        </ul>
+                        <pre style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.8rem; overflow-x: auto;">nombre1,apellido1,pais1,nombre2,apellido2,pais2,ranking_pts,categoria
+Juan,Perez,ESP,Pedro,Lopez,ESP,2900,MD
+Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Format Info - Equipos -->
+            <div class="alert alert-info" id="csv-format-equipos" style="display: none;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Formato del CSV - Equipos</div>
+                    <div>
+                        <p style="margin: 0.25rem 0;">Cada fila es un equipo completo con 3-5 jugadores. Los jugadores se crean automáticamente si no existen.</p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                            <li><strong>team_name</strong>: Nombre del equipo</li>
+                            <li><strong>pais_cd</strong>: País del equipo (ISO-3)</li>
+                            <li><strong>nombre1, apellido1, pais1</strong>: Jugador 1 (requerido)</li>
+                            <li><strong>nombre2, apellido2, pais2</strong>: Jugador 2 (requerido)</li>
+                            <li><strong>nombre3, apellido3, pais3</strong>: Jugador 3 (requerido)</li>
+                            <li><strong>nombre4/5</strong>: Jugadores 4 y 5 (opcionales)</li>
+                            <li><strong>ranking_pts</strong>: Ranking del equipo (opcional, default 0)</li>
+                            <li><strong>categoria</strong>: Categoría equipos (MT, WT, BT, GT)</li>
+                        </ul>
+                        <pre style="margin-top: 0.75rem; padding: 0.5rem; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.8rem; overflow-x: auto;">team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,nombre3,apellido3,pais3,ranking_pts,categoria
+Spain A,ESP,Juan,Perez,ESP,Carlos,Rodriguez,ESP,Pedro,Lopez,ESP,5000,MT
+Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                     </div>
                 </div>
             </div>
@@ -118,6 +212,19 @@
                 </div>
             </div>
 
+            <!-- Team match system selector (only for teams) -->
+            <div id="team-system-import" class="mb-3" style="display: none;">
+                <div class="form-section">
+                    <label class="form-label" style="font-weight: 600;">Sistema de Encuentro por Equipos *</label>
+                    <select name="team_match_system" id="team-match-system-import" class="form-control">
+                        <option value="swaythling" selected>Swaythling — 5 singles (A-X, B-Y, C-Z, A-Y, B-X)</option>
+                        <option value="corbillon">Corbillon — 4 singles + 1 dobles (A-X, B-Y, Dobles, A-Y, B-X)</option>
+                        <option value="olympic">Olímpico — 1 dobles + 4 singles (Dobles, A-X, C-Z, A-Y, B-X)</option>
+                    </select>
+                    <p class="form-help">Define el orden y tipo de partidos dentro de cada encuentro entre equipos. Aplica a toda la categoría.</p>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="button" id="btn-preview-csv" class="btn btn-primary" onclick="previewCSV()">
                     <span>👁️</span>
@@ -136,13 +243,14 @@
     </div>
 </div>
 
-<!-- Manual Entry Section -->
+<!-- Manual Entry Section - Individual -->
 <div id="import-manual-section" class="card mb-3" style="display: none;">
     <div class="card-header">
-        <h3 class="card-title">Agregar Jugador Manualmente</h3>
+        <h3 class="card-title" id="manual-section-title">Agregar Jugador Manualmente</h3>
     </div>
     <div class="card-body">
-        <form method="post" action="/admin/import-players/manual">
+        <!-- Individual manual form -->
+        <form method="post" action="/admin/import-players/manual" id="manual-form-individual">
             <div class="grid grid-2 mb-3">
                 <div class="form-section">
                     <label class="form-label">ID Original *</label>
@@ -198,28 +306,121 @@
                 </button>
             </div>
         </form>
+
+        <!-- Parejas manual form (hidden by default) -->
+        <form method="post" action="/admin/import-pairs/manual" id="manual-form-parejas" style="display: none;">
+            <p class="form-help mb-3">Para agregar parejas manualmente, los jugadores deben estar importados primero. Luego ve a <a href="/admin/import-pairs">Importar Parejas</a> para crear parejas manualmente.</p>
+            <div class="d-flex gap-2">
+                <a href="/admin/import-pairs" class="btn btn-primary">
+                    <span>👥</span>
+                    <span>Ir a Importar Parejas</span>
+                </a>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Equipos manual form (hidden by default) -->
+        <form method="post" action="/admin/import-teams/manual" id="manual-form-equipos" style="display: none;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label>Nombre del Equipo *</label>
+                    <input type="text" name="team_name" class="form-control" required placeholder="Spain A">
+                </div>
+                <div class="form-group">
+                    <label>Pais (ISO-3) *</label>
+                    <input type="text" name="pais_cd" class="form-control" required placeholder="ESP" maxlength="3">
+                </div>
+                <div class="form-group">
+                    <label>Categoria *</label>
+                    <select name="categoria" class="form-control" required>
+                        <option value="">Seleccionar...</option>
+                        {% for cat in team_categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                        <option value="MT">MT (Men's Teams)</option>
+                        <option value="WT">WT (Women's Teams)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ranking Pts</label>
+                    <input type="number" name="ranking_pts" class="form-control" value="0" min="0" step="0.1">
+                </div>
+            </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Jugadores del Equipo</h4>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Selecciona 3-5 jugadores registrados en el torneo.</p>
+
+            {% for i in range(1, 6) %}
+            <div class="form-group" {% if i > 3 %}style="opacity: 0.7;"{% endif %}>
+                <label>Jugador {{ i }} {% if i <= 3 %}*{% else %}(opcional){% endif %}</label>
+                <select name="player{{ i }}_id" class="form-control" {% if i <= 3 %}required{% endif %}>
+                    <option value="">-- Seleccionar jugador --</option>
+                    {% for p in all_players %}
+                    <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.pais_cd }}) - {{ p.categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+            <div class="d-flex gap-2" style="margin-top: 1rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Equipo</span>
+                </button>
+                <button type="button" onclick="hideImportSections()" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
 <!-- Categories Summary -->
-{% if players %}
-{% set categories_list = players | map(attribute='categoria') | unique | sort | list %}
-{% if categories_list %}
+{% if singles_categories or doubles_categories or teams_categories %}
 <div class="card mb-3">
     <div class="card-header">
-        <h3 class="card-title">Categorías ({{ categories_list|length }})</h3>
+        <h3 class="card-title">Categorías ({{ (singles_categories.keys() | list + doubles_categories.keys() | list + teams_categories.keys() | list) | unique | list | length }})</h3>
     </div>
     <div class="card-body">
         <div class="grid grid-3" style="gap: 1rem;">
-            {% for cat in categories_list %}
-            {% set cat_players = players | selectattr('categoria', 'equalto', cat) | list %}
+            {% for cat, count in singles_categories.items() | sort %}
             <div class="card" style="margin: 0;">
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
                     <div>
                         <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
-                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ cat_players|length }} jugadores</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ count }} jugadores</span>
                     </div>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ cat_players|length }})" title="Eliminar categoría">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ count }})" title="Eliminar categoría">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+            {% for cat, count in doubles_categories.items() | sort %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ count }} parejas</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ count }})" title="Eliminar categoría">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+            {% for cat, count in teams_categories.items() | sort %}
+            <div class="card" style="margin: 0;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem;">
+                    <div>
+                        <span class="badge badge-primary" style="font-size: 1rem;">{{ cat }}</span>
+                        <span style="margin-left: 0.5rem; color: var(--text-muted);">{{ count }} equipos</span>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeleteCategory('{{ cat }}', {{ count }})" title="Eliminar categoría">
                         🗑️
                     </button>
                 </div>
@@ -229,54 +430,167 @@
     </div>
 </div>
 {% endif %}
-{% endif %}
 
-<!-- Players List Section (if any) -->
-{% if players %}
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Jugadores Importados ({{ players|length }})</h3>
+<!-- Inscritos por Categoría (Tabs) -->
+{% set has_players = players | length > 0 %}
+{% set has_pairs = pairs_display | length > 0 %}
+{% set has_teams = teams_display | length > 0 %}
+
+{% if has_players or has_pairs or has_teams %}
+{% set player_cats = players | map(attribute='categoria') | unique | sort | list if has_players else [] %}
+{% set pair_cats = pairs_display | map(attribute='categoria') | unique | sort | list if has_pairs else [] %}
+{% set team_cats = teams_display | map(attribute='categoria') | unique | sort | list if has_teams else [] %}
+{% set all_cats = player_cats + pair_cats + team_cats %}
+
+<div class="card mb-3">
+    <div class="card-header" style="padding-bottom: 0;">
+        <h3 class="card-title" style="margin-bottom: 0.75rem;">Inscritos</h3>
+        <div class="category-tabs">
+            {% for cat in all_cats %}
+            {% if cat in player_cats %}
+            {% set cat_players = players | selectattr('categoria', 'equalto', cat) | list %}
+            <button type="button" class="cat-tab {% if loop.first %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
+                {{ cat }} <span class="cat-tab-count">{{ cat_players|length }}</span>
+            </button>
+            {% elif cat in pair_cats %}
+            {% set cat_pairs = pairs_display | selectattr('categoria', 'equalto', cat) | list %}
+            <button type="button" class="cat-tab {% if loop.first and not player_cats %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
+                {{ cat }} <span class="cat-tab-count">{{ cat_pairs|length }}</span>
+            </button>
+            {% elif cat in team_cats %}
+            {% set cat_teams = teams_display | selectattr('categoria', 'equalto', cat) | list %}
+            <button type="button" class="cat-tab {% if loop.first and not player_cats and not pair_cats %}active{% endif %}" onclick="switchCategoryTab('{{ cat }}')" id="cat-tab-{{ cat }}">
+                {{ cat }} <span class="cat-tab-count">{{ cat_teams|length }}</span>
+            </button>
+            {% endif %}
+            {% endfor %}
+        </div>
     </div>
     <div class="card-body" style="padding: 0;">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nombre</th>
-                        <th>Género</th>
-                        <th>País</th>
-                        <th>Ranking</th>
-                        <th>Categoría</th>
-                        <th>Seed</th>
-                        <th>Grupo</th>
-                        <th style="width: 120px; text-align: center;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for player in players %}
-                    <tr>
-                        <td><span class="badge badge-secondary">{{ player.original_id or player.id }}</span></td>
-                        <td><strong>{{ player.nombre }} {{ player.apellido }}</strong></td>
-                        <td>{{ player.genero if player.genero is string else (player.genero.value if player.genero else '-') }}</td>
-                        <td><span class="badge badge-secondary">{{ player.pais_cd }}</span></td>
-                        <td>{{ player.ranking_pts }}</td>
-                        <td><span class="badge badge-primary">{{ player.categoria }}</span></td>
-                        <td>{{ player.seed or '-' }}</td>
-                        <td>{% if player.group_id %}<span class="badge badge-success">G{{ player.group_number or '?' }}</span>{% else %}-{% endif %}</td>
-                        <td style="text-align: center;">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="editPlayer({{ player.id }}, '{{ player.nombre }}', '{{ player.apellido }}', '{{ player.genero if player.genero is string else (player.genero.value if player.genero else '') }}', '{{ player.pais_cd }}', {{ player.ranking_pts }}, '{{ player.categoria }}', {{ player.seed or 'null' }}, {{ player.original_id or 'null' }})" title="Editar">
-                                ✏️
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePlayer({{ player.id }}, '{{ player.nombre }} {{ player.apellido }}', {{ 'true' if player.group_id else 'false' }})" title="Eliminar">
-                                🗑️
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% for cat in player_cats %}
+        {% set cat_players = players | selectattr('categoria', 'equalto', cat) | list %}
+        <div class="cat-panel" id="cat-panel-{{ cat }}" {% if not loop.first %}style="display: none;"{% endif %}>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Seed</th>
+                            <th>Nombre</th>
+                            <th>País</th>
+                            <th>Ranking</th>
+                            <th>Grupo</th>
+                            <th style="width: 120px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in cat_players %}
+                        <tr>
+                            <td><span class="badge badge-secondary">{{ player.seed or '-' }}</span></td>
+                            <td><strong>{{ player.nombre }} {{ player.apellido }}</strong></td>
+                            <td><span class="badge badge-secondary">{{ player.pais_cd }}</span></td>
+                            <td>{{ player.ranking_pts }}</td>
+                            <td>{% if player.group_id %}<span class="badge badge-success">G{{ player.group_number or '?' }}</span>{% else %}-{% endif %}</td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="editPlayer({{ player.id }}, '{{ player.nombre }}', '{{ player.apellido }}', '{{ player.genero if player.genero is string else (player.genero.value if player.genero else '') }}', '{{ player.pais_cd }}', {{ player.ranking_pts }}, '{{ player.categoria }}', {{ player.seed or 'null' }}, {{ player.original_id or 'null' }})" title="Editar">
+                                    ✏️
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePlayer({{ player.id }}, '{{ player.nombre }} {{ player.apellido }}', {{ 'true' if player.group_id else 'false' }})" title="Eliminar">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
+        {% endfor %}
+
+        {% for cat in pair_cats %}
+        {% set cat_pairs = pairs_display | selectattr('categoria', 'equalto', cat) | list %}
+        <div class="cat-panel" id="cat-panel-{{ cat }}" {% if player_cats or not loop.first %}style="display: none;"{% endif %}>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Siembra</th>
+                            <th>Jugador 1</th>
+                            <th>Jugador 2</th>
+                            <th>Ranking</th>
+                            <th>Grupo</th>
+                            <th style="width: 80px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pair in cat_pairs %}
+                        <tr>
+                            <td><span class="badge badge-secondary">{{ pair.seed or '-' }}</span></td>
+                            <td>
+                                <strong>{{ pair.player1_name }}</strong>
+                                <span class="badge badge-secondary" style="font-size: 0.7rem; margin-left: 0.25rem;">{{ pair.player1_pais }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ pair.player2_name }}</strong>
+                                <span class="badge badge-secondary" style="font-size: 0.7rem; margin-left: 0.25rem;">{{ pair.player2_pais }}</span>
+                            </td>
+                            <td>{{ pair.ranking_pts }}</td>
+                            <td>{% if pair.group_id %}<span class="badge badge-success">G{{ pair.group_number or '?' }}</span>{% else %}-{% endif %}</td>
+                            <td style="text-align: center;">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="confirmDeletePair({{ pair.id }})" title="Eliminar pareja">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% for cat in team_cats %}
+        {% set cat_teams = teams_display | selectattr('categoria', 'equalto', cat) | list %}
+        <div class="cat-panel" id="cat-panel-{{ cat }}" {% if player_cats or pair_cats or not loop.first %}style="display: none;"{% endif %}>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Siembra</th>
+                            <th>Equipo</th>
+                            <th>País</th>
+                            <th>Jugadores</th>
+                            <th>Ranking</th>
+                            <th>Grupo</th>
+                            <th style="width: 80px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in cat_teams %}
+                        <tr>
+                            <td><span class="badge badge-secondary">{{ team.seed or '-' }}</span></td>
+                            <td><strong>{{ team.name }}</strong></td>
+                            <td><span class="badge badge-secondary">{{ team.pais_cd }}</span></td>
+                            <td>
+                                {% for pname in team.player_names %}
+                                <span style="font-size: 0.85rem;">{{ pname }}{% if not loop.last %}, {% endif %}</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ team.ranking_pts }}</td>
+                            <td>{% if team.group_id %}<span class="badge badge-success">G{{ team.group_name or '?' }}</span>{% else %}-{% endif %}</td>
+                            <td style="text-align: center;">
+                                <form method="post" action="/admin/delete-team/{{ team.id }}" style="display: inline;" data-confirm="Eliminar equipo {{ team.name }}?">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar equipo">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
@@ -340,6 +654,95 @@
 </div>
 
 <style>
+/* Import type selector */
+.import-type-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 150px;
+    text-align: center;
+    background: var(--card-bg);
+}
+.import-type-option:hover:not(.disabled) {
+    border-color: var(--info);
+    background: rgba(33, 150, 243, 0.05);
+}
+.import-type-option.selected {
+    border-color: var(--info);
+    background: rgba(33, 150, 243, 0.1);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+.import-type-option.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.import-type-option input[type="radio"] {
+    display: none;
+}
+.import-type-icon {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+}
+.import-type-name {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.import-type-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+/* Category tabs */
+.category-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    overflow-x: auto;
+}
+.cat-tab {
+    padding: 0.6rem 1.25rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+.cat-tab:hover {
+    color: var(--text-primary);
+    background: rgba(33, 150, 243, 0.05);
+}
+.cat-tab.active {
+    color: var(--info);
+    border-bottom-color: var(--info);
+}
+.cat-tab-count {
+    display: inline-block;
+    background: var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 0.35rem;
+    font-weight: 700;
+}
+.cat-tab.active .cat-tab-count {
+    background: var(--info);
+    color: #fff;
+}
+
 /* Dropzone styles */
 .dropzone {
     position: relative;
@@ -541,6 +944,63 @@
 </style>
 
 <script>
+// Category tabs
+function switchCategoryTab(cat) {
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cat-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('cat-tab-' + cat).classList.add('active');
+    document.getElementById('cat-panel-' + cat).style.display = 'block';
+}
+
+// Current import type
+let currentImportType = 'individual';
+
+function switchImportType(type) {
+    currentImportType = type;
+
+    // Update visual selection
+    document.querySelectorAll('.import-type-option').forEach(el => el.classList.remove('selected'));
+    document.getElementById('type-label-' + type).classList.add('selected');
+
+    // Toggle format info visibility
+    document.getElementById('csv-format-individual').style.display = (type === 'individual') ? 'block' : 'none';
+    document.getElementById('csv-format-parejas').style.display = (type === 'parejas') ? 'block' : 'none';
+    document.getElementById('csv-format-equipos').style.display = (type === 'equipos') ? 'block' : 'none';
+
+    // Toggle individual-specific options
+    document.getElementById('csv-options-individual').style.display = (type === 'individual') ? 'block' : 'none';
+
+    // Update form action
+    const form = document.getElementById('csv-import-form');
+    if (type === 'individual') {
+        form.action = '/admin/import-players/csv';
+    } else if (type === 'parejas') {
+        form.action = '/admin/import-pairs/csv-unified';
+    } else if (type === 'equipos') {
+        form.action = '/admin/import-teams/csv';
+    }
+
+    // Update section titles
+    if (type === 'individual') {
+        document.getElementById('csv-section-title').textContent = 'Importar Jugadores desde CSV';
+        document.getElementById('manual-section-title').textContent = 'Agregar Jugador Manualmente';
+    } else if (type === 'parejas') {
+        document.getElementById('csv-section-title').textContent = 'Importar Parejas desde CSV';
+        document.getElementById('manual-section-title').textContent = 'Agregar Pareja Manualmente';
+    } else if (type === 'equipos') {
+        document.getElementById('csv-section-title').textContent = 'Importar Equipos desde CSV';
+        document.getElementById('manual-section-title').textContent = 'Crear Equipo Manualmente';
+    }
+
+    // Toggle manual forms
+    document.getElementById('manual-form-individual').style.display = (type === 'individual') ? 'block' : 'none';
+    document.getElementById('manual-form-parejas').style.display = (type === 'parejas') ? 'block' : 'none';
+    document.getElementById('manual-form-equipos').style.display = (type === 'equipos') ? 'block' : 'none';
+
+    // Reset file and preview if open
+    hideImportSections();
+}
+
 // Dropzone functionality
 document.addEventListener('DOMContentLoaded', function() {
     const dropzone = document.getElementById('csv-dropzone');
@@ -594,6 +1054,8 @@ document.addEventListener('DOMContentLoaded', function() {
         dropzoneContent.style.display = 'none';
         dropzoneSelected.style.display = 'flex';
         filenameDisplay.textContent = filename;
+        // Auto-trigger preview
+        setTimeout(previewCSV, 100);
     }
 });
 
@@ -613,7 +1075,7 @@ function clearSelectedFile(event) {
 let csvData = [];
 let csvHeaders = [];
 
-function parseCSV(text) {
+function parseCSVIndividual(text) {
     const lines = text.trim().split('\n');
     if (lines.length < 2) return { headers: [], data: [], errors: ['El archivo está vacío o no tiene datos'] };
 
@@ -621,7 +1083,6 @@ function parseCSV(text) {
     const requiredHeaders = ['id', 'nombre', 'apellido', 'genero', 'pais_cd', 'ranking_pts', 'categoria'];
     const errors = [];
 
-    // Check for required headers
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
     if (missingHeaders.length > 0) {
         errors.push('Columnas faltantes: ' + missingHeaders.join(', '));
@@ -641,33 +1102,127 @@ function parseCSV(text) {
         const row = {};
         headers.forEach((h, idx) => row[h] = values[idx]);
 
-        // Validate row data
-        if (!row.id || isNaN(parseInt(row.id))) {
-            errors.push(`Fila ${i + 1}: ID inválido "${row.id}"`);
-        }
-        if (!row.nombre) {
-            errors.push(`Fila ${i + 1}: Nombre vacío`);
-        }
-        if (!row.apellido) {
-            errors.push(`Fila ${i + 1}: Apellido vacío`);
-        }
-        if (!['M', 'F'].includes(row.genero?.toUpperCase())) {
-            errors.push(`Fila ${i + 1}: Género inválido "${row.genero}" (debe ser M o F)`);
-        }
-        if (!row.pais_cd || row.pais_cd.length !== 3) {
-            errors.push(`Fila ${i + 1}: Código de país inválido "${row.pais_cd}" (debe ser 3 letras)`);
-        }
-        if (row.ranking_pts && isNaN(parseFloat(row.ranking_pts))) {
-            errors.push(`Fila ${i + 1}: Ranking inválido "${row.ranking_pts}"`);
-        }
-        if (!row.categoria) {
-            errors.push(`Fila ${i + 1}: Categoría vacía`);
-        }
+        if (!row.id || isNaN(parseInt(row.id))) errors.push(`Fila ${i + 1}: ID inválido "${row.id}"`);
+        if (!row.nombre) errors.push(`Fila ${i + 1}: Nombre vacío`);
+        if (!row.apellido) errors.push(`Fila ${i + 1}: Apellido vacío`);
+        if (!['M', 'F'].includes(row.genero?.toUpperCase())) errors.push(`Fila ${i + 1}: Género inválido "${row.genero}"`);
+        if (!row.pais_cd || row.pais_cd.length !== 3) errors.push(`Fila ${i + 1}: País inválido "${row.pais_cd}"`);
+        if (row.ranking_pts && isNaN(parseFloat(row.ranking_pts))) errors.push(`Fila ${i + 1}: Ranking inválido "${row.ranking_pts}"`);
+        if (!row.categoria) errors.push(`Fila ${i + 1}: Categoría vacía`);
 
         data.push(row);
     }
 
     return { headers, data, errors };
+}
+
+function parseCSVParejas(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return { headers: [], data: [], errors: ['El archivo está vacío o no tiene datos'] };
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const requiredHeaders = ['nombre1', 'apellido1', 'pais1', 'nombre2', 'apellido2', 'pais2', 'categoria'];
+    const errors = [];
+
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+        errors.push('Columnas faltantes: ' + missingHeaders.join(', '));
+    }
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',').map(v => v.trim());
+        if (values.length !== headers.length) {
+            errors.push(`Fila ${i + 1}: número incorrecto de columnas (${values.length} vs ${headers.length})`);
+            continue;
+        }
+
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+
+        if (!row.nombre1) errors.push(`Fila ${i + 1}: Nombre1 vacío`);
+        if (!row.apellido1) errors.push(`Fila ${i + 1}: Apellido1 vacío`);
+        if (!row.pais1 || row.pais1.length !== 3) errors.push(`Fila ${i + 1}: País1 inválido "${row.pais1}"`);
+        if (!row.nombre2) errors.push(`Fila ${i + 1}: Nombre2 vacío`);
+        if (!row.apellido2) errors.push(`Fila ${i + 1}: Apellido2 vacío`);
+        if (!row.pais2 || row.pais2.length !== 3) errors.push(`Fila ${i + 1}: País2 inválido "${row.pais2}"`);
+        if (!row.categoria) errors.push(`Fila ${i + 1}: Categoría vacía`);
+
+        data.push(row);
+    }
+
+    // Build friendly display headers for preview
+    const displayHeaders = ['#', 'Jugador 1', 'País 1', 'Jugador 2', 'País 2', 'Ranking', 'Categoría'];
+    const displayData = data.map((row, idx) => ({
+        '#': idx + 1,
+        'Jugador 1': `${row.nombre1} ${row.apellido1}`,
+        'País 1': row.pais1,
+        'Jugador 2': `${row.nombre2} ${row.apellido2}`,
+        'País 2': row.pais2,
+        'Ranking': row.ranking_pts || '0',
+        'Categoría': row.categoria
+    }));
+
+    return { headers: displayHeaders, data: displayData, rawData: data, errors };
+}
+
+function parseCSVEquipos(text) {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return { headers: [], data: [], errors: ['El archivo está vacío o no tiene datos'] };
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const requiredHeaders = ['team_name', 'pais_cd', 'nombre1', 'apellido1', 'pais1', 'nombre2', 'apellido2', 'pais2', 'nombre3', 'apellido3', 'pais3', 'ranking_pts', 'categoria'];
+    const errors = [];
+
+    const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    if (missingHeaders.length > 0) {
+        errors.push('Columnas faltantes: ' + missingHeaders.join(', '));
+    }
+
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',').map(v => v.trim());
+        if (values.length !== headers.length) {
+            errors.push(`Fila ${i + 1}: número incorrecto de columnas (${values.length} vs ${headers.length})`);
+            continue;
+        }
+
+        const row = {};
+        headers.forEach((h, idx) => row[h] = values[idx]);
+
+        if (!row.team_name) errors.push(`Fila ${i + 1}: Nombre de equipo vacío`);
+        if (!row.pais_cd || row.pais_cd.length !== 3) errors.push(`Fila ${i + 1}: País inválido "${row.pais_cd}"`);
+        if (!row.nombre1) errors.push(`Fila ${i + 1}: Nombre1 vacío`);
+        if (!row.apellido1) errors.push(`Fila ${i + 1}: Apellido1 vacío`);
+        if (!row.nombre2) errors.push(`Fila ${i + 1}: Nombre2 vacío`);
+        if (!row.apellido2) errors.push(`Fila ${i + 1}: Apellido2 vacío`);
+        if (!row.nombre3) errors.push(`Fila ${i + 1}: Nombre3 vacío`);
+        if (!row.apellido3) errors.push(`Fila ${i + 1}: Apellido3 vacío`);
+        if (!row.categoria) errors.push(`Fila ${i + 1}: Categoría vacía`);
+
+        data.push(row);
+    }
+
+    // Build friendly display headers for preview
+    const displayHeaders = ['#', 'Equipo', 'País', 'Jugador 1', 'Jugador 2', 'Jugador 3', 'Ranking', 'Categoría'];
+    const displayData = data.map((row, idx) => ({
+        '#': idx + 1,
+        'Equipo': row.team_name,
+        'País': row.pais_cd,
+        'Jugador 1': `${row.nombre1} ${row.apellido1}`,
+        'Jugador 2': `${row.nombre2} ${row.apellido2}`,
+        'Jugador 3': `${row.nombre3} ${row.apellido3}`,
+        'Ranking': row.ranking_pts || '0',
+        'Categoría': row.categoria
+    }));
+
+    return { headers: displayHeaders, data: displayData, rawData: data, errors };
 }
 
 function previewCSV() {
@@ -682,7 +1237,25 @@ function previewCSV() {
 
     reader.onload = function(e) {
         const text = e.target.result;
-        const result = parseCSV(text);
+        let result;
+
+        // Auto-detect CSV type from headers if not manually selected
+        const firstLine = text.trim().split('\n')[0].toLowerCase();
+        if (firstLine.includes('team_name') && currentImportType !== 'equipos') {
+            switchImportType('equipos');
+            document.querySelector('input[name="import_type"][value="equipos"]').checked = true;
+        } else if (firstLine.includes('nombre1') && firstLine.includes('nombre2') && !firstLine.includes('team_name') && currentImportType !== 'parejas') {
+            switchImportType('parejas');
+            document.querySelector('input[name="import_type"][value="parejas"]').checked = true;
+        }
+
+        if (currentImportType === 'parejas') {
+            result = parseCSVParejas(text);
+        } else if (currentImportType === 'equipos') {
+            result = parseCSVEquipos(text);
+        } else {
+            result = parseCSVIndividual(text);
+        }
 
         csvHeaders = result.headers;
         csvData = result.data;
@@ -692,15 +1265,18 @@ function previewCSV() {
 
         // Count categories
         const categories = {};
-        result.data.forEach(row => {
-            const cat = row.categoria?.toUpperCase() || 'SIN CATEGORÍA';
+        const rawData = result.rawData || result.data;
+        rawData.forEach(row => {
+            const cat = (row.categoria || row['Categoría'] || '').toUpperCase() || 'SIN CATEGORÍA';
             categories[cat] = (categories[cat] || 0) + 1;
         });
         const catSummary = Object.entries(categories).map(([k, v]) => `${k}: ${v}`).join(', ');
 
         // Show summary
+        const count = rawData.length;
+        const entityName = currentImportType === 'parejas' ? 'parejas' : (currentImportType === 'equipos' ? 'equipos' : 'jugadores');
         document.getElementById('csv-preview-summary').innerHTML =
-            `<strong>${result.data.length}</strong> jugadores encontrados` +
+            `<strong>${count}</strong> ${entityName} encontrados` +
             (catSummary ? ` — Categorías: ${catSummary}` : '');
 
         // Build preview table
@@ -735,7 +1311,10 @@ function previewCSV() {
         document.getElementById('btn-preview-csv').style.display = 'none';
         document.getElementById('btn-submit-csv').style.display = 'inline-flex';
 
-        // Disable submit if there are critical errors (missing headers)
+        // Show team match system selector for teams import
+        document.getElementById('team-system-import').style.display = (currentImportType === 'equipos') ? 'block' : 'none';
+
+        // Disable submit if there are critical errors
         const hasCriticalErrors = result.errors.some(e => e.includes('Columnas faltantes'));
         document.getElementById('btn-submit-csv').disabled = hasCriticalErrors;
     };
@@ -747,6 +1326,7 @@ function hidePreview() {
     document.getElementById('csv-preview-section').style.display = 'none';
     document.getElementById('btn-preview-csv').style.display = 'inline-flex';
     document.getElementById('btn-submit-csv').style.display = 'none';
+    document.getElementById('team-system-import').style.display = 'none';
     csvData = [];
     csvHeaders = [];
 }
@@ -810,6 +1390,16 @@ function confirmDeletePlayer(id, name, hasGroup) {
     }
 }
 
+function confirmDeletePair(id) {
+    if (confirm('¿Eliminar esta pareja?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/pair/' + id + '/delete';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
 function confirmDeleteCategory(category, playerCount) {
     let message = '¿Eliminar la categoría "' + category + '" completamente?\n\n';
     message += '⚠️ ESTO ELIMINARÁ:\n';
@@ -828,4 +1418,5 @@ function confirmDeleteCategory(category, playerCount) {
     }
 }
 </script>
+{% endif %}
 {% endblock %}

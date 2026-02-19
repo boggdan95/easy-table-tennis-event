@@ -37,12 +37,12 @@
         <!-- Players Compact -->
         <div class="players-compact">
             <div class="player-box">
-                <div class="player-label">JUGADOR A</div>
+                <div class="player-label">{% if is_doubles %}PAREJA A{% else %}JUGADOR A{% endif %}</div>
                 <div class="player-name">{{ md.player1.nombre }} {{ md.player1.apellido }}</div>
                 <div class="player-country">({{ md.player1.pais_cd }})</div>
             </div>
             <div class="player-box">
-                <div class="player-label">JUGADOR B</div>
+                <div class="player-label">{% if is_doubles %}PAREJA B{% else %}JUGADOR B{% endif %}</div>
                 <div class="player-name">{{ md.player2.nombre }} {{ md.player2.apellido }}</div>
                 <div class="player-country">({{ md.player2.pais_cd }})</div>
             </div>
@@ -52,7 +52,7 @@
         <table class="score-table">
             <thead>
                 <tr>
-                    <th class="player-col">Jugador</th>
+                    <th class="player-col">{% if is_doubles %}Pareja{% else %}Jugador{% endif %}</th>
                     <th>S1</th>
                     <th>S2</th>
                     <th>S3</th>
@@ -63,7 +63,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td class="player-cell">{{ md.player1.nombre[0] }}. {{ md.player1.apellido }}</td>
+                    <td class="player-cell">{% if is_doubles %}{{ md.player1.nombre }} {{ md.player1.apellido }}{% else %}{{ md.player1.nombre[0] }}. {{ md.player1.apellido }}{% endif %}</td>
                     <td class="score-cell"></td>
                     <td class="score-cell"></td>
                     <td class="score-cell"></td>
@@ -72,7 +72,7 @@
                     <td class="total-cell"></td>
                 </tr>
                 <tr>
-                    <td class="player-cell">{{ md.player2.nombre[0] }}. {{ md.player2.apellido }}</td>
+                    <td class="player-cell">{% if is_doubles %}{{ md.player2.nombre }} {{ md.player2.apellido }}{% else %}{{ md.player2.nombre[0] }}. {{ md.player2.apellido }}{% endif %}</td>
                     <td class="score-cell"></td>
                     <td class="score-cell"></td>
                     <td class="score-cell"></td>
@@ -103,11 +103,11 @@
         <div class="signatures-row">
             <div class="signature-box">
                 <div class="signature-line"></div>
-                <div class="signature-label">Jugador A</div>
+                <div class="signature-label">{% if is_doubles %}Pareja A{% else %}Jugador A{% endif %}</div>
             </div>
             <div class="signature-box">
                 <div class="signature-line"></div>
-                <div class="signature-label">Jugador B</div>
+                <div class="signature-label">{% if is_doubles %}Pareja B{% else %}Jugador B{% endif %}</div>
             </div>
             <div class="signature-box">
                 <div class="signature-line"></div>

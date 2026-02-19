@@ -67,46 +67,80 @@
 <div class="card mb-3">
     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
         <h3 class="card-title" style="margin: 0;">
-            📁 Categoría: {{ category }}
+            <span class="badge badge-primary" style="font-size: 1rem; margin-right: 0.5rem;">{{ category }}</span>
+            {{ status.competitors }} {{ status.competitor_unit }}
             {% if status.champion %}
-            <span class="badge badge-success" style="margin-left: 0.5rem;">✓ Finalizado</span>
+            <span class="badge badge-success" style="margin-left: 0.5rem;">Finalizado</span>
             {% endif %}
         </h3>
         <div class="d-flex gap-2" style="flex-wrap: wrap;">
+            {% if status.phase == 'inscripcion' %}
+            <a href="/admin/create-groups?category={{ category }}" class="btn btn-primary btn-sm">
+                <span>👥</span>
+                <span>Crear Grupos</span>
+            </a>
+            <a href="/admin/direct-bracket?category={{ category }}" class="btn btn-warning btn-sm">
+                <span>🎯</span>
+                <span>KO Directo</span>
+            </a>
+            {% endif %}
             {% if status.groups.complete and not status.standings %}
-            <a href="/admin/calculate-standings?category={{ category }}" class="btn btn-warning btn-sm" title="Calcular clasificación">
+            <a href="/admin/calculate-standings?category={{ category }}" class="btn btn-warning btn-sm">
                 <span>🧮</span>
                 <span>Calcular Standings</span>
             </a>
             {% endif %}
-            {% if status.standings and not status.bracket.exists %}
-            <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-success btn-sm" title="Generar llave eliminatoria">
+            {% if status.standings and not status.bracket.exists and status.groups.count > 1 %}
+            <a href="/admin/generate-bracket?category={{ category }}" class="btn btn-success btn-sm">
                 <span>🏅</span>
                 <span>Generar Bracket</span>
             </a>
             {% endif %}
-            <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">Ver Categoría →</a>
+            <a href="/category/{{ category }}" class="btn btn-secondary btn-sm">Ver Categoría</a>
         </div>
     </div>
     <div class="card-body" style="padding: 0;">
         <table class="table" style="margin: 0;">
             <tbody>
-                <!-- Groups -->
+                <!-- Inscription -->
                 <tr>
                     <td style="width: 200px;">
+                        <strong>📋 Inscripción</strong>
+                    </td>
+                    <td>
+                        {{ status.competitors }} {{ status.competitor_unit }} inscritos
+                    </td>
+                    <td style="width: 120px; text-align: center;">
+                        {% if status.competitors > 0 %}
+                        <span class="badge badge-success">✓</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Vacía</span>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Groups -->
+                <tr>
+                    <td>
                         <strong>👥 Fase de Grupos</strong>
                     </td>
                     <td>
+                        {% if status.groups.count > 0 %}
                         {{ status.groups.count }} grupos,
                         {{ status.groups.completed_matches }}/{{ status.groups.total_matches }} partidos
+                        {% else %}
+                        Sin grupos
+                        {% endif %}
                     </td>
-                    <td style="width: 120px; text-align: center;">
+                    <td style="text-align: center;">
                         {% if status.groups.complete %}
                         <span class="badge badge-success">✓ Completo</span>
                         {% elif status.groups.completed_matches > 0 %}
                         <span class="badge badge-warning">En progreso</span>
-                        {% else %}
+                        {% elif status.groups.count > 0 %}
                         <span class="badge badge-secondary">Pendiente</span>
+                        {% else %}
+                        <span class="badge badge-secondary">-</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -117,17 +151,13 @@
                         <strong>📊 Clasificación</strong>
                     </td>
                     <td>
-                        {% if status.standings %}
-                        Calculada
-                        {% else %}
-                        No calculada
-                        {% endif %}
+                        {% if status.standings %}Calculada{% else %}No calculada{% endif %}
                     </td>
                     <td style="text-align: center;">
                         {% if status.standings %}
-                        <span class="badge badge-success">✓ Lista</span>
+                        <span class="badge badge-success">✓</span>
                         {% else %}
-                        <span class="badge badge-secondary">Pendiente</span>
+                        <span class="badge badge-secondary">-</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -138,17 +168,13 @@
                         <strong>🏅 Bracket</strong>
                     </td>
                     <td>
-                        {% if status.bracket.exists %}
-                        Generado
-                        {% else %}
-                        No generado
-                        {% endif %}
+                        {% if status.bracket.exists %}Generado{% else %}No generado{% endif %}
                     </td>
                     <td style="text-align: center;">
                         {% if status.bracket.exists %}
-                        <span class="badge badge-success">✓ Listo</span>
+                        <span class="badge badge-success">✓</span>
                         {% else %}
-                        <span class="badge badge-secondary">Pendiente</span>
+                        <span class="badge badge-secondary">-</span>
                         {% endif %}
                     </td>
                 </tr>

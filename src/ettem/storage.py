@@ -141,6 +141,84 @@ class PairORM(Base):
     player2 = relationship("PlayerORM", foreign_keys=[player2_id])
 
 
+class TeamORM(Base):
+    """Team table for team events (MT, WT, U15BT, etc.)."""
+
+    __tablename__ = "teams"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=True)
+    name = Column(String(100), nullable=False)  # "Spain A", "Mexico"
+    categoria = Column(String(20), nullable=False)  # MT, WT, U15BT, etc.
+    pais_cd = Column(String(3), nullable=False)  # ISO-3 country code
+    player_ids_json = Column(Text, nullable=False, default="[]")  # JSON [player_id, ...]
+    ranking_pts = Column(Float, nullable=False, default=0)
+    seed = Column(Integer, nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    group_number = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    tournament = relationship("TournamentORM")
+
+    @property
+    def player_ids(self) -> list:
+        return json.loads(self.player_ids_json) if self.player_ids_json else []
+
+    @player_ids.setter
+    def player_ids(self, value: list):
+        self.player_ids_json = json.dumps(value)
+
+    @property
+    def nombre(self) -> str:
+        """Team name (CompetitorDisplay / template compat)."""
+        return self.name
+
+    @property
+    def apellido(self) -> str:
+        """Empty string (template compat)."""
+        return ""
+
+
+class TeamMatchDetailORM(Base):
+    """Individual match within a team encounter.
+
+    A team encounter (MatchORM with event_type='teams') contains 5-9
+    individual table tennis matches. This table stores each one.
+    """
+
+    __tablename__ = "team_match_details"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    parent_match_id = Column(Integer, ForeignKey("matches.id"), nullable=False)
+    match_number = Column(Integer, nullable=False)  # 1-9, order per system
+    match_type = Column(String(10), nullable=False, default="singles")  # "singles" or "doubles"
+    label_home = Column(String(10), nullable=True)  # "A", "B", "B&C", etc.
+    label_away = Column(String(10), nullable=True)  # "X", "Y", "Y&Z", etc.
+    player1_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Home player
+    player2_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Away player
+    player1b_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Home doubles partner
+    player2b_id = Column(Integer, ForeignKey("players.id"), nullable=True)  # Away doubles partner
+    best_of = Column(Integer, nullable=False, default=5)
+    status = Column(String(20), nullable=False, default="pending")  # pending, in_progress, completed, not_needed
+    winner_side = Column(Integer, nullable=True)  # 1=home, 2=away
+    sets_json = Column(Text, nullable=False, default="[]")  # Same format as MatchORM
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    parent_match = relationship("MatchORM")
+
+    @property
+    def sets(self) -> list:
+        return json.loads(self.sets_json) if self.sets_json else []
+
+    @sets.setter
+    def sets(self, value: list):
+        self.sets_json = json.dumps(value)
+
+
 class GroupORM(Base):
     """Group table."""
 
@@ -185,6 +263,11 @@ class MatchORM(Base):
     event_type = Column(String(10), nullable=True, default="singles")  # singles, doubles, teams
     pair1_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles matches
     pair2_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles matches
+    team1_id = Column(Integer, nullable=True)  # For team matches (FK to teams.id)
+    team2_id = Column(Integer, nullable=True)  # For team matches (FK to teams.id)
+    team1_score = Column(Integer, nullable=True, default=0)  # Individual match wins by team 1
+    team2_score = Column(Integer, nullable=True, default=0)  # Individual match wins by team 2
+    team_match_system = Column(String(20), nullable=True)  # swaythling, corbillon, olympic, bo7, bo9
     round_type = Column(String(10), nullable=False, default="RR")  # RR, R16, QF, SF, F
     round_name = Column(String(50), nullable=True)
     match_number = Column(Integer, nullable=True)
@@ -215,17 +298,26 @@ class MatchORM(Base):
         return (self.event_type or "singles") == "doubles"
 
     @property
+    def is_teams(self) -> bool:
+        """Check if this is a team match."""
+        return (self.event_type or "singles") == "teams"
+
+    @property
     def competitor1_id(self) -> Optional[int]:
-        """Get competitor 1 ID (player_id for singles, pair1_id for doubles)."""
+        """Get competitor 1 ID (player_id for singles, pair1_id for doubles, team1_id for teams)."""
         if self.is_doubles:
             return self.pair1_id
+        if self.is_teams:
+            return self.team1_id
         return self.player1_id
 
     @property
     def competitor2_id(self) -> Optional[int]:
-        """Get competitor 2 ID (player_id for singles, pair2_id for doubles)."""
+        """Get competitor 2 ID (player_id for singles, pair2_id for doubles, team2_id for teams)."""
         if self.is_doubles:
             return self.pair2_id
+        if self.is_teams:
+            return self.team2_id
         return self.player2_id
 
     @property
@@ -247,6 +339,7 @@ class GroupStandingORM(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles standings
+    team_id = Column(Integer, nullable=True)  # For team standings (FK to teams.id)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
     points_total = Column(Integer, nullable=False, default=0)
     wins = Column(Integer, nullable=False, default=0)
@@ -276,6 +369,7 @@ class BracketSlotORM(Base):
     round_type = Column(String(10), nullable=False)  # R32, R16, QF, SF, F
     player_id = Column(Integer, ForeignKey("players.id"), nullable=True)
     pair_id = Column(Integer, ForeignKey("pairs.id"), nullable=True)  # For doubles brackets
+    team_id = Column(Integer, nullable=True)  # For team brackets (FK to teams.id)
     is_bye = Column(Boolean, nullable=False, default=False)
     same_country_warning = Column(Boolean, nullable=False, default=False)
     advanced_by_bye = Column(Boolean, nullable=False, default=False)
@@ -641,16 +735,15 @@ class PlayerRepository:
             tournament_id: Optional tournament ID to filter by
 
         Returns:
-            List of PlayerORM instances sorted by seed (1 first)
+            List of PlayerORM instances sorted by seed (seeded first, then by ranking_pts)
         """
         query = (
             self.session.query(PlayerORM)
             .filter(PlayerORM.categoria == category)
-            .filter(PlayerORM.seed.isnot(None))
         )
         if tournament_id is not None:
             query = query.filter(PlayerORM.tournament_id == tournament_id)
-        return query.order_by(PlayerORM.seed).all()
+        return query.order_by(PlayerORM.seed.asc().nullslast(), PlayerORM.ranking_pts.desc()).all()
 
     def get_all(self, tournament_id: int = None) -> list[PlayerORM]:
         """Get all players, optionally filtered by tournament.
@@ -882,6 +975,28 @@ class MatchRepository:
                 scheduled_time=match.scheduled_time,
                 table_number=match.table_number,
             )
+        elif event_type == "teams":
+            # For teams, store team IDs in both player1_id/player2_id (for
+            # legacy webapp code) AND team1_id/team2_id (for explicit queries).
+            match_orm = MatchORM(
+                player1_id=match.player1_id,
+                player2_id=match.player2_id,
+                team1_id=match.player1_id,
+                team2_id=match.player2_id,
+                event_type="teams",
+                group_id=match.group_id,
+                tournament_id=tournament_id,
+                category=category,
+                best_of=best_of,
+                round_type=match.round_type.value if hasattr(match.round_type, "value") else match.round_type,
+                round_name=match.round_name,
+                match_number=match.match_number,
+                status=match.status.value if hasattr(match.status, "value") else match.status,
+                sets_json=json.dumps(sets_data),
+                winner_id=match.winner_id,
+                scheduled_time=match.scheduled_time,
+                table_number=match.table_number,
+            )
         else:
             match_orm = MatchORM(
                 player1_id=match.player1_id,
@@ -975,18 +1090,19 @@ class MatchRepository:
             query = query.filter(MatchORM.tournament_id == tournament_id)
         return query.order_by(MatchORM.round_type, MatchORM.match_number).all()
 
-    def get_bracket_match_by_round_and_number(self, category: str, round_type: str, match_number: int) -> Optional[MatchORM]:
+    def get_bracket_match_by_round_and_number(self, category: str, round_type: str, match_number: int, tournament_id: int = None) -> Optional[MatchORM]:
         """Get a specific bracket match by category, round type, and match number.
 
         Args:
             category: Category name
             round_type: Round type (R16, QF, SF, F)
             match_number: Match number within the round
+            tournament_id: Optional tournament ID to filter by
 
         Returns:
             MatchORM if found, None otherwise
         """
-        return (
+        query = (
             self.session.query(MatchORM)
             .filter(
                 MatchORM.category == category,
@@ -994,8 +1110,10 @@ class MatchRepository:
                 MatchORM.round_type == round_type,
                 MatchORM.match_number == match_number
             )
-            .first()
         )
+        if tournament_id is not None:
+            query = query.filter(MatchORM.tournament_id == tournament_id)
+        return query.first()
 
     def delete_bracket_matches_by_category(self, category: str, tournament_id: int = None) -> int:
         """Delete all bracket matches for a category.
@@ -2101,6 +2219,134 @@ class PairRepository:
         return pairs
 
 
+class TeamRepository:
+    """Repository for Team operations."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, team: "Team", tournament_id: int = None) -> TeamORM:
+        """Create a new team."""
+        team_orm = TeamORM(
+            tournament_id=tournament_id,
+            name=team.name,
+            categoria=team.categoria,
+            pais_cd=team.pais_cd,
+            player_ids_json=json.dumps(team.player_ids),
+            ranking_pts=team.ranking_pts,
+            seed=team.seed,
+            notes=team.notes,
+            created_at=datetime.utcnow(),
+        )
+        self.session.add(team_orm)
+        self.session.commit()
+        self.session.refresh(team_orm)
+        return team_orm
+
+    def get_by_id(self, team_id: int) -> Optional[TeamORM]:
+        """Get team by ID."""
+        return self.session.query(TeamORM).filter(TeamORM.id == team_id).first()
+
+    def get_by_category(self, categoria: str, tournament_id: int = None) -> list[TeamORM]:
+        """Get all teams in a category, sorted by seed."""
+        query = self.session.query(TeamORM).filter(TeamORM.categoria == categoria)
+        if tournament_id is not None:
+            query = query.filter(TeamORM.tournament_id == tournament_id)
+        return query.order_by(TeamORM.seed.asc().nullslast(), TeamORM.ranking_pts.desc()).all()
+
+    def get_by_category_sorted_by_seed(self, categoria: str, tournament_id: int = None) -> list[TeamORM]:
+        """Get teams sorted by seed (for group/bracket creation)."""
+        return self.get_by_category(categoria, tournament_id)
+
+    def get_by_tournament(self, tournament_id: int) -> list[TeamORM]:
+        """Get all teams for a tournament."""
+        return self.session.query(TeamORM).filter(
+            TeamORM.tournament_id == tournament_id,
+        ).order_by(TeamORM.categoria, TeamORM.seed.asc().nullslast()).all()
+
+    def get_all(self, tournament_id: int = None) -> list[TeamORM]:
+        """Get all teams, optionally filtered by tournament."""
+        q = self.session.query(TeamORM)
+        if tournament_id:
+            q = q.filter(TeamORM.tournament_id == tournament_id)
+        return q.order_by(TeamORM.categoria, TeamORM.seed.asc().nullslast()).all()
+
+    def update(self, team: TeamORM) -> TeamORM:
+        """Update an existing team."""
+        self.session.commit()
+        self.session.refresh(team)
+        return team
+
+    def delete(self, team_id: int) -> bool:
+        """Delete a team."""
+        team = self.get_by_id(team_id)
+        if team:
+            self.session.delete(team)
+            self.session.commit()
+            return True
+        return False
+
+    def assign_seeds(self, categoria: str, tournament_id: int = None) -> list[TeamORM]:
+        """Assign seeds to teams by ranking_pts (highest = seed 1)."""
+        query = self.session.query(TeamORM).filter(TeamORM.categoria == categoria)
+        if tournament_id is not None:
+            query = query.filter(TeamORM.tournament_id == tournament_id)
+        teams = query.order_by(TeamORM.ranking_pts.desc()).all()
+        for i, team in enumerate(teams, 1):
+            team.seed = i
+        self.session.commit()
+        return teams
+
+
+class TeamMatchDetailRepository:
+    """Repository for individual matches within team encounters."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, detail: TeamMatchDetailORM) -> TeamMatchDetailORM:
+        """Create a new team match detail."""
+        self.session.add(detail)
+        self.session.commit()
+        self.session.refresh(detail)
+        return detail
+
+    def create_bulk(self, details: list[TeamMatchDetailORM]) -> list[TeamMatchDetailORM]:
+        """Create multiple team match details at once."""
+        for d in details:
+            self.session.add(d)
+        self.session.commit()
+        for d in details:
+            self.session.refresh(d)
+        return details
+
+    def get_by_id(self, detail_id: int) -> Optional[TeamMatchDetailORM]:
+        """Get a team match detail by ID."""
+        return self.session.query(TeamMatchDetailORM).filter(
+            TeamMatchDetailORM.id == detail_id
+        ).first()
+
+    def get_by_parent_match(self, parent_match_id: int) -> list[TeamMatchDetailORM]:
+        """Get all individual matches for a team encounter, ordered by match_number."""
+        return self.session.query(TeamMatchDetailORM).filter(
+            TeamMatchDetailORM.parent_match_id == parent_match_id
+        ).order_by(TeamMatchDetailORM.match_number).all()
+
+    def update(self, detail: TeamMatchDetailORM) -> TeamMatchDetailORM:
+        """Update a team match detail."""
+        self.session.commit()
+        self.session.refresh(detail)
+        return detail
+
+    def delete_by_parent_match(self, parent_match_id: int) -> int:
+        """Delete all details for a parent match. Returns count deleted."""
+        count = self.session.query(TeamMatchDetailORM).filter(
+            TeamMatchDetailORM.parent_match_id == parent_match_id
+        ).delete()
+        self.session.commit()
+        return count
+
+
 # ============================================================================
 # Database Migration (V2.4 Doubles)
 # ============================================================================
@@ -2160,6 +2406,91 @@ def migrate_v24_doubles(engine):
         _safe_add_column(session, "groups", "event_type", "VARCHAR(10) DEFAULT 'singles'")
         _safe_add_column(session, "bracket_slots", "pair_id", "INTEGER")
         _safe_add_column(session, "group_standings", "pair_id", "INTEGER")
+
+    finally:
+        session.close()
+
+
+# ============================================================================
+# Database Migration (V2.5 Teams)
+# ============================================================================
+
+
+def migrate_v25_teams(engine):
+    """Run V2.5 migration: add teams support columns and tables.
+
+    Safe to run multiple times (idempotent).
+    """
+    from sqlalchemy import text, inspect
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        # Create teams table if not exists
+        if "teams" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS teams (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tournament_id INTEGER,
+                    name VARCHAR(100) NOT NULL,
+                    categoria VARCHAR(20) NOT NULL,
+                    pais_cd VARCHAR(3) NOT NULL,
+                    player_ids_json TEXT NOT NULL DEFAULT '[]',
+                    ranking_pts REAL NOT NULL DEFAULT 0,
+                    seed INTEGER,
+                    group_id INTEGER,
+                    group_number INTEGER,
+                    notes TEXT,
+                    created_at DATETIME,
+                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
+                    FOREIGN KEY (group_id) REFERENCES groups(id)
+                )
+            """))
+            session.commit()
+
+        # Create team_match_details table if not exists
+        if "team_match_details" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS team_match_details (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    parent_match_id INTEGER NOT NULL,
+                    match_number INTEGER NOT NULL,
+                    match_type VARCHAR(10) NOT NULL DEFAULT 'singles',
+                    label_home VARCHAR(10),
+                    label_away VARCHAR(10),
+                    player1_id INTEGER,
+                    player2_id INTEGER,
+                    player1b_id INTEGER,
+                    player2b_id INTEGER,
+                    best_of INTEGER NOT NULL DEFAULT 5,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    winner_side INTEGER,
+                    sets_json TEXT NOT NULL DEFAULT '[]',
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    FOREIGN KEY (parent_match_id) REFERENCES matches(id),
+                    FOREIGN KEY (player1_id) REFERENCES players(id),
+                    FOREIGN KEY (player2_id) REFERENCES players(id),
+                    FOREIGN KEY (player1b_id) REFERENCES players(id),
+                    FOREIGN KEY (player2b_id) REFERENCES players(id)
+                )
+            """))
+            session.commit()
+
+        # Add team columns to matches table
+        _safe_add_column(session, "matches", "team1_id", "INTEGER")
+        _safe_add_column(session, "matches", "team2_id", "INTEGER")
+        _safe_add_column(session, "matches", "team1_score", "INTEGER DEFAULT 0")
+        _safe_add_column(session, "matches", "team2_score", "INTEGER DEFAULT 0")
+        _safe_add_column(session, "matches", "team_match_system", "VARCHAR(20)")
+
+        # Add team_id to bracket_slots and group_standings
+        _safe_add_column(session, "bracket_slots", "team_id", "INTEGER")
+        _safe_add_column(session, "group_standings", "team_id", "INTEGER")
 
     finally:
         session.close()

@@ -12,6 +12,32 @@
 {% endblock %}
 
 {% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">👥</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo para comenzar a organizar grupos.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+<!-- KO Directo info banner -->
+<div class="alert alert-info mb-3">
+    <span class="icon">💡</span>
+    <div class="alert-content">
+        <div>Si no necesitas fase de grupos (común en dobles), puedes usar
+            <a href="/admin/direct-bracket"><strong>KO Directo</strong></a>
+            para ir directamente a llave eliminatoria.
+        </div>
+    </div>
+</div>
+
 <!-- Configuration Card -->
 <div class="card mb-3">
     <div class="card-header">
@@ -25,15 +51,16 @@
                     <select name="category" required class="form-control" id="category-select" onchange="updatePlayerCount()">
                         <option value="">-Seleccionar Categoría-</option>
                         {% for cat in available_categories %}
-                        <option value="{{ cat.name }}" data-count="{{ cat.count }}" data-countries='{{ cat.countries|safe }}'>{{ cat.name }} ({{ cat.count }} jugadores)</option>
+                        <option value="{{ cat.name }}" data-count="{{ cat.count }}" data-countries='{{ cat.countries|safe }}'>{{ cat.name }} ({{ cat.count }} inscritos)</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-section">
                     <label class="form-label">Tamaño Preferido de Grupo *</label>
                     <select name="group_size_preference" required class="form-control">
-                        <option value="3">3 jugadores (más grupos pequeños)</option>
-                        <option value="4" selected>4 jugadores (recomendado)</option>
+                        <option value="3">3 inscritos</option>
+                        <option value="4" selected>4 inscritos</option>
+                        <option value="5">5 inscritos</option>
                     </select>
                 </div>
             </div>
@@ -207,24 +234,29 @@ function updatePlayerCount() {
         // Filter existing groups by category
         filterExistingGroups(selectedCategory);
 
-        // Calculate group distribution
+        // Calculate group distribution (mirrors group_builder.py logic)
+        let groups5 = 0;
         let groups4 = 0;
         let groups3 = 0;
 
-        if (groupSize === 4) {
+        if (groupSize === 5) {
+            const remainder = count % 5;
+            if (remainder === 0) { groups5 = count / 5; }
+            else if (remainder === 1) { groups3 = 2; groups4 = 0; groups5 = Math.floor(count / 5) - 1; if (groups5 < 0) groups5 = 0; }
+            else if (remainder === 2) { groups4 = 1; groups3 = 1; groups5 = Math.max(0, Math.floor(count / 5) - 1); }
+            else if (remainder === 3) { groups3 = 1; groups5 = Math.floor(count / 5); }
+            else if (remainder === 4) { groups4 = 1; groups5 = Math.floor(count / 5); }
+        } else if (groupSize === 4) {
             const remainder = count % 4;
             if (remainder === 0) {
                 groups4 = count / 4;
             } else if (remainder === 1) {
-                // 1 extra: create 1 group of 3 and rest of 4
-                groups3 = 1;
-                groups4 = Math.floor(count / 4) - 1;
+                if (count <= 5) { groups5 = 1; }
+                else { groups3 = Math.floor(count / 4) + 1; }
             } else if (remainder === 2) {
-                // 2 extra: create 2 groups of 3
                 groups3 = 2;
                 groups4 = Math.floor(count / 4) - 1;
             } else {
-                // 3 extra: create 1 group of 3 + round up
                 groups3 = 1;
                 groups4 = Math.floor(count / 4);
             }
@@ -233,11 +265,9 @@ function updatePlayerCount() {
             if (remainder === 0) {
                 groups3 = count / 3;
             } else if (remainder === 1) {
-                // 1 extra: create 1 group of 4
-                groups4 = 1;
-                groups3 = Math.floor(count / 3) - 1;
+                if (count <= 5) { groups5 = 1; }
+                else { groups4 = 1; groups3 = Math.floor(count / 3) - 1; }
             } else {
-                // 2 extra: create 1 group of 4 + round up
                 groups4 = 1;
                 groups3 = Math.floor(count / 3);
             }
@@ -245,10 +275,11 @@ function updatePlayerCount() {
 
         let text = `Se crearán aproximadamente `;
         const parts = [];
-        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4 jugadores`);
-        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3 jugadores`);
+        if (groups5 > 0) parts.push(`${groups5} grupo(s) de 5`);
+        if (groups4 > 0) parts.push(`${groups4} grupo(s) de 4`);
+        if (groups3 > 0) parts.push(`${groups3} grupo(s) de 3`);
         text += parts.join(' y ');
-        text += ` para ${count} jugadores en total.`;
+        text += ` para ${count} en total.`;
 
         previewText.textContent = text;
         playerInfo.style.display = 'block';
@@ -261,7 +292,7 @@ function updatePlayerCount() {
             countryHTML += `
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span class="badge" style="background: ${color}; color: white; font-weight: 600; min-width: 42px; text-align: center;">${country}</span>
-                    <span><strong>${countryCount}</strong> jugadores (${percentage}%)</span>
+                    <span><strong>${countryCount}</strong> inscritos (${percentage}%)</span>
                 </div>
             `;
         });
@@ -410,7 +441,7 @@ function renderPreviewModal(data) {
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
                 <div><strong>Categoría:</strong> ${data.category}</div>
                 <div>•</div>
-                <div><strong>Total:</strong> ${data.total_players} jugadores</div>
+                <div><strong>Total:</strong> ${data.total_players} inscritos</div>
                 <div>•</div>
                 <div><strong>Grupos:</strong> ${data.groups.length}</div>
             </div>
@@ -442,7 +473,7 @@ function renderPreviewModal(data) {
             <div class="group-card" data-group-name="${group.name}" style="min-width: 240px; flex-shrink: 0;">
                 <div style="background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)); color: white; padding: 0.75rem; border-radius: 6px 6px 0 0;">
                     <div style="font-weight: 600; font-size: 1.1rem;">${group.name}</div>
-                    <div style="font-size: 0.85rem; opacity: 0.9;" class="group-count">${group.players.length} jugadores</div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;" class="group-count">${group.players.length} inscritos</div>
                 </div>
                 <div class="player-drop-zone" style="padding: 0.5rem; background: white; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px; min-height: 120px;">
         `;
@@ -622,7 +653,7 @@ function updateGroupCounts() {
         const dropZone = card.querySelector('.player-drop-zone');
         const count = dropZone.querySelectorAll('.player-card').length;
         const countDisplay = card.querySelector('.group-count');
-        countDisplay.textContent = `${count} jugadores`;
+        countDisplay.textContent = `${count} inscritos`;
     });
 }
 
@@ -717,4 +748,5 @@ function toggleAlert(alertElement) {
     }
 }
 </script>
+{% endif %}
 {% endblock %}

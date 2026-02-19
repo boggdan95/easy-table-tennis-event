@@ -12,6 +12,21 @@
 {% endblock %}
 
 {% block content %}
+{% if not tournament_name or tournament_name == "Sin torneo" %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🖨️</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo para generar documentos e imprimir hojas de partido.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
 <!-- Tournament Info -->
 <div class="card mb-3">
     <div class="card-body">
@@ -25,18 +40,24 @@
     </div>
 </div>
 
-{% if not categories_groups %}
+{% if not categories_groups and not categories_brackets %}
 <div class="card">
     <div class="card-body" style="text-align: center; padding: 3rem;">
         <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
-        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay grupos creados</h2>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay datos para imprimir</h2>
         <p style="color: var(--text-muted); margin-bottom: 2rem;">
-            Primero debes crear grupos para poder generar documentos para impresión.
+            Primero debes crear grupos o una llave directa para poder generar documentos.
         </p>
-        <a href="/admin/create-groups" class="btn btn-primary">
-            <span>👥</span>
-            <span>Crear Grupos</span>
-        </a>
+        <div class="d-flex gap-2" style="justify-content: center;">
+            <a href="/admin/create-groups" class="btn btn-primary">
+                <span>👥</span>
+                <span>Crear Grupos</span>
+            </a>
+            <a href="/admin/direct-bracket" class="btn btn-secondary">
+                <span>🎯</span>
+                <span>KO Directo</span>
+            </a>
+        </div>
     </div>
 </div>
 {% else %}
@@ -71,11 +92,22 @@
                 <span>Llave {{ category }}</span>
             </a>
             {% endfor %}
+            {% for category in categories_brackets.keys() %}
+            {% if category not in categories_groups %}
+            <a href="/preview/bracket/{{ category }}/tree"
+               class="btn btn-warning"
+               title="Vista de llave eliminatoria {{ category }}">
+                <span>🏅</span>
+                <span>Llave {{ category }}</span>
+            </a>
+            {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>
 
 
+{% if categories_groups %}
 <!-- CSV Exports -->
 <div class="card mb-3">
     <div class="card-header">
@@ -104,7 +136,7 @@
     </div>
 </div>
 
-<!-- By Category -->
+<!-- By Category (Groups) -->
 {% for category, groups in categories_groups.items() %}
 <details class="card mb-3" open>
     <summary class="card-header" style="cursor: pointer; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
@@ -158,6 +190,7 @@
     </div>
 </details>
 {% endfor %}
+{% endif %}
 
 <style>
 details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
@@ -405,5 +438,6 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

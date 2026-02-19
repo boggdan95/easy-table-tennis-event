@@ -51,7 +51,7 @@
             <strong>Orden:</strong>
             {% for m in matches %}
             <span style="margin-right: 10px;">
-                {{ m.match_order }}) {{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }} vs {{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} |{% endif %}
+                {{ m.match_order }}) {% if m.player1.apellido %}{{ m.player1.nombre[0] }}.{{ m.player1.apellido[0:3] }}{% else %}{{ m.player1.nombre[:3] }}{% endif %} vs {% if m.player2.apellido %}{{ m.player2.nombre[0] }}.{{ m.player2.apellido[0:3] }}{% else %}{{ m.player2.nombre[:3] }}{% endif %}{% if m.result %} <strong>{{ m.result }}</strong>{% endif %}{% if not loop.last %} |{% endif %}
             </span>
             {% endfor %}
         </div>

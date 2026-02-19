@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Equipos - ETTEM{% endblock %}
+
+{% block page_title %}Importar Equipos{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>{{ t('nav.home') }}</span>
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🏅</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">No hay torneo activo</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Crea un torneo primero para importar equipos.
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>Gestionar Torneos</span>
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- Import Methods Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Importar Equipos</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2 mb-3">
+            <button onclick="showImportMethod('csv')" class="btn btn-primary" id="btn-csv">
+                <span>📋</span>
+                <span>CSV de Equipos</span>
+            </button>
+            <button onclick="showImportMethod('manual')" class="btn btn-secondary" id="btn-manual">
+                <span>✍️</span>
+                <span>Crear Equipo Manual</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Import Section -->
+<div id="import-csv-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">Importar Equipos desde CSV</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/import-teams/csv" enctype="multipart/form-data" id="csv-form">
+            <div class="form-section">
+                <label class="form-label">Archivo CSV</label>
+                <div class="dropzone" id="csv-dropzone">
+                    <input type="file" name="csv_file" accept=".csv" required class="dropzone-input" id="csv-file-input">
+                    <div class="dropzone-content" id="csv-dropzone-content">
+                        <span class="dropzone-icon">📋</span>
+                        <p>Arrastra un archivo CSV o haz click para seleccionar</p>
+                        <p class="text-muted" style="font-size: 0.8rem;">Formato: team_name, pais_cd, nombre1, apellido1, pais1, nombre2, apellido2, pais2, nombre3, apellido3, pais3, ranking_pts, categoria</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="csv-preview" style="display: none; margin-top: 1rem;">
+                <h4>Vista Previa</h4>
+                <div id="csv-preview-content"></div>
+            </div>
+
+            <div class="form-section" style="margin-top: 1rem;">
+                <div class="form-check" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <input type="checkbox" name="auto_seeds" value="1" checked id="csv-auto-seeds">
+                    <label for="csv-auto-seeds">Asignar seeds automaticamente por ranking</label>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem;">
+                <button type="submit" class="btn btn-success" id="csv-submit-btn">
+                    <span>✓</span>
+                    <span>Importar Equipos</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- CSV Format Help -->
+        <details style="margin-top: 1.5rem;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--info);">Formato CSV de ejemplo</summary>
+            <div style="padding: 0.75rem; background: var(--bg-secondary); border-radius: 4px; margin-top: 0.5rem; font-size: 0.8rem;">
+                <p><strong>Columnas requeridas:</strong></p>
+                <code style="display: block; white-space: pre; overflow-x: auto;">team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,nombre3,apellido3,pais3,ranking_pts,categoria
+Spain A,ESP,Juan,Perez,ESP,Carlos,Rodriguez,ESP,Pedro,Lopez,ESP,5000,MT
+Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</code>
+                <p style="margin-top: 0.5rem;"><strong>Notas:</strong></p>
+                <ul style="margin: 0; padding-left: 1.2rem;">
+                    <li>3 jugadores por equipo (columnas nombre1-3, apellido1-3, pais1-3)</li>
+                    <li>Opcionalmente 4 y 5 jugadores: nombre4, apellido4, pais4, nombre5, apellido5, pais5</li>
+                    <li>Categoria debe terminar en BT, GT, MT o WT (equipos ITTF)</li>
+                    <li>Los jugadores se crean automaticamente si no existen</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+</div>
+
+<!-- Manual Entry Section -->
+<div id="import-manual-section" class="card mb-3" style="display: none;">
+    <div class="card-header">
+        <h3 class="card-title">Crear Equipo Manual</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/import-teams/manual">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label>Nombre del Equipo *</label>
+                    <input type="text" name="team_name" class="form-control" required placeholder="Spain A">
+                </div>
+                <div class="form-group">
+                    <label>Pais (ISO-3) *</label>
+                    <input type="text" name="pais_cd" class="form-control" required placeholder="ESP" maxlength="3">
+                </div>
+                <div class="form-group">
+                    <label>Categoria *</label>
+                    <select name="categoria" class="form-control" required>
+                        <option value="">Seleccionar...</option>
+                        {% for cat in team_categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                        <option value="MT">MT (Men's Teams)</option>
+                        <option value="WT">WT (Women's Teams)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ranking Pts</label>
+                    <input type="number" name="ranking_pts" class="form-control" value="0" min="0" step="0.1">
+                </div>
+            </div>
+
+            <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Jugadores del Equipo</h4>
+            <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">Selecciona 3-5 jugadores registrados en el torneo.</p>
+
+            {% for i in range(1, 6) %}
+            <div class="form-group" {% if i > 3 %}style="opacity: 0.7;"{% endif %}>
+                <label>Jugador {{ i }} {% if i <= 3 %}*{% else %}(opcional){% endif %}</label>
+                <select name="player{{ i }}_id" class="form-control" {% if i <= 3 %}required{% endif %}>
+                    <option value="">-- Seleccionar jugador --</option>
+                    {% for p in all_players %}
+                    <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }} ({{ p.pais_cd }}) - {{ p.categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+            <div style="margin-top: 1rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Crear Equipo</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Existing Teams List -->
+{% if teams_display %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Equipos Registrados ({{ teams_display|length }})</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% set cats = teams_display|map(attribute='categoria')|unique|sort|list %}
+        {% for cat in cats %}
+        {% set cat_teams = teams_display|selectattr('categoria', 'equalto', cat)|list %}
+        <div style="padding: 1rem; {% if not loop.last %}border-bottom: 1px solid var(--border-color);{% endif %}">
+            <h4 style="margin-bottom: 0.75rem;">{{ cat }} ({{ cat_teams|length }} equipos)</h4>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Equipo</th>
+                            <th>Pais</th>
+                            <th>Jugadores</th>
+                            <th>Ranking</th>
+                            <th>Seed</th>
+                            <th>Grupo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in cat_teams %}
+                        <tr>
+                            <td>{{ t.id }}</td>
+                            <td><strong>{{ t.name }}</strong></td>
+                            <td><span class="badge badge-secondary">{{ t.pais_cd }}</span></td>
+                            <td>
+                                {% for pname in t.player_names %}
+                                <span style="font-size: 0.8rem;">{{ pname }}{% if not loop.last %}, {% endif %}</span>
+                                {% endfor %}
+                            </td>
+                            <td>{{ t.ranking_pts }}</td>
+                            <td>{{ t.seed or '-' }}</td>
+                            <td>{{ t.group_name or '-' }}</td>
+                            <td>
+                                {% if not t.group_id %}
+                                <form action="/admin/team/{{ t.id }}/delete" method="post" style="margin: 0;" data-confirm="Eliminar equipo {{ t.name }}?">
+                                    <button type="submit" class="btn btn-danger btn-sm">🗑️</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function showImportMethod(method) {
+    document.getElementById('import-csv-section').style.display = method === 'csv' ? 'block' : 'none';
+    document.getElementById('import-manual-section').style.display = method === 'manual' ? 'block' : 'none';
+    document.getElementById('btn-csv').className = method === 'csv' ? 'btn btn-primary' : 'btn btn-secondary';
+    document.getElementById('btn-manual').className = method === 'manual' ? 'btn btn-primary' : 'btn btn-secondary';
+}
+
+// Show CSV by default
+document.addEventListener('DOMContentLoaded', function() {
+    showImportMethod('csv');
+
+    // CSV preview on file select
+    const fileInput = document.getElementById('csv-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            setTimeout(previewCSV, 100);
+        });
+    }
+});
+
+function previewCSV() {
+    const fileInput = document.getElementById('csv-file-input');
+    if (!fileInput.files.length) return;
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) {
+            document.getElementById('csv-preview-content').innerHTML = '<div class="alert alert-warning">Archivo vacio o sin datos</div>';
+            document.getElementById('csv-preview').style.display = 'block';
+            return;
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const required = ['team_name', 'pais_cd', 'nombre1', 'apellido1', 'pais1', 'nombre2', 'apellido2', 'pais2', 'nombre3', 'apellido3', 'pais3', 'categoria'];
+        const missing = required.filter(r => !headers.includes(r));
+
+        let html = '';
+        if (missing.length > 0) {
+            html += `<div class="alert alert-danger">Columnas faltantes: ${missing.join(', ')}</div>`;
+        }
+
+        const dataRows = lines.length - 1;
+        html += `<div class="alert alert-info">${dataRows} equipo(s) encontrado(s)</div>`;
+
+        // Show first few rows
+        const maxShow = Math.min(dataRows, 10);
+        html += '<div class="table-responsive"><table class="table" style="font-size: 0.8rem;"><thead><tr>';
+        html += '<th>#</th><th>Equipo</th><th>Pais</th><th>Jugadores</th><th>Cat</th><th>Pts</th>';
+        html += '</tr></thead><tbody>';
+
+        const nameIdx = headers.indexOf('team_name');
+        const paisIdx = headers.indexOf('pais_cd');
+        const catIdx = headers.indexOf('categoria');
+        const ptsIdx = headers.indexOf('ranking_pts');
+
+        for (let i = 1; i <= maxShow; i++) {
+            const cols = lines[i].split(',').map(c => c.trim());
+            const teamName = nameIdx >= 0 ? cols[nameIdx] : '?';
+            const pais = paisIdx >= 0 ? cols[paisIdx] : '?';
+            const cat = catIdx >= 0 ? cols[catIdx] : '?';
+            const pts = ptsIdx >= 0 ? cols[ptsIdx] : '0';
+
+            // Collect player names
+            let players = [];
+            for (let j = 1; j <= 5; j++) {
+                const ni = headers.indexOf('nombre' + j);
+                const ai = headers.indexOf('apellido' + j);
+                if (ni >= 0 && ai >= 0 && cols[ni]) {
+                    players.push(cols[ni] + ' ' + cols[ai]);
+                }
+            }
+
+            html += `<tr><td>${i}</td><td><strong>${teamName}</strong></td><td>${pais}</td>`;
+            html += `<td>${players.join(', ')}</td><td>${cat}</td><td>${pts}</td></tr>`;
+        }
+        if (dataRows > maxShow) {
+            html += `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">... y ${dataRows - maxShow} mas</td></tr>`;
+        }
+        html += '</tbody></table></div>';
+
+        document.getElementById('csv-preview-content').innerHTML = html;
+        document.getElementById('csv-preview').style.display = 'block';
+
+        // Disable submit if required columns missing
+        document.getElementById('csv-submit-btn').disabled = missing.length > 0;
+    };
+    reader.readAsText(file);
+}
+</script>
+
+{% endif %}
+{% endblock %}

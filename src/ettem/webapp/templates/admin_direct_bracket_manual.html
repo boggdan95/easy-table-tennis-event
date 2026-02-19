@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+
+{% block title %}Sorteo Manual - {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Sorteo Manual: {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/direct-bracket?category={{ category }}" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+.drag-container {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.players-pool {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.player-list {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.player-list-title {
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-item {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.3rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+.player-item:hover {
+    background: var(--hover-bg, #f8f9fa);
+    border-color: var(--primary-color);
+}
+.player-item.selected {
+    background: var(--primary-bg, #e7f3ff);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+.player-item.dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.player-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.seed-badge {
+    background: var(--info);
+    color: white;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+.bracket-slots {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.bracket-title {
+    font-weight: bold;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--warning-color);
+}
+
+.bracket-half { margin-bottom: 1.5rem; }
+
+.half-label {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.slot-item {
+    background: white;
+    border: 2px dashed var(--border-color);
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    margin-bottom: 0.3rem;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.slot-item.slot-target {
+    background: rgba(246, 173, 85, 0.15);
+    border-color: var(--warning-color);
+    border-style: solid;
+}
+.slot-item.drag-over {
+    background: var(--primary-bg, #e7f3ff);
+    border-color: var(--primary-color);
+    border-style: solid;
+}
+.slot-item.occupied {
+    background: var(--success-bg, #d4edda);
+    border-style: solid;
+    border-color: var(--success-color);
+}
+.slot-item.occupied:hover { background: rgba(72, 187, 120, 0.25); }
+
+.slot-number {
+    font-weight: bold;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    min-width: 28px;
+}
+.slot-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.slot-player {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.btn-remove {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+.btn-remove:hover { background: var(--danger); }
+
+.bye-slot {
+    background: rgba(246, 173, 85, 0.2) !important;
+    border: 2px solid var(--warning-color) !important;
+    cursor: not-allowed !important;
+    opacity: 0.8;
+}
+
+.warning-badge {
+    background: var(--warning-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+@media (max-width: 768px) {
+    .drag-container { grid-template-columns: 1fr; }
+}
+</style>
+
+<details class="mb-3 info-box info-box-info" style="padding: 0;">
+    <summary style="padding: 0.6rem 1rem; cursor: pointer; font-weight: 600; color: var(--info); list-style: none; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+        <span class="details-arrow">▶</span>
+        <span>Instrucciones (click para ver)</span>
+    </summary>
+    <div style="padding: 0.5rem 1rem 0.75rem 1rem; font-size: 0.85rem;">
+        <ul style="margin: 0; padding-left: 1.2rem;">
+            <li><strong>Click para asignar:</strong> Click en competidor, luego click en posicion destino</li>
+            <li><strong>Arrastrar:</strong> Tambien puedes arrastrar competidores a las posiciones</li>
+            <li>Los BYEs estan pre-colocados segun reglas ITTF</li>
+            <li>Puedes mover competidores entre posiciones (intercambio automatico)</li>
+            <li><strong>Auto-guardado:</strong> El progreso se guarda automaticamente</li>
+        </ul>
+    </div>
+</details>
+<style>
+details .details-arrow { transition: transform 0.2s; font-size: 0.7rem; }
+details[open] .details-arrow { transform: rotate(90deg); }
+</style>
+
+<div class="drag-container">
+    <!-- Competitors Pool (Left Side) -->
+    <div class="players-pool">
+        <div class="player-list">
+            <div class="player-list-title">
+                <span>🏓</span>
+                <span>Competidores ({{ competitors|length }} {{ unit }})</span>
+            </div>
+            <div id="competitors-pool">
+                {% for comp in competitors %}
+                <div class="player-item" draggable="true"
+                     data-player-id="{{ comp.player_id }}"
+                     data-country="{{ comp.pais_cd }}"
+                     data-seed="{{ comp.seed }}">
+                    <div class="player-info">
+                        <span class="seed-badge">{{ loop.index }}</span>
+                        <span class="player-name">{{ comp.nombre }} {{ comp.apellido }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ comp.pais_cd }}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">{{ comp.ranking_pts }} pts</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- BYEs Pool -->
+        <div class="player-list">
+            <div class="player-list-title">
+                <span>⏸️</span>
+                <span>BYEs Disponibles</span>
+            </div>
+            <div id="byes-pool">
+            </div>
+        </div>
+    </div>
+
+    <!-- Bracket Slots (Right Side) -->
+    <div class="bracket-slots">
+        <div class="bracket-title">
+            Bracket ({{ bracket_size }} posiciones)
+        </div>
+
+        <form method="post" action="/admin/direct-bracket/manual/{{ category }}/save" id="bracket-form">
+            <input type="hidden" name="best_of" value="{{ best_of }}">
+
+            <!-- Top Half -->
+            <div class="bracket-half">
+                <div class="half-label">
+                    <span>⬆️</span>
+                    <span>Mitad Superior (1-{{ bracket_size // 2 }})</span>
+                </div>
+                {% for slot in slots %}
+                {% if slot.slot_number <= bracket_size // 2 %}
+                <div class="slot-item {% if slot.is_bye %}bye-slot{% endif %}"
+                     data-slot-number="{{ slot.slot_number }}"
+                     data-half="top"
+                     data-is-bye="{{ 'true' if slot.is_bye else 'false' }}">
+                    <div class="slot-number">{{ slot.slot_number }}</div>
+                    <div class="slot-content">
+                        <div class="slot-player">
+                            {% if slot.is_bye %}
+                            <div style="font-weight: bold; color: var(--warning-color);">BYE</div>
+                            {% else %}
+                            <span class="slot-placeholder">Vacio</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <input type="hidden" name="slot_{{ slot.slot_number }}" value="{% if slot.is_bye %}BYE{% endif %}">
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <!-- Bottom Half -->
+            <div class="bracket-half">
+                <div class="half-label">
+                    <span>⬇️</span>
+                    <span>Mitad Inferior ({{ (bracket_size // 2) + 1 }}-{{ bracket_size }})</span>
+                </div>
+                {% for slot in slots %}
+                {% if slot.slot_number > bracket_size // 2 %}
+                <div class="slot-item {% if slot.is_bye %}bye-slot{% endif %}"
+                     data-slot-number="{{ slot.slot_number }}"
+                     data-half="bottom"
+                     data-is-bye="{{ 'true' if slot.is_bye else 'false' }}">
+                    <div class="slot-number">{{ slot.slot_number }}</div>
+                    <div class="slot-content">
+                        <div class="slot-player">
+                            {% if slot.is_bye %}
+                            <div style="font-weight: bold; color: var(--warning-color);">BYE</div>
+                            {% else %}
+                            <span class="slot-placeholder">Vacio</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <input type="hidden" name="slot_{{ slot.slot_number }}" value="{% if slot.is_bye %}BYE{% endif %}">
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="d-flex gap-2" style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Confirmar y Generar Bracket</span>
+                </button>
+                <a href="/admin/direct-bracket?category={{ category }}" class="btn btn-secondary">
+                    <span>←</span>
+                    <span>Volver</span>
+                </a>
+                <button type="button" class="btn btn-warning" onclick="clearAllSlots()">
+                    <span>🗑️</span>
+                    <span>Limpiar Todo</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const slotAssignments = {};
+const bracketSize = {{ bracket_size }};
+const halfPoint = Math.floor(bracketSize / 2);
+const category = '{{ category }}';
+const STORAGE_KEY = `ettem_direct_draw_${category}`;
+
+let draggedElement = null;
+let selectedPlayer = null;
+let autoScrollInterval = null;
+const SCROLL_SPEED = 15;
+const SCROLL_ZONE = 80;
+
+// Save/restore state
+function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(slotAssignments)); }
+
+function restoreState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+        const sa = JSON.parse(saved);
+        // Validate that saved player IDs exist in the current competitors pool
+        const currentIds = new Set();
+        document.querySelectorAll('#competitors-pool .player-item').forEach(item => {
+            currentIds.add(item.dataset.playerId);
+        });
+        const allValid = Object.values(sa).every(data => currentIds.has(String(data.playerId)));
+        if (!allValid) {
+            // Stale data from a different tournament/session - discard
+            localStorage.removeItem(STORAGE_KEY);
+            return;
+        }
+        Object.entries(sa).forEach(([slotNum, data]) => {
+            assignPlayerToSlot(parseInt(slotNum), data.playerId, data.playerName, data.country);
+        });
+    } catch (e) { localStorage.removeItem(STORAGE_KEY); }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.player-item').forEach(item => {
+        item.addEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragend', handleDragEnd);
+        item.addEventListener('click', handlePlayerClick);
+    });
+    document.querySelectorAll('.slot-item').forEach(slot => {
+        slot.addEventListener('dragover', handleDragOver);
+        slot.addEventListener('dragleave', handleDragLeave);
+        slot.addEventListener('drop', handleDrop);
+        slot.addEventListener('click', handleSlotClick);
+    });
+    document.addEventListener('dragover', handleAutoScroll);
+    document.addEventListener('dragend', stopAutoScroll);
+    restoreState();
+});
+
+function handlePlayerClick(e) {
+    if (e.target.classList.contains('btn-remove')) return;
+    const item = e.currentTarget;
+    if (selectedPlayer === item) { deselectPlayer(); return; }
+    deselectPlayer();
+    selectedPlayer = item;
+    item.classList.add('selected');
+    document.querySelectorAll('.slot-item').forEach(s => {
+        if (s.dataset.isBye !== 'true' && !s.classList.contains('occupied'))
+            s.classList.add('slot-target');
+    });
+}
+
+function handleSlotClick(e) {
+    if (e.target.classList.contains('btn-remove') || !selectedPlayer) return;
+    const slot = e.currentTarget;
+    if (slot.dataset.isBye === 'true') return;
+
+    const playerId = selectedPlayer.dataset.playerId;
+    const country = selectedPlayer.dataset.country;
+    const slotNumber = parseInt(slot.dataset.slotNumber);
+    const playerName = selectedPlayer.querySelector('.player-name').textContent.trim();
+
+    if (Object.values(slotAssignments).some(s => s.playerId === playerId)) {
+        deselectPlayer(); return;
+    }
+
+    assignPlayerToSlot(slotNumber, playerId, playerName, country);
+    deselectPlayer();
+}
+
+function deselectPlayer() {
+    if (selectedPlayer) { selectedPlayer.classList.remove('selected'); selectedPlayer = null; }
+    document.querySelectorAll('.slot-item').forEach(s => s.classList.remove('slot-target'));
+}
+
+function handleAutoScroll(e) {
+    const y = e.clientY;
+    if (y < SCROLL_ZONE) startAutoScroll(-SCROLL_SPEED);
+    else if (y > window.innerHeight - SCROLL_ZONE) startAutoScroll(SCROLL_SPEED);
+    else stopAutoScroll();
+}
+function startAutoScroll(speed) {
+    if (autoScrollInterval) return;
+    autoScrollInterval = setInterval(() => window.scrollBy(0, speed), 16);
+}
+function stopAutoScroll() {
+    if (autoScrollInterval) { clearInterval(autoScrollInterval); autoScrollInterval = null; }
+}
+
+function handleDragStart(e) {
+    draggedElement = e.target.closest('.player-item') || e.target.closest('.slot-item');
+    if (draggedElement) draggedElement.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    deselectPlayer();
+}
+function handleDragEnd(e) {
+    if (draggedElement) draggedElement.classList.remove('dragging');
+    draggedElement = null;
+    stopAutoScroll();
+}
+function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; e.currentTarget.classList.add('drag-over'); }
+function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const targetSlot = e.currentTarget;
+    targetSlot.classList.remove('drag-over');
+    if (!draggedElement) return;
+
+    if (targetSlot.dataset.isBye === 'true' && draggedElement.classList.contains('player-item')) return;
+
+    // From pool to slot
+    if (draggedElement.classList.contains('player-item')) {
+        const playerId = draggedElement.dataset.playerId;
+        const country = draggedElement.dataset.country;
+        const slotNumber = parseInt(targetSlot.dataset.slotNumber);
+        const playerName = draggedElement.querySelector('.player-name').textContent.trim();
+
+        if (Object.values(slotAssignments).some(s => s.playerId === playerId)) return;
+        assignPlayerToSlot(slotNumber, playerId, playerName, country);
+    }
+    // Slot to slot (swap)
+    else if (draggedElement.classList.contains('slot-item')) {
+        const srcNum = parseInt(draggedElement.dataset.slotNumber);
+        const tgtNum = parseInt(targetSlot.dataset.slotNumber);
+        if (srcNum === tgtNum) return;
+
+        const srcData = slotAssignments[srcNum];
+        if (!srcData) return;
+        const tgtData = slotAssignments[tgtNum];
+
+        if (tgtData) {
+            assignPlayerToSlot(srcNum, tgtData.playerId, tgtData.playerName, tgtData.country);
+        } else {
+            removePlayerFromSlot(srcNum);
+        }
+        assignPlayerToSlot(tgtNum, srcData.playerId, srcData.playerName, srcData.country);
+    }
+}
+
+function assignPlayerToSlot(slotNumber, playerId, playerName, country) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    slot.classList.add('occupied');
+    input.value = playerId;
+
+    contentDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+            <span style="font-weight: 600; font-size: 0.85rem;">${playerName}</span>
+            <span class="badge badge-secondary" style="font-size: 0.7rem;">${country}</span>
+        </div>
+        <button type="button" class="btn-remove" onclick="removePlayerFromSlot(${slotNumber})">✕</button>
+    `;
+
+    slot.draggable = true;
+    slot.style.cursor = 'move';
+    if (!slot.hasAttribute('data-drag-enabled')) {
+        slot.addEventListener('dragstart', handleDragStart);
+        slot.addEventListener('dragend', handleDragEnd);
+        slot.setAttribute('data-drag-enabled', 'true');
+    }
+
+    const poolItem = document.querySelector(`.player-item[data-player-id="${playerId}"]`);
+    if (poolItem) poolItem.style.display = 'none';
+
+    slotAssignments[slotNumber] = { playerId, playerName, country };
+    saveState();
+    checkSameCountryWarnings();
+}
+
+function removePlayerFromSlot(slotNumber) {
+    const slot = document.querySelector(`.slot-item[data-slot-number="${slotNumber}"]`);
+    const input = slot.querySelector('input[type="hidden"]');
+    const contentDiv = slot.querySelector('.slot-player');
+
+    const data = slotAssignments[slotNumber];
+    const playerId = data ? data.playerId : null;
+
+    slot.classList.remove('occupied');
+    input.value = '';
+    contentDiv.innerHTML = '<span class="slot-placeholder">Vacio</span>';
+    slot.draggable = false;
+    slot.style.cursor = '';
+
+    delete slotAssignments[slotNumber];
+
+    if (playerId) {
+        const poolItem = document.querySelector(`.player-item[data-player-id="${playerId}"]`);
+        if (poolItem) poolItem.style.display = '';
+    }
+    saveState();
+    checkSameCountryWarnings();
+}
+
+function clearAllSlots() {
+    if (!confirm('Limpiar todas las asignaciones?')) return;
+    Object.keys(slotAssignments).forEach(num => removePlayerFromSlot(parseInt(num)));
+    localStorage.removeItem(STORAGE_KEY);
+}
+
+function checkSameCountryWarnings() {
+    // Check first-round matchups for same country
+    document.querySelectorAll('.warning-badge').forEach(b => b.remove());
+
+    for (let i = 1; i <= bracketSize; i += 2) {
+        const d1 = slotAssignments[i];
+        const d2 = slotAssignments[i + 1];
+        if (d1 && d2 && d1.country === d2.country) {
+            const slot1 = document.querySelector(`.slot-item[data-slot-number="${i}"]`);
+            const slot2 = document.querySelector(`.slot-item[data-slot-number="${i + 1}"]`);
+            [slot1, slot2].forEach(s => {
+                if (s && !s.querySelector('.warning-badge')) {
+                    const badge = document.createElement('span');
+                    badge.className = 'warning-badge';
+                    badge.textContent = 'Mismo pais';
+                    badge.style.marginLeft = '0.5rem';
+                    s.querySelector('.slot-content').appendChild(badge);
+                }
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -9,10 +9,12 @@
     <span>←</span>
     <span>{{ t('nav.matches') }}</span>
 </a>
+{% if has_groups %}
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">
     <span>👥</span>
     <span>{{ t('nav.groups') }}</span>
 </a>
+{% endif %}
 <div class="btn-group" style="margin-left: 0.5rem;">
     <button onclick="zoomOut()" class="btn btn-secondary btn-sm" title="Zoom Out">
         <span>🔍−</span>

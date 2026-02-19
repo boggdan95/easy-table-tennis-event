@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}KO Directo - ETTEM{% endblock %}
+
+{% block page_title %}KO Directo (Bracket sin Grupos){% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver al Inicio</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Configuration Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">🎯 Bracket Eliminatorio Directo</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/admin/direct-bracket/preview" id="direct-bracket-form">
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Categoría *</label>
+                    <select name="category" required class="form-control" id="category-select" onchange="updatePreview()">
+                        <option value="">-Seleccionar Categoría-</option>
+                        {% for cat in available_categories %}
+                        <option value="{{ cat.name }}"
+                                data-count="{{ cat.count }}"
+                                data-has-groups="{{ 'true' if cat.has_groups else 'false' }}"
+                                data-has-bracket="{{ 'true' if cat.has_bracket else 'false' }}"
+                                data-event-type="{{ cat.event_type }}"
+                                {% if cat.has_bracket %}style="color: #ffc107;"{% endif %}
+                                {% if cat.name == selected_category %}selected{% endif %}>
+                            {{ cat.name }} ({{ cat.count }} {% if cat.event_type == 'doubles' %}parejas{% else %}jugadores{% endif %}){% if cat.has_bracket %} ⚠️ tiene bracket{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-section">
+                    <label class="form-label">Formato de Partidos</label>
+                    <select name="best_of" class="form-control">
+                        <option value="3">Mejor de 3 sets</option>
+                        <option value="5" selected>Mejor de 5 sets</option>
+                        <option value="7">Mejor de 7 sets</option>
+                    </select>
+                    <p class="form-help">Aplica a todos los partidos de la llave.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2 mb-3">
+                <div class="form-section">
+                    <label class="form-label">Modo de Sorteo</label>
+                    <select name="draw_mode" class="form-control" id="draw-mode-select" onchange="updateDrawMode()">
+                        <option value="seeded">Seeding por ranking_pts</option>
+                        <option value="random">Sorteo aleatorio</option>
+                        <option value="manual">Manual (drag & drop)</option>
+                    </select>
+                    <p class="form-help" id="draw-mode-help">Seeding ubica a los mejores en posiciones separadas. Sorteo es completamente al azar.</p>
+                </div>
+                <div class="form-section" id="random-seed-section">
+                    <label class="form-label">Semilla Aleatoria (Random Seed)</label>
+                    <input type="number" name="random_seed" class="form-control" placeholder="42" value="42">
+                    <p class="form-help">Para resultados reproducibles en el sorteo.</p>
+                </div>
+            </div>
+
+            <!-- Dynamic warnings -->
+            <div class="alert alert-warning mb-3" id="groups-warning" style="display: none;">
+                <span class="icon">⚠️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Grupos existentes</div>
+                    <div>Esta categoría tiene grupos creados. El KO Directo <strong>no usa</strong> los standings de grupo. Los competidores se seedean directamente por ranking_pts.</div>
+                </div>
+            </div>
+
+            <div class="alert alert-warning mb-3" id="bracket-warning" style="display: none;">
+                <span class="icon">⚠️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Bracket existente</div>
+                    <div>Esta categoría ya tiene un bracket. Si continúas, será <strong>reemplazado</strong>.</div>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="alert alert-info mb-3" id="preview-info" style="display: none;">
+                <span class="icon">ℹ️</span>
+                <div class="alert-content">
+                    <div class="alert-title">Vista Previa</div>
+                    <div id="preview-text"></div>
+                </div>
+            </div>
+
+            <!-- Hidden input for manual order -->
+            <input type="hidden" name="manual_order" id="manual-order-input" value="">
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success" id="btn-submit-draw">
+                    <span>🎯</span>
+                    <span id="btn-submit-draw-text">Ver Sorteo</span>
+                </button>
+                <a href="/admin/generate-bracket" class="btn btn-secondary">
+                    <span>🏆</span>
+                    <span>Bracket desde Grupos</span>
+                </a>
+                <a href="/" class="btn btn-secondary">
+                    <span>✕</span>
+                    <span>Cancelar</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Competitors Preview Table -->
+{% if available_categories %}
+<div class="card" id="competitors-card" style="display: none;">
+    <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+        <h3 class="card-title" id="competitors-title" style="margin: 0;">Competidores</h3>
+        <span id="drag-hint" style="display: none; font-size: 0.85rem; color: var(--text-muted);">Arrastra las filas para reordenar</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table" id="competitors-table">
+                <thead>
+                    <tr>
+                        <th id="th-drag" style="display: none; width: 40px;"></th>
+                        <th>Pos</th>
+                        <th>Competidor</th>
+                        <th>País</th>
+                        <th>Ranking Pts</th>
+                    </tr>
+                </thead>
+                <tbody id="competitors-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.drag-handle {
+    cursor: grab;
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+#competitors-body tr.dragging {
+    opacity: 0.4;
+    background: rgba(33, 150, 243, 0.1);
+}
+#competitors-body tr.drag-over {
+    border-top: 3px solid var(--info);
+}
+#competitors-body.manual-mode tr {
+    transition: background 0.15s;
+}
+#competitors-body.manual-mode tr:hover {
+    background: rgba(33, 150, 243, 0.08);
+}
+</style>
+
+<script>
+// Competitors data passed from server
+const competitorsByCategory = {{ competitors_json|safe }};
+let currentCompetitors = []; // current ordered list for manual mode
+
+function updatePreview() {
+    const select = document.getElementById('category-select');
+    const option = select.options[select.selectedIndex];
+    const previewInfo = document.getElementById('preview-info');
+    const previewText = document.getElementById('preview-text');
+    const groupsWarning = document.getElementById('groups-warning');
+    const bracketWarning = document.getElementById('bracket-warning');
+    const competitorsCard = document.getElementById('competitors-card');
+
+    groupsWarning.style.display = 'none';
+    bracketWarning.style.display = 'none';
+    previewInfo.style.display = 'none';
+    competitorsCard.style.display = 'none';
+
+    if (!option.value) return;
+
+    const count = parseInt(option.getAttribute('data-count'));
+    const hasGroups = option.getAttribute('data-has-groups') === 'true';
+    const hasBracket = option.getAttribute('data-has-bracket') === 'true';
+    const eventType = option.getAttribute('data-event-type');
+
+    if (hasGroups) groupsWarning.style.display = 'flex';
+    if (hasBracket) bracketWarning.style.display = 'flex';
+
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(count)));
+    const byes = bracketSize - count;
+    const unit = eventType === 'doubles' ? 'parejas' : 'jugadores';
+
+    const drawMode = document.getElementById('draw-mode-select').value;
+    let text = `${count} ${unit} → bracket de ${bracketSize}`;
+    if (byes > 0) text += ` con ${byes} BYE(s)`;
+    if (drawMode === 'random') text += '. Sorteo aleatorio.';
+    else if (drawMode === 'manual') text += '. Orden manual — arrastra para reordenar.';
+    else text += '. Seeding por ranking_pts.';
+    previewText.textContent = text;
+    previewInfo.style.display = 'flex';
+
+    // Show competitors table
+    const competitors = competitorsByCategory[option.value] || [];
+    currentCompetitors = competitors.map((c, i) => ({...c, originalIndex: i}));
+
+    if (competitors.length > 0) {
+        renderCompetitorsTable(drawMode, option.value, count, unit);
+        competitorsCard.style.display = 'block';
+    }
+}
+
+function renderCompetitorsTable(drawMode, catName, count, unit) {
+    const tbody = document.getElementById('competitors-body');
+    const thDrag = document.getElementById('th-drag');
+    const dragHint = document.getElementById('drag-hint');
+    const isManual = drawMode === 'manual';
+
+    thDrag.style.display = isManual ? 'table-cell' : 'none';
+    dragHint.style.display = isManual ? 'inline' : 'none';
+    tbody.className = isManual ? 'manual-mode' : '';
+
+    tbody.innerHTML = '';
+    currentCompetitors.forEach((c, i) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-index', i);
+        if (isManual) {
+            tr.draggable = true;
+            tr.addEventListener('dragstart', onDragStart);
+            tr.addEventListener('dragover', onDragOver);
+            tr.addEventListener('dragenter', onDragEnter);
+            tr.addEventListener('dragleave', onDragLeave);
+            tr.addEventListener('drop', onDrop);
+            tr.addEventListener('dragend', onDragEnd);
+        }
+        let html = '';
+        if (isManual) html += `<td class="drag-handle">☰</td>`;
+        html += `
+            <td><span class="badge badge-primary">${i + 1}</span></td>
+            <td><strong>${c.name}</strong></td>
+            <td><span class="badge badge-secondary">${c.country}</span></td>
+            <td>${c.ranking_pts}</td>
+        `;
+        tr.innerHTML = html;
+        tbody.appendChild(tr);
+    });
+
+    const titleLabels = { seeded: 'Seeding', random: 'Sorteo', manual: 'Orden Manual' };
+    document.getElementById('competitors-title').textContent =
+        `${titleLabels[drawMode] || 'Seeding'}: ${catName} (${count} ${unit})`;
+
+    updateManualOrderInput();
+}
+
+// Drag & Drop handlers
+let dragSrcRow = null;
+
+function onDragStart(e) {
+    dragSrcRow = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.getAttribute('data-index'));
+}
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function onDragEnter(e) { e.preventDefault(); this.classList.add('drag-over'); }
+function onDragLeave(e) { this.classList.remove('drag-over'); }
+function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    if (dragSrcRow === this) return;
+
+    const fromIdx = parseInt(dragSrcRow.getAttribute('data-index'));
+    const toIdx = parseInt(this.getAttribute('data-index'));
+
+    // Reorder array
+    const [moved] = currentCompetitors.splice(fromIdx, 1);
+    currentCompetitors.splice(toIdx, 0, moved);
+
+    // Re-render
+    const drawMode = document.getElementById('draw-mode-select').value;
+    const select = document.getElementById('category-select');
+    const option = select.options[select.selectedIndex];
+    const count = parseInt(option.getAttribute('data-count'));
+    const eventType = option.getAttribute('data-event-type');
+    const unit = eventType === 'doubles' ? 'parejas' : 'jugadores';
+    renderCompetitorsTable(drawMode, option.value, count, unit);
+}
+function onDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('#competitors-body tr').forEach(r => r.classList.remove('drag-over'));
+}
+
+function updateManualOrderInput() {
+    const drawMode = document.getElementById('draw-mode-select').value;
+    if (drawMode === 'manual') {
+        const order = currentCompetitors.map(c => c.originalIndex);
+        document.getElementById('manual-order-input').value = JSON.stringify(order);
+    } else {
+        document.getElementById('manual-order-input').value = '';
+    }
+}
+
+function updateDrawMode() {
+    const drawMode = document.getElementById('draw-mode-select').value;
+    const helpEl = document.getElementById('draw-mode-help');
+    const seedSection = document.getElementById('random-seed-section');
+
+    const btnText = document.getElementById('btn-submit-draw-text');
+    if (drawMode === 'manual') {
+        helpEl.textContent = 'Arrastra los competidores para definir el orden de la llave manualmente.';
+        seedSection.style.display = 'none';
+        btnText.textContent = 'Realizar Sorteo';
+    } else if (drawMode === 'random') {
+        helpEl.textContent = 'Los competidores se ubican completamente al azar.';
+        seedSection.style.display = 'block';
+        btnText.textContent = 'Realizar Sorteo';
+    } else {
+        helpEl.textContent = 'Los mejores rankeados se ubican en posiciones separadas de la llave.';
+        seedSection.style.display = 'block';
+        btnText.textContent = 'Ver Sorteo';
+    }
+    updatePreview();
+}
+
+// Auto-trigger preview if category is pre-selected
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('category-select');
+    if (select.value) {
+        updateDrawMode();
+    }
+});
+</script>
+{% endblock %}

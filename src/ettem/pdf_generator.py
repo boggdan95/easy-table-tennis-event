@@ -65,7 +65,8 @@ def generate_match_sheet_pdf(
     scheduled_time: Optional[str] = None,
     tournament_name: Optional[str] = None,
     category: Optional[str] = None,
-    round_number: Optional[int] = None
+    round_number: Optional[int] = None,
+    is_doubles: bool = False
 ) -> bytes:
     """
     Generate a match sheet PDF for referees.
@@ -80,6 +81,7 @@ def generate_match_sheet_pdf(
         tournament_name: Optional tournament name
         category: Optional category name
         round_number: Optional round number for group matches
+        is_doubles: Whether this is a doubles category
 
     Returns:
         PDF as bytes
@@ -94,6 +96,7 @@ def generate_match_sheet_pdf(
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
         "round_number": round_number,
+        "is_doubles": is_doubles,
     }
 
     html = render_html("match_sheet.html", context)
@@ -170,7 +173,8 @@ def generate_match_list_pdf(
 def generate_all_match_sheets_pdf(
     matches_data: List[Dict[str, Any]],
     tournament_name: Optional[str] = None,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    is_doubles: bool = False
 ) -> bytes:
     """
     Generate a single PDF with all match sheets (one per page).
@@ -179,6 +183,7 @@ def generate_all_match_sheets_pdf(
         matches_data: List of dicts with match, player1, player2, group_name
         tournament_name: Optional tournament name
         category: Optional category name
+        is_doubles: Whether this is a doubles category
 
     Returns:
         PDF as bytes
@@ -187,6 +192,7 @@ def generate_all_match_sheets_pdf(
         "matches_data": matches_data,
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
+        "is_doubles": is_doubles,
     }
 
     html = render_html("all_match_sheets.html", context)

@@ -9,10 +9,12 @@
     <span>←</span>
     <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
+{% if has_groups %}
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">
     <span>👥</span>
     <span>{{ t('nav.groups') }}</span>
 </a>
+{% endif %}
 {% if pending_byes is defined and pending_byes > 0 %}
 <button onclick="confirmProcessByes('{{ category }}', {{ pending_byes }})" class="btn btn-primary btn-sm" title="{{ t('bracket.process_byes') }}">
     <span>⏩</span>
@@ -145,7 +147,14 @@
                             </td>
                             <td style="text-align: center;">
                                 <div class="d-flex gap-1" style="justify-content: center;">
-                                    {% if m.match.status == 'pending' %}
+                                    {% if is_teams %}
+                                        <a href="/team-match/{{ m.match.id }}"
+                                           class="btn {% if m.match.status == 'pending' %}btn-success{% else %}btn-warning{% endif %} btn-sm"
+                                           title="Encuentro de Equipos"
+                                           style="padding: 0.25rem 0.5rem;">
+                                            {% if m.match.status == 'pending' %}✓{% else %}✎{% endif %}
+                                        </a>
+                                    {% elif m.match.status == 'pending' %}
                                         <a href="/match/{{ m.match.id }}/enter-result"
                                            class="btn btn-success btn-sm"
                                            title="{{ t('matches.enter_result') }}"

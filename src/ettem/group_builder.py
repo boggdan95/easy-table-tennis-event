@@ -32,8 +32,8 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
     if num_players < 3:
         raise ValueError(f"Cannot create groups with {num_players} players (minimum 3)")
 
-    if preferred_size not in (3, 4):
-        raise ValueError(f"Preferred size must be 3 or 4, got {preferred_size}")
+    if preferred_size not in (3, 4, 5):
+        raise ValueError(f"Preferred size must be 3, 4 or 5, got {preferred_size}")
 
     # Try to fit as many preferred-size groups as possible
     num_preferred_groups = num_players // preferred_size
@@ -43,23 +43,33 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
         # Perfect fit
         return [preferred_size] * num_preferred_groups
 
-    if preferred_size == 4:
+    if preferred_size == 5:
         if remainder == 1:
-            # Can't have a group of 1, so take one player from a group of 4 -> make 3 groups of 3
-            # 4k + 1 = 4(k-1) + 5 = 4(k-1) + 3 + 2  -> We need two groups of 3
-            # But that's still 4k-4+3+3 = 4k+2, not 4k+1
-            # Actually: 4k+1 means we take 1 from an existing 4 -> makes (k-1) groups of 4 and 2 groups of 3
-            # Wait: (k-1)*4 + 2*3 = 4k-4+6 = 4k+2 (not 4k+1!)
-            # Correct: need to convert a 4 to a 3, giving us (k-1) fours, one 3, and add the 1 to another 3
-            # So: (k-1) groups of 4, and need to make 3,3 from 4+1 = 5... that doesn't work.
-            # Let me recalculate: 9 players with pref=4 -> 2*4 + 1 = We can't have 1 alone.
-            # Solution: 3,3,3 (three groups of 3)
+            if num_preferred_groups >= 1:
+                # e.g. 6 players: [3, 3] or 11: [4, 4, 3]
+                return [4] * (num_preferred_groups - 1) + [3, 3] if num_preferred_groups >= 2 else [3, 3]
+            else:
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
+        elif remainder == 2:
+            if num_preferred_groups >= 1:
+                # e.g. 7: [4, 3], 12: [5, 4, 3]
+                return [5] * (num_preferred_groups - 1) + [4, 3] if num_preferred_groups >= 2 else [4, 3]
+            else:
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
+        elif remainder == 3:
+            # Add one group of 3: e.g. 8: [5, 3]
+            return [5] * num_preferred_groups + [3]
+        elif remainder == 4:
+            # Add one group of 4: e.g. 9: [5, 4]
+            return [5] * num_preferred_groups + [4]
+    elif preferred_size == 4:
+        if remainder == 1:
             if num_preferred_groups >= 2:
-                # Convert two 4s into three 3s: 2*4 + 1 = 8+1 = 9 = 3*3
+                # Convert two 4s into three 3s: e.g. 9 players -> [3, 3, 3]
                 return [3] * (num_preferred_groups + 1)
             elif num_preferred_groups == 1:
-                # 4+1 = 5, can't divide evenly into 3s and 4s
-                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
+                # 5 players: single group of 5
+                return [num_players]
             else:
                 raise ValueError(f"Cannot distribute {num_players} players into valid groups")
         elif remainder == 2:
@@ -77,12 +87,15 @@ def calculate_optimal_group_distribution(num_players: int, preferred_size: int =
             else:
                 raise ValueError(f"Cannot distribute {num_players} players into valid groups")
         elif remainder == 2:
-            # Make one group of 4 or two groups of 3
-            # If we have at least 2 groups of 3, make 2 groups of 3 from 6 players
-            if num_preferred_groups >= 1:
-                return [3] * (num_preferred_groups - 1) + [4]
+            # Need to absorb 2 extra players by upgrading 3s to 4s
+            if num_preferred_groups >= 2:
+                # Upgrade two 3s to 4s: e.g. 8 players -> [4, 4]
+                return [3] * (num_preferred_groups - 2) + [4, 4]
+            elif num_preferred_groups == 1:
+                # 5 players: single group of 5
+                return [num_players]
             else:
-                return [4]
+                raise ValueError(f"Cannot distribute {num_players} players into valid groups")
 
     # Fallback (shouldn't reach here)
     raise ValueError(f"Cannot distribute {num_players} players into valid groups")
@@ -181,9 +194,25 @@ def generate_round_robin_fixtures(group_size: int) -> list[tuple[int, int]]:
             (1, 2),  # Round 2
             (2, 3),  # Round 3 <- Most important match for 2nd place
         ]
+    elif group_size == 5:
+        # Order A for 5 players (Berger table)
+        # No player plays two consecutive matches.
+        # 1 vs 2 (crucial match) is the very last match.
+        # Player gaps: 1→{1,4,7,10} 2→{2,5,8,10} 3→{3,5,7,9} 4→{1,3,6,8} 5→{2,4,6,9}
+        return [
+            (1, 4),  # Round 1
+            (2, 5),
+            (3, 4),  # Round 2
+            (1, 5),
+            (2, 3),  # Round 3
+            (4, 5),
+            (1, 3),  # Round 4
+            (2, 4),
+            (3, 5),  # Round 5
+            (1, 2),  # <- Most important match last
+        ]
     else:
         # For other sizes, fall back to standard round-robin
-        # This shouldn't normally happen with our group distribution
         matches = []
         for i in range(1, group_size + 1):
             for j in range(i + 1, group_size + 1):

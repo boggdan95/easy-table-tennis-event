@@ -1,0 +1,9 @@
+team_name,pais_cd,nombre1,apellido1,pais1,nombre2,apellido2,pais2,nombre3,apellido3,pais3,ranking_pts,categoria
+Spain A,ESP,Juan,Perez,ESP,Carlos,Rodriguez,ESP,Pedro,Lopez,ESP,5000,MT
+Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT
+Argentina,ARG,Andres,Martinez,ARG,Roberto,Gomez,ARG,Fernando,Diaz,ARG,3800,MT
+Brazil,BRA,Sergio,Castro,BRA,Manuel,Vega,BRA,Ricardo,Herrera,BRA,3500,MT
+Colombia,COL,Pablo,Flores,COL,Oscar,Rios,COL,Raul,Sanchez,COL,3000,MT
+Chile,CHI,Fernando,Diaz,CHI,Ricardo,Herrera,CHI,Sergio,Castro,CHI,2500,MT
+Peru,PER,Manuel,Vega,PER,Roberto,Gomez,PER,Andres,Martinez,PER,2000,MT
+Cuba,CUB,Luis,Morales,CUB,Pablo,Torres,CUB,David,Ramirez,CUB,1500,MT

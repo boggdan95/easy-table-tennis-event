@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Sorteo - {{ category }} - ETTEM{% endblock %}
+
+{% block page_title %}Sorteo: {{ category }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/direct-bracket" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>Volver</span>
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Draw Info Card -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">🎯 Vista Previa del Sorteo</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2 mb-3">
+            <div>
+                <p><strong>Categoría:</strong> {{ category }}</p>
+                <p><strong>{{ unit|capitalize }}:</strong> {{ num_competitors }}</p>
+                <p><strong>Modo:</strong> {{ draw_mode_label }}</p>
+            </div>
+            <div>
+                <p><strong>Tamaño de bracket:</strong> {{ bracket_size }}</p>
+                <p><strong>BYEs:</strong> {{ num_byes }}</p>
+                <p><strong>Formato:</strong> Mejor de {{ best_of }} sets</p>
+            </div>
+        </div>
+
+        <div class="alert alert-info">
+            <span class="icon">ℹ️</span>
+            <div class="alert-content">
+                <div class="alert-title">Revisa el sorteo antes de confirmar</div>
+                <div>Los enfrentamientos de {{ first_round }} se muestran abajo. Al confirmar, se generará el bracket y los partidos.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Matchups Table -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">📋 Enfrentamientos - {{ first_round }}</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px; text-align: center;">#</th>
+                        <th>{{ "Pareja" if is_doubles else "Jugador" }} 1</th>
+                        <th style="width: 40px; text-align: center;">vs</th>
+                        <th>{{ "Pareja" if is_doubles else "Jugador" }} 2</th>
+                        <th style="width: 80px; text-align: center;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in matchups %}
+                    <tr {% if m.is_bye %}style="background: rgba(0,0,0,0.03);"{% elif m.same_country %}style="background: rgba(255,193,7,0.1);"{% endif %}>
+                        <td style="text-align: center;">
+                            <span class="badge badge-secondary">{{ loop.index }}</span>
+                        </td>
+                        <td>
+                            {% if m.competitor1.full_name == 'BYE' %}
+                                <span style="color: #999; font-style: italic;">BYE</span>
+                            {% elif m.competitor1.full_name == 'TBD' %}
+                                <span style="color: #ccc;">-</span>
+                            {% else %}
+                                <strong>{{ m.competitor1.nombre }} {{ m.competitor1.apellido }}</strong>
+                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.competitor1.pais_cd }}</span>
+                            {% endif %}
+                            <span style="color: #999; font-size: 0.8rem; margin-left: 0.25rem;">[{{ m.seed1 }}]</span>
+                        </td>
+                        <td style="text-align: center; font-weight: bold; color: var(--text-muted);">vs</td>
+                        <td>
+                            {% if m.competitor2.full_name == 'BYE' %}
+                                <span style="color: #999; font-style: italic;">BYE</span>
+                            {% elif m.competitor2.full_name == 'TBD' %}
+                                <span style="color: #ccc;">-</span>
+                            {% else %}
+                                <strong>{{ m.competitor2.nombre }} {{ m.competitor2.apellido }}</strong>
+                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.competitor2.pais_cd }}</span>
+                            {% endif %}
+                            <span style="color: #999; font-size: 0.8rem; margin-left: 0.25rem;">[{{ m.seed2 }}]</span>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if m.is_bye %}
+                                <span class="badge badge-warning">BYE</span>
+                            {% elif m.same_country %}
+                                <span class="badge badge-warning">Mismo País</span>
+                            {% else %}
+                                <span class="badge badge-success">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex gap-2" style="justify-content: center;">
+            <form method="post" action="/admin/direct-bracket/execute" style="display: inline;">
+                <input type="hidden" name="category" value="{{ category }}">
+                <input type="hidden" name="best_of" value="{{ best_of }}">
+                <input type="hidden" name="random_seed" value="{{ random_seed }}">
+                <input type="hidden" name="draw_mode" value="{{ draw_mode }}">
+                <input type="hidden" name="manual_order" value="{{ manual_order or '' }}">
+                <button type="submit" class="btn btn-success">
+                    <span>✓</span>
+                    <span>Confirmar y Generar</span>
+                </button>
+            </form>
+            <a href="/admin/direct-bracket" class="btn btn-secondary">
+                <span>←</span>
+                <span>Volver al Formulario</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
