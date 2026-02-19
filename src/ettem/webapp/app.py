@@ -3916,6 +3916,7 @@ async def team_match_view(request: Request, match_id: int):
             "away_labels": away_labels,
             "team1_players": team1_players,
             "team2_players": team2_players,
+            "match_order": order,
         },
     )
 

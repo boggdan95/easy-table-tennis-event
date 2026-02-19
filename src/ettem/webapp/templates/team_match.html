@@ -66,9 +66,16 @@
         <h3 class="card-title">Asignar Jugadores</h3>
     </div>
     <div class="card-body">
-        <p class="text-muted" style="margin-bottom: 1rem;">
-            Asigna los jugadores a las posiciones A, B, C (y D, E si aplica) para cada equipo.
-        </p>
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 6px;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">Orden de juego ({{ system_label }}):</div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                {% for num, mtype, home_lbl, away_lbl in match_order %}
+                <span class="badge {% if mtype == 'doubles' %}badge-warning{% else %}badge-secondary{% endif %}" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">
+                    {{ num }}. {{ home_lbl }} vs {{ away_lbl }}{% if mtype == 'doubles' %} (D){% endif %}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
         <form method="post" action="/team-match/{{ match.id }}/assign-players">
             <input type="hidden" name="team_match_system" value="{{ system }}">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
