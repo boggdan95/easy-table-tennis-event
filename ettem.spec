@@ -167,8 +167,8 @@ if is_macos:
         info_plist={
             'CFBundleName': 'ETTEM',
             'CFBundleDisplayName': 'ETTEM - Tournament Manager',
-            'CFBundleShortVersionString': '2.3.0',
-            'CFBundleVersion': '2.3.0',
+            'CFBundleShortVersionString': '2.5.0',
+            'CFBundleVersion': '2.5.0',
             'NSHighResolutionCapable': True,
         },
     )
