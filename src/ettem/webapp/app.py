@@ -2742,9 +2742,10 @@ async def admin_import_players_csv(
             current_tournament = tournament_repo.get_current()
             tournament_id = current_tournament.id if current_tournament else None
 
-            # Build set of existing original_ids to detect duplicates
+            # Build set of existing original_ids to detect duplicates (scoped by category)
             existing_players = player_repo.get_all(tournament_id=tournament_id)
-            existing_ids = {p.original_id for p in existing_players if p.original_id is not None}
+            import_category = players[0].categoria if players else None
+            existing_ids = {p.original_id for p in existing_players if p.original_id is not None and p.categoria == import_category}
 
             imported_count = 0
             skipped_count = 0
@@ -2833,11 +2834,11 @@ async def admin_import_players_manual(
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
 
-        # Check for duplicate original_id in ALL players of current tournament (not just category)
+        # Check for duplicate original_id within the SAME category
         all_players = player_repo.get_all(tournament_id=tournament_id)
         for p in all_players:
-            if p.original_id is not None and p.original_id == original_id:
-                request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} ({p.nombre} {p.apellido} en {p.categoria})"
+            if p.original_id is not None and p.original_id == original_id and p.categoria == categoria_upper:
+                request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} en {categoria_upper} ({p.nombre} {p.apellido})"
                 request.session["flash_type"] = "error"
                 return RedirectResponse(url="/admin/import-players", status_code=303)
 
