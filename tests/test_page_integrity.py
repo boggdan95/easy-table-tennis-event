@@ -38,7 +38,11 @@ def db():
     manager.create_tables()
     yield manager
     manager.drop_tables()
-    os.unlink(_tmp_db.name)
+    manager.engine.dispose()
+    try:
+        os.unlink(_tmp_db.name)
+    except PermissionError:
+        pass  # Windows may still hold the file
 
 
 @pytest.fixture(scope="module")
