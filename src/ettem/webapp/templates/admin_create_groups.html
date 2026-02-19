@@ -82,6 +82,19 @@
                 </div>
             </div>
 
+            <!-- Team match system selector (only for teams categories) -->
+            <div id="team-system-section" class="mb-3" style="display: none;">
+                <div class="form-section">
+                    <label class="form-label">Sistema de Encuentro por Equipos *</label>
+                    <select name="team_match_system" id="team-match-system" class="form-control">
+                        <option value="swaythling" selected>Swaythling — 5 singles (A-X, B-Y, C-Z, A-Y, B-X)</option>
+                        <option value="corbillon">Corbillon — 4 singles + 1 dobles (A-X, B-Y, Dobles, A-Y, B-X)</option>
+                        <option value="olympic">Olímpico — 1 dobles + 4 singles (Dobles, A-X, C-Z, A-Y, B-X)</option>
+                    </select>
+                    <p class="form-help">Define el orden y tipo de partidos individuales dentro de cada encuentro entre equipos.</p>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="button" onclick="openPreviewModal()" class="btn btn-primary">
                     <span>👁️</span>
@@ -233,6 +246,11 @@ function updatePlayerCount() {
 
         // Filter existing groups by category
         filterExistingGroups(selectedCategory);
+
+        // Show/hide team match system selector
+        const teamSuffixes = ['MT', 'WT', 'BT', 'GT'];
+        const isTeams = teamSuffixes.some(s => selectedCategory.endsWith(s));
+        document.getElementById('team-system-section').style.display = isTeams ? 'block' : 'none';
 
         // Calculate group distribution (mirrors group_builder.py logic)
         let groups5 = 0;

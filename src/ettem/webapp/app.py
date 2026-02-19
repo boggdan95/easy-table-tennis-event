@@ -4449,7 +4449,8 @@ async def admin_create_groups_execute(
     group_size_preference: int = Form(...),
     random_seed: Optional[int] = Form(None),
     manual_assignments: Optional[str] = Form(None),
-    best_of: int = Form(5)
+    best_of: int = Form(5),
+    team_match_system: str = Form("swaythling")
 ):
     """Execute group creation. Supports singles, doubles, and teams categories."""
     from ettem.group_builder import create_groups
@@ -4634,7 +4635,7 @@ async def admin_create_groups_execute(
                     if event_type == "teams" and match_orm:
                         match_orm.team1_id = match.player1_id
                         match_orm.team2_id = match.player2_id
-                        match_orm.team_match_system = "swaythling"
+                        match_orm.team_match_system = team_match_system
                         match_repo.session.commit()
 
         # Create empty bracket structure
