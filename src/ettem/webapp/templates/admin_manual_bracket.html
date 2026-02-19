@@ -326,6 +326,11 @@ details[open] .details-arrow { transform: rotate(90deg); }
     <span class="pot-legend-item">
         <span class="pot-legend-swatch" style="background: #27AE60;"></span> Seed 9-16 (G9-G16)
     </span>
+    {% if bracket_size >= 64 %}
+    <span class="pot-legend-item">
+        <span class="pot-legend-swatch" style="background: #1ABC9C;"></span> Seed 17-32 (G17-G32)
+    </span>
+    {% endif %}
     <span class="pot-legend-item">
         <span class="pot-legend-swatch" style="background: #e0e0e0;"></span> 2dos de Grupo
     </span>

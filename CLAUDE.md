@@ -12,6 +12,16 @@ Aplicación Python para gestionar torneos de tenis de mesa:
 - Internacionalización ES/EN
 - Windows-first, offline-first (SQLite)
 
+## Reglas de Testing (OBLIGATORIAS)
+
+- **SIEMPRE correr pruebas E2E completas con Playwright browser**, nunca solo unit tests
+- **Flujo COMPLETO**: import → groups → matches → results → standings → bracket → champion
+- **Verificar CADA paso visualmente** en el navegador — no asumir que funciona
+- **Para equipos**: verificar encuentro con partidos individuales
+- **NO usar curl para E2E** — usar Playwright browser
+- **Limpiar cache Playwright si hay problemas**: `rm -rf ~/Library/Caches/ms-playwright/mcp-chromium-*`
+- Después de cada cambio significativo, levantar el servidor y validar en browser
+
 ## Estado Actual: V2.1.0 - Release Comercial
 
 ### ✅ Funcionalidades Completas
