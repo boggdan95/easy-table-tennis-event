@@ -23,6 +23,7 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from ettem.models import Gender, MatchStatus, RoundType
+from ettem.paths import get_data_dir
 
 Base = declarative_base()
 
@@ -527,13 +528,16 @@ class ScheduleSlotORM(Base):
 class DatabaseManager:
     """Manages SQLite database connection and session."""
 
-    def __init__(self, db_path: str = ".ettem/ettem.sqlite"):
+    def __init__(self, db_path: str = None):
         """Initialize database manager.
 
         Args:
-            db_path: Path to SQLite database file
+            db_path: Path to SQLite database file. If None, uses get_data_dir().
         """
-        self.db_path = Path(db_path)
+        if db_path is None:
+            self.db_path = get_data_dir() / "ettem.sqlite"
+        else:
+            self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use NullPool for SQLite to avoid connection pool issues
