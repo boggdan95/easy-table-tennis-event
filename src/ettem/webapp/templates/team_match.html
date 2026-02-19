@@ -78,7 +78,7 @@
                     {% for label in home_labels %}
                     <div class="form-group">
                         <label>Posicion {{ label }}</label>
-                        <select name="home_{{ label }}" class="form-control" required>
+                        <select name="home_{{ label }}" class="form-control team-select" data-team="home" required>
                             <option value="">-- Seleccionar --</option>
                             {% for p in team1_players %}
                             <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }}</option>
@@ -93,7 +93,7 @@
                     {% for label in away_labels %}
                     <div class="form-group">
                         <label>Posicion {{ label }}</label>
-                        <select name="away_{{ label }}" class="form-control" required>
+                        <select name="away_{{ label }}" class="form-control team-select" data-team="away" required>
                             <option value="">-- Seleccionar --</option>
                             {% for p in team2_players %}
                             <option value="{{ p.id }}">{{ p.nombre }} {{ p.apellido }}</option>
@@ -188,6 +188,29 @@
         {% endfor %}
     </div>
 </div>
+{% endif %}
+
+<!-- Prevent duplicate player selection per team -->
+{% if not players_assigned %}
+<script>
+(function() {
+    function updateOptions(teamName) {
+        var selects = document.querySelectorAll('.team-select[data-team="' + teamName + '"]');
+        var chosen = [];
+        selects.forEach(function(s) { if (s.value) chosen.push(s.value); });
+        selects.forEach(function(s) {
+            var opts = s.querySelectorAll('option');
+            opts.forEach(function(opt) {
+                if (!opt.value) return;
+                opt.disabled = (opt.value !== s.value && chosen.indexOf(opt.value) !== -1);
+            });
+        });
+    }
+    document.querySelectorAll('.team-select').forEach(function(sel) {
+        sel.addEventListener('change', function() { updateOptions(this.dataset.team); });
+    });
+})();
+</script>
 {% endif %}
 
 <!-- Auto-refresh for in_progress encounters -->

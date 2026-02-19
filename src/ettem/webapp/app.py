@@ -3951,6 +3951,18 @@ async def team_match_assign_players(request: Request, match_id: int):
             label = key[5:]
             away_assignments[label] = int(value)
 
+    # Validate no duplicate players within the same team
+    home_ids = list(home_assignments.values())
+    away_ids = list(away_assignments.values())
+    if len(home_ids) != len(set(home_ids)):
+        request.session["flash_message"] = "Error: Un jugador no puede ocupar dos posiciones en el mismo equipo."
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url=f"/team-match/{match_id}", status_code=303)
+    if len(away_ids) != len(set(away_ids)):
+        request.session["flash_message"] = "Error: Un jugador no puede ocupar dos posiciones en el mismo equipo."
+        request.session["flash_type"] = "error"
+        return RedirectResponse(url=f"/team-match/{match_id}", status_code=303)
+
     # Delete existing details (in case of re-assignment)
     detail_repo.delete_by_parent_match(match_id)
 
