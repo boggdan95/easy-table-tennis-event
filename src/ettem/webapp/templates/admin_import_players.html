@@ -212,6 +212,19 @@ Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                 </div>
             </div>
 
+            <!-- Team match system selector (only for teams) -->
+            <div id="team-system-import" class="mb-3" style="display: none;">
+                <div class="form-section">
+                    <label class="form-label" style="font-weight: 600;">Sistema de Encuentro por Equipos *</label>
+                    <select name="team_match_system" id="team-match-system-import" class="form-control">
+                        <option value="swaythling" selected>Swaythling — 5 singles (A-X, B-Y, C-Z, A-Y, B-X)</option>
+                        <option value="corbillon">Corbillon — 4 singles + 1 dobles (A-X, B-Y, Dobles, A-Y, B-X)</option>
+                        <option value="olympic">Olímpico — 1 dobles + 4 singles (Dobles, A-X, C-Z, A-Y, B-X)</option>
+                    </select>
+                    <p class="form-help">Define el orden y tipo de partidos dentro de cada encuentro entre equipos. Aplica a toda la categoría.</p>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="button" id="btn-preview-csv" class="btn btn-primary" onclick="previewCSV()">
                     <span>👁️</span>
@@ -1298,6 +1311,9 @@ function previewCSV() {
         document.getElementById('btn-preview-csv').style.display = 'none';
         document.getElementById('btn-submit-csv').style.display = 'inline-flex';
 
+        // Show team match system selector for teams import
+        document.getElementById('team-system-import').style.display = (currentImportType === 'equipos') ? 'block' : 'none';
+
         // Disable submit if there are critical errors
         const hasCriticalErrors = result.errors.some(e => e.includes('Columnas faltantes'));
         document.getElementById('btn-submit-csv').disabled = hasCriticalErrors;
@@ -1310,6 +1326,7 @@ function hidePreview() {
     document.getElementById('csv-preview-section').style.display = 'none';
     document.getElementById('btn-preview-csv').style.display = 'inline-flex';
     document.getElementById('btn-submit-csv').style.display = 'none';
+    document.getElementById('team-system-import').style.display = 'none';
     csvData = [];
     csvHeaders = [];
 }

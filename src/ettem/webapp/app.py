@@ -3516,6 +3516,7 @@ async def admin_import_teams_csv(
     request: Request,
     csv_file: UploadFile = File(...),
     auto_seeds: Optional[str] = Form(None),
+    team_match_system: str = Form("swaythling"),
 ):
     """Import teams from CSV. Creates players automatically if they don't exist.
 
@@ -3659,6 +3660,9 @@ async def admin_import_teams_csv(
 
         request.session["flash_message"] = msg
         request.session["flash_type"] = "success" if imported_teams > 0 else "warning"
+        # Store team match system for use when creating groups
+        if imported_teams > 0 and team_match_system:
+            request.session["team_match_system"] = team_match_system
 
     except Exception as e:
         request.session["flash_message"] = f"Error al importar CSV: {str(e)}"
@@ -4450,7 +4454,7 @@ async def admin_create_groups_execute(
     random_seed: Optional[int] = Form(None),
     manual_assignments: Optional[str] = Form(None),
     best_of: int = Form(5),
-    team_match_system: str = Form("swaythling")
+    team_match_system: Optional[str] = Form(None)
 ):
     """Execute group creation. Supports singles, doubles, and teams categories."""
     from ettem.group_builder import create_groups
@@ -4472,6 +4476,10 @@ async def admin_create_groups_execute(
 
         # Detect event type from category
         event_type = detect_event_type(category)
+
+        # Resolve team match system: form param > session > default
+        if not team_match_system:
+            team_match_system = request.session.get("team_match_system", "swaythling")
 
         if event_type == "teams":
             # Get teams for this teams category
