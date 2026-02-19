@@ -548,18 +548,18 @@ function applyPotColors() {
         }
     });
 
-    // Color group badges in player lists
-    document.querySelectorAll('.group-badge').forEach(badge => {
-        const text = badge.textContent.trim(); // e.g. "G1", "G3"
-        const match = text.match(/G(\d+)/);
-        if (match) {
-            const groupNum = parseInt(match[1]);
-            const color = getGroupPotColor(groupNum);
-            if (color) {
-                badge.style.background = color;
+    // Color group badges only for Primeros (seconds can go to any 2do position)
+    const firstsPool = document.getElementById('firsts-pool');
+    if (firstsPool) {
+        firstsPool.querySelectorAll('.group-badge').forEach(badge => {
+            const text = badge.textContent.trim();
+            const match = text.match(/G(\d+)/);
+            if (match) {
+                const color = getGroupPotColor(parseInt(match[1]));
+                if (color) badge.style.background = color;
             }
-        }
-    });
+        });
+    }
 }
 
 // Drag and Drop Event Handlers
@@ -974,7 +974,10 @@ function assignPlayerToSlot(slotNumber, playerId, playerName, groupId, groupName
     slot.classList.add('occupied');
     input.value = playerId;
 
-    const badgeColor = getGroupPotColor(groupName) || 'var(--primary-color)';
+    // Pot color only for firsts (seconds can go to any position)
+    const playerEl = document.querySelector(`.player-item[data-player-id="${playerId}"]`);
+    const isFirst = playerEl && playerEl.closest('#firsts-pool') !== null;
+    const badgeColor = isFirst ? (getGroupPotColor(groupName) || 'var(--primary-color)') : 'var(--primary-color)';
     contentDiv.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
             <span class="group-badge" style="background: ${badgeColor};">G${groupName}</span>
