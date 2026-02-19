@@ -67,9 +67,9 @@ def validate_tt_set(score_a: int, score_b: int) -> tuple[bool, str]:
                 f"En deuce (≥10-10), el ganador debe tener exactamente +2 puntos (diferencia actual: {diff})",
             )
 
-    # Rule 3: Normal situation (loser < 10), difference must be at least 2
-    elif diff < 2:
-        return False, f"El ganador debe tener al menos +2 puntos (diferencia actual: {diff})"
+    # Rule 3: Normal situation (loser < 10), winner must be exactly 11
+    elif winner_score != 11:
+        return False, f"Si el perdedor tiene menos de 10, el ganador debe tener exactamente 11 (actual: {winner_score}-{loser_score})"
 
     return True, ""
 

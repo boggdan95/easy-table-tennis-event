@@ -193,6 +193,29 @@
             padding-top: 5px;
             margin-top: 8px;
         }
+
+        /* Adaptive styles for many tables */
+        {% if num_tables >= 7 %}
+        .schedule-table th,
+        .schedule-table td {
+            padding: 2px 1px;
+            font-size: 7pt;
+        }
+        .schedule-table th { font-size: 8pt; }
+        .match-box { padding: 1px; }
+        .match-label { font-size: 6pt; }
+        .match-category { font-size: 6pt; }
+        .player-line { font-size: 7pt; }
+        @page { margin: 0.7cm; }
+        {% elif num_tables >= 5 %}
+        .schedule-table th,
+        .schedule-table td {
+            padding: 3px 2px;
+            font-size: 7.5pt;
+        }
+        .player-line { font-size: 7.5pt; }
+        @page { margin: 0.8cm; }
+        {% endif %}
     </style>
 </head>
 <body>

@@ -69,6 +69,29 @@ class TestValidateTTSet:
         assert is_valid is False
         # This is caught by deuce rule since loser >= 10
 
+    def test_invalid_winner_above_11_no_deuce(self):
+        """Test that winner cannot exceed 11 when loser has < 10 points."""
+        # 99-1: winner way above 11, loser below 10 — invalid
+        is_valid, msg = validate_tt_set(99, 1)
+        assert is_valid is False
+        assert "exactamente 11" in msg
+
+        # 12-5: winner above 11, loser below 10 — invalid
+        is_valid, msg = validate_tt_set(12, 5)
+        assert is_valid is False
+
+        # 15-3: same pattern
+        is_valid, msg = validate_tt_set(15, 3)
+        assert is_valid is False
+
+        # 12-0: winner above 11, loser below 10
+        is_valid, msg = validate_tt_set(12, 0)
+        assert is_valid is False
+
+        # Reverse: 1-99
+        is_valid, msg = validate_tt_set(1, 99)
+        assert is_valid is False
+
     def test_invalid_negative_scores(self):
         """Test that negative scores are rejected."""
         is_valid, msg = validate_tt_set(-1, 11)

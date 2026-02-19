@@ -171,6 +171,16 @@
             border-top: 1px solid #dddddd;
         }
 
+        .match-schedule {
+            background-color: #e3f2fd;
+            font-size: 6pt;
+            color: #1565c0;
+            text-align: center;
+            padding: 2px;
+            border-top: 1px solid #bbdefb;
+            font-weight: bold;
+        }
+
         .footer {
             margin-top: 15px;
             text-align: center;
@@ -282,6 +292,12 @@
                         {% if is_done and match_data.match.sets %}
                         <div class="match-sets">
                             {% for s in match_data.match.sets %}{{ s.player1_points }}-{{ s.player2_points }}{% if not loop.last %} {% endif %}{% endfor %}
+                        </div>
+                        {% endif %}
+                        {# Schedule info (time/table) #}
+                        {% if match_data and schedule_info.get(match_data.match.id) %}
+                        <div class="match-schedule">
+                            M{{ schedule_info[match_data.match.id].table }} &middot; {{ schedule_info[match_data.match.id].time }}
                         </div>
                         {% endif %}
                     </div>

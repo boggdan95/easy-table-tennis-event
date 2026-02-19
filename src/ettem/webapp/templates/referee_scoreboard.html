@@ -921,12 +921,12 @@
                     <div class="set-input-row">
                         <div class="set-input-group">
                             <label class="set-input-label">{% if player1 %}{{ (player1.nombre or '')[:1] }}. {{ player1.apellido or '' }}{% else %}J1{% endif %}</label>
-                            <input type="number" name="p1_score" class="set-input" id="p1-score" min="0" max="99" required placeholder="0">
+                            <input type="number" name="p1_score" class="set-input" id="p1-score" min="0" max="30" required placeholder="0">
                         </div>
                         <span style="font-size: 1.5rem; color: var(--text-muted); align-self: flex-end; padding-bottom: 15px;">-</span>
                         <div class="set-input-group">
                             <label class="set-input-label">{% if player2 %}{{ (player2.nombre or '')[:1] }}. {{ player2.apellido or '' }}{% else %}J2{% endif %}</label>
-                            <input type="number" name="p2_score" class="set-input" id="p2-score" min="0" max="99" required placeholder="0">
+                            <input type="number" name="p2_score" class="set-input" id="p2-score" min="0" max="30" required placeholder="0">
                         </div>
                     </div>
                     <button type="submit" class="submit-btn">

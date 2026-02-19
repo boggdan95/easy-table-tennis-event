@@ -20,7 +20,7 @@ def get_free_port(start_port=8000):
     while port < start_port + 100:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('127.0.0.1', port))
+                s.bind(('0.0.0.0', port))
                 return port
         except OSError:
             port += 1
@@ -90,12 +90,23 @@ def main():
 
         browser_thread.start()
 
+        # Get local network IP for phone/tablet access
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            local_ip = None
+
+        network_line = f"\n    Red local: http://{local_ip}:{port}  (telefonos/tablets)" if local_ip else ""
+
         print(f"""
     ================================================
         ETTEM - Easy Table Tennis Event Manager
     ================================================
 
-    Server running at: http://127.0.0.1:{port}
+    Local:    http://127.0.0.1:{port}{network_line}
 
     Opening browser automatically...
 
@@ -109,7 +120,7 @@ def main():
         # Start uvicorn server
         uvicorn.run(
             "ettem.webapp.app:app",
-            host="127.0.0.1",
+            host="0.0.0.0",
             port=port,
             log_level="info",
             access_log=False

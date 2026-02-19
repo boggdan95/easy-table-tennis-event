@@ -463,6 +463,17 @@ function renderPreviewModal(data) {
                     </div>
                 </div>
             </div>
+
+            <!-- Pot color legend -->
+            <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.78rem; align-items: center; padding: 0.4rem 0.6rem; background: var(--bg-secondary); border-radius: 4px;">
+                <strong>Pots:</strong>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#E74C3C;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 1</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#3498DB;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 2</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#9B59B6;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 3-4</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#F1C40F;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 5-8</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#27AE60;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 9-16</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#1ABC9C;border-radius:2px;vertical-align:middle;margin-right:2px;"></span> 17-32</span>
+            </div>
         </div>
         <div style="overflow-x: auto; padding: 1rem;">
             <div style="display: flex; gap: 1rem; min-width: min-content;" id="groups-container">
@@ -480,6 +491,7 @@ function renderPreviewModal(data) {
 
         group.players.forEach(player => {
             const countryColor = getCountryColor(player.pais_cd);
+            const potColor = getPotColor(player.seed);
             html += `
                 <div class="player-card"
                      draggable="true"
@@ -490,7 +502,7 @@ function renderPreviewModal(data) {
                      style="background: white; border-left: 3px solid ${countryColor}; border: 1px solid var(--border-color); border-left: 3px solid ${countryColor}; border-radius: 4px; padding: 0.4rem; margin-bottom: 0.3rem; cursor: move; font-size: 0.85rem;">
                     <div style="display: flex; align-items: center; gap: 0.4rem;">
                         <span style="cursor: grab; color: var(--text-muted); font-size: 0.9rem;">⋮⋮</span>
-                        <span class="badge badge-primary" style="min-width: 28px; font-size: 0.75rem; padding: 0.15rem 0.4rem;">${player.seed}</span>
+                        <span class="badge" style="min-width: 28px; font-size: 0.75rem; padding: 0.15rem 0.4rem; background: ${potColor}; color: white;">${player.seed}</span>
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${player.nombre} ${player.apellido}</div>
                             <div style="font-size: 0.7rem; color: var(--text-muted);">
@@ -725,6 +737,17 @@ function getCountryColor(countryCode) {
     }
 
     return colors[countryCode];
+}
+
+// ITTF seed pot colors
+function getPotColor(seed) {
+    if (seed === 1) return '#E74C3C';                       // Pot 1 - Red (head)
+    if (seed === 2) return '#3498DB';                       // Pot 2 - Blue (tail)
+    if (seed >= 3 && seed <= 4) return '#9B59B6';           // Pot 3 - Magenta
+    if (seed >= 5 && seed <= 8) return '#F1C40F';           // Pot 4 - Gold
+    if (seed >= 9 && seed <= 16) return '#27AE60';          // Pot 5 - Green
+    if (seed >= 17 && seed <= 32) return '#1ABC9C';         // Pot 6 - Cyan
+    return '#95A5A6';  // Unseeded - gray
 }
 
 // Toggle collapsible alerts
