@@ -1,4 +1,4 @@
-# ETTEM v2.2 - Capacidades del Sistema
+# ETTEM v2.5 - Capacidades del Sistema
 
 **Easy Table Tennis Event Manager**
 
@@ -96,7 +96,8 @@ Generacion automatica de grupos con snake seeding basado en ranking. Soporte par
 | Funcion | Descripcion |
 |---------|-------------|
 | Snake seeding | Distribucion equilibrada por ranking (1,4,5,8 / 2,3,6,7) |
-| Tamano de grupo | Configurable: 3 o 4 jugadores por grupo |
+| Tamano de grupo | Configurable: 3, 4 o 5 jugadores por grupo |
+| Tabla de Berger | Orden de partidos optimizado para grupos de 5 |
 | Jugadores que avanzan | Configurable: 1 o 2 por grupo |
 | Drag-and-drop | Reordenar jugadores manualmente antes de confirmar |
 | Fixtures automaticos | Generacion de todos contra todos (metodo circular) |
@@ -175,6 +176,42 @@ Generacion de llave eliminatoria con colocacion automatica siguiendo reglas ITTF
 | Bracket | ![Bracket](screenshots/10_bracket.png) |
 | Generar bracket | ![Generar](screenshots/21_generate_bracket.png) |
 | Resultados de categoria | ![Resultados](screenshots/11_category_results.png) |
+
+---
+
+## 5b. KO Directo (Sin Fase de Grupos)
+
+Modalidad de bracket eliminatorio directo, sin necesidad de fase de grupos previa.
+
+| Funcion | Descripcion |
+|---------|-------------|
+| Bracket directo | Ir directamente de inscripcion a llave eliminatoria |
+| Seeding automatico | Basado en puntos de ranking |
+| Mismas reglas ITTF | Posicionamiento de BYEs y seeds segun normativa |
+
+---
+
+## 5c. Torneos por Equipos
+
+Soporte completo para torneos por equipos con tres sistemas de match oficiales.
+
+### Sistemas de Match
+
+| Sistema | Formato | Descripcion |
+|---------|---------|-------------|
+| Swaythling | 5 Singles | 5 partidos individuales |
+| Corbillon | 4S + 1D | 4 singles + 1 dobles |
+| Olympic | 1D + 4S | 1 dobles + 4 singles |
+
+### Funciones
+
+| Funcion | Descripcion |
+|---------|-------------|
+| Encuentro por equipos | Contiene partidos individuales segun el sistema elegido |
+| Orden de partidos | Referencia visual del orden oficial en la UI |
+| Prevencion de duplicados | No permite asignar el mismo jugador dos veces |
+| Homologacion | Resultado del encuentro se determina por mayoria de partidos |
+| Seleccion de sistema | Se elige al crear el evento, almacenado en la sesion |
 
 ---
 
@@ -442,21 +479,26 @@ Sistema de activacion con clave unica por cliente.
 | Indicador visual | Dias restantes visible en la barra lateral |
 | Alerta de expiracion | Advertencia visual cuando quedan menos de 7 dias |
 | Renovacion | Se ingresa una nueva clave al renovar, sin perder datos |
+| Validacion online | Verificacion periodica cada 30 dias |
+| Limite de maquinas | Maximo 2 dispositivos simultaneos por licencia |
+| Panel admin online | Dashboard web para gestionar licencias remotamente |
 
 ---
 
 ## 15. Distribucion y Ejecucion
 
-### Ejecutable Windows
+### Ejecutable Multiplataforma
 
 | Caracteristica | Descripcion |
 |----------------|-------------|
 | Formato | Archivo unico `ETTEM.exe` (~45 MB) |
 | Requisitos | Windows 10/11, no requiere Python instalado |
+| macOS | `ETTEM.dmg` con layout drag-to-Applications |
 | Inicio | Doble clic abre el navegador automaticamente |
 | Base de datos | Se almacena en `.ettem/ettem.sqlite` |
 | Licencia | Se activa una sola vez y queda guardada localmente |
 | Actualizacion | Reemplazar el .exe; los datos se conservan |
+| CI/CD | GitHub Actions: build automatico al crear tag |
 
 ### Acceso desde Red Local
 
@@ -477,7 +519,10 @@ Para que celulares y pantallas accedan al servidor:
 | V2.0 | Scheduler: mesas, sesiones, time slots, grilla visual, impresion |
 | V2.1 | Resultados en vivo, centro de impresion, i18n ES/EN, tema claro/oscuro, ejecutable Windows, licencias |
 | V2.2 | Configuracion de mesas para arbitros, codigos QR, marcador movil, pantalla publica, bloqueo de mesas, API de scores en vivo |
+| V2.3 | Validacion online de licencias, panel admin web, gestor local de licencias |
+| V2.4 | KO directo sin fase de grupos, torneos por equipos (Swaythling/Corbillon/Olympic), grupos de 5 |
+| V2.5 | Icono de app, fix macOS, CI/CD multiplataforma, colores pot ITTF, fix de duplicados en import |
 
 ---
 
-*ETTEM v2.2 - Easy Table Tennis Event Manager*
+*ETTEM v2.5 - Easy Table Tennis Event Manager*

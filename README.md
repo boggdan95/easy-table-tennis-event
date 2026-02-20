@@ -25,8 +25,17 @@ Python application for managing table tennis tournaments with round robin groups
 - Different formats for groups vs knockout
 - ITTF-compliant score validation
 
-### Windows Executable
-- Standalone `.exe` file (~39 MB)
+### Team Tournaments
+- Swaythling (5 singles), Corbillon (4 singles + 1 doubles), Olympic (1 doubles + 4 singles)
+- Team encounters with individual match tracking
+- Match order reference and duplicate prevention
+
+### Direct Knockout
+- Bracket-only tournaments without group stage
+- Automatic seeding from ranking points
+
+### Standalone Executable
+- Windows: `.exe` file (~45 MB) / macOS: `.dmg` with drag-to-Applications
 - No Python installation required
 - Double-click to launch web panel
 - Full CLI available via terminal
@@ -38,9 +47,9 @@ Python application for managing table tennis tournaments with round robin groups
 
 ## Quick Start
 
-### Option 1: Windows Executable (Recommended)
+### Option 1: Standalone Executable (Recommended)
 
-1. Download `ETTEM.exe`
+1. Download `ETTEM.exe` (Windows) or `ETTEM.dmg` (macOS)
 2. Double-click to open the web panel
 3. Browser opens automatically at `http://127.0.0.1:8000`
 
@@ -119,6 +128,8 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 ```
 
 **Note:** Players with `ranking_pts=0` are considered unranked and seeded by insertion order after ranked players.
+
+**Note:** Player IDs must be unique within each category. The same ID can exist in different categories (e.g., ID=1 in U15BS and ID=1 in U17BS are treated as separate players).
 
 ## Scoring Rules
 
@@ -295,6 +306,9 @@ easy-table-tennis-event/
 
 ## Version History
 
+- **V2.5** - ITTF pot colors for bracket seeding, macOS app icon, browser open fix, import duplicate detection scoped by category, CI/CD with GitHub Actions (Windows .exe + macOS .dmg)
+- **V2.4** - Direct knockout bracket (without group stage), team tournaments (Swaythling/Corbillon/Olympic), group size 5 with Berger table, GitHub Actions CI/CD
+- **V2.3** - Online license validation with machine-based activation, admin panel, license manager GUI
 - **V2.2** - Public display for TV/monitors, mobile referee scoreboard with QR codes, table locking system, live scoring API, point-by-point and result-per-set modes
 - **V2.1** - License system, i18n (ES/EN), dark theme, print center, bracket tree view, scheduler print, live results panel, Windows executable (PyInstaller)
 - **V2.0** - Scheduler system with table/time assignments, session management
@@ -309,13 +323,11 @@ Ver [ROADMAP.md](ROADMAP.md) para el plan detallado de desarrollo.
 
 | Versión | Enfoque |
 |---------|---------|
-| 2.2 | Pantalla pública + Marcador de árbitro (resultados en vivo) - **Actual** |
-| 2.3 | Reportes personalizables (logo, bandera, certificados) |
-| 2.4 | Portal público para jugadores (horarios desde el celular) |
-| 2.5 | Check-in de jugadores |
+| 2.6 | Reportes personalizables (logo, bandera, certificados) |
+| 2.7 | Portal público para jugadores (horarios desde el celular) |
+| 2.8 | Check-in de jugadores |
 | 3.0 | Notificaciones (WhatsApp/SMS) |
 | 3.1 | Inscripciones online |
-| 3.2 | Soporte para dobles |
 | 4.0 | Multi-usuario y cloud |
 
 ## License

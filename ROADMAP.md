@@ -1,7 +1,7 @@
 # ETTEM - Roadmap de Desarrollo
 
-> Última actualización: 2026-02-08
-> Versión actual: 2.3.0
+> Última actualización: 2026-02-20
+> Versión actual: 2.5.2
 
 ---
 
@@ -198,42 +198,96 @@ DESKTOP APP                    SERVIDOR (Bluehost)           ADMIN PANEL
 
 ---
 
-## V2.4 - Reportes Personalizables
+## V2.4 - KO Directo, Equipos y Grupo de 5 (Completada - 2026-02-18)
+
+**Objetivo:** Ampliar formatos de competencia más allá de singles con fase de grupos
+
+### 2.4.1 - KO Directo (Sin fase de grupos)
+- [x] Bracket directo sin necesidad de fase de grupos
+- [x] Importar jugadores e ir directamente a bracket eliminatorio
+- [x] Seeding automático basado en ranking
+
+### 2.4.2 - Torneos por Equipos
+- [x] Tres sistemas de match: Swaythling (5S), Corbillon (4S+1D), Olympic (1D+4S)
+- [x] Encuentro por equipos contiene partidos individuales (TeamMatchDetailORM)
+- [x] Prevención de duplicados en asignación de jugadores
+- [x] Homologación de resultados de equipo
+- [x] Referencia de orden de partidos en UI
+- [x] Sistema de match seleccionable al importar equipos
+
+### 2.4.3 - Grupos de 5 Jugadores
+- [x] Soporte para grupos de tamaño 5
+- [x] Orden de partidos usando tabla de Berger
+- [x] 10 partidos por grupo (todos contra todos)
+
+### 2.4.4 - CI/CD y Distribución
+- [x] GitHub Actions workflow para builds automáticos
+- [x] Windows (.exe) + macOS (.dmg) en paralelo
+- [x] Release automático con `softprops/action-gh-release@v2`
+- [x] DMG con layout drag-to-Applications (`create-dmg`)
+
+---
+
+## V2.5 - Mejoras de UI, macOS e ITTF (Completada - 2026-02-20)
+
+**Objetivo:** Pulir la experiencia visual y corregir bugs
+
+### 2.5.0 - macOS y UX
+- [x] Ícono de paleta de tenis de mesa para .app y .exe
+- [x] Fix de carga de app en macOS (rutas de recursos)
+- [x] Esperar servidor listo antes de abrir navegador
+
+### 2.5.1 - Bugfixes
+- [x] Fix scoring: validación de sets en formatos especiales
+- [x] Fix network: conectividad en red local
+- [x] Fix scheduler: asignación de partidos
+- [x] Fix UI: mejoras visuales varias
+- [x] Colores pot ITTF en bracket manual (Rojo, Magenta, Amarillo, Verde, Cyan)
+- [x] Leyenda dinámica de pots para brackets >= 64
+
+### 2.5.2 - Import Scope Fix
+- [x] Detección de duplicados por (original_id, categoría) en vez de solo original_id
+- [x] Fix en CSV import, manual import, pairs import y player edit
+- [x] Soporte para CSV multi-categoría sin falsos duplicados
+
+---
+
+## V2.6 - Reportes Personalizables
 
 **Objetivo:** Documentos profesionales con identidad del torneo
 
-### 2.4.1 - Configuración de Torneo/Evento
+### 2.6.1 - Configuración de Torneo/Evento
 - [ ] Subir logo del torneo (PNG/JPG)
 - [ ] Nombre oficial del evento
 - [ ] Fecha y sede
 - [ ] Organizador / Federación
 - [ ] Sponsors (logos secundarios)
 
-### 2.4.2 - Personalización de Reportes
+### 2.6.2 - Personalización de Reportes
 - [ ] Logo en encabezado de todos los documentos
 - [ ] Bandera del país junto a jugadores (usando pais_cd)
 - [ ] Colores personalizables (primario/secundario)
 - [ ] Pie de página con datos del evento
 
-### 2.4.3 - Documentos Mejorados
+### 2.6.3 - Documentos Mejorados
 - [ ] Hoja de partido con logo y datos del torneo
 - [ ] Hoja de grupo con encabezado profesional
 - [ ] Bracket con identidad visual
 - [ ] Acta oficial de resultados por categoría
 
-### 2.4.4 - Exportaciones
+### 2.6.4 - Exportaciones
 - [ ] CSV de todos los resultados
 - [ ] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
 - [ ] PDF de resumen del torneo
 
-### 2.4.5 - Certificados (Opcional)
+### 2.6.5 - Certificados (Opcional)
 - [ ] Template de diploma/certificado
 - [ ] Generación automática para top 3
 - [ ] Logo, firma, datos del evento
 
 ---
 
-## V2.5 - Portal Público para Jugadores
+## V2.7 - Portal Público para Jugadores
 
 **Objetivo:** Jugadores consultan horarios y resultados desde su celular (sin imprimir)
 
@@ -246,30 +300,30 @@ JUGADOR (su celular)              SERVIDOR
 └──────────────────┘              └──────────────────┘
 ```
 
-### 2.5.1 - Acceso al Portal
+### 2.7.1 - Acceso al Portal
 - [ ] Ruta pública: `/torneo` o `/public`
 - [ ] Código QR para compartir (imprimible, para pegar en entrada)
 - [ ] Sin login requerido
 - [ ] Funciona en red local o expuesto a internet
 
-### 2.5.2 - Vista General
+### 2.7.2 - Vista General
 - [ ] Lista de categorías del torneo
 - [ ] Estado de cada categoría (grupos, bracket, finalizado)
 - [ ] Resultados recientes
 - [ ] Próximos partidos (todas las mesas)
 
-### 2.5.3 - Búsqueda de Jugador
+### 2.7.3 - Búsqueda de Jugador
 - [ ] Buscar por nombre
 - [ ] Ver todos los partidos del jugador (pasados y próximos)
 - [ ] Mesa y hora del próximo partido
 - [ ] Resultados de sus partidos jugados
 
-### 2.5.4 - Vista por Categoría
+### 2.7.4 - Vista por Categoría
 - [ ] Grupos con resultados y standings
 - [ ] Bracket interactivo (zoom, scroll)
 - [ ] Horarios de la categoría
 
-### 2.5.5 - Diseño y UX (Prioridad Alta)
+### 2.7.5 - Diseño y UX (Prioridad Alta)
 
 **UI completamente diferente al admin - moderna y amigable:**
 
@@ -311,22 +365,22 @@ JUGADOR (su celular)              SERVIDOR
 
 ---
 
-## V2.6 - Check-in de Jugadores
+## V2.8 - Check-in de Jugadores
 
 **Objetivo:** Saber quién llegó y quién falta
 
-### 2.6.1 - Control de Asistencia
+### 2.8.1 - Control de Asistencia
 - [ ] Marcar jugador como "presente" (check-in)
 - [ ] Vista de jugadores pendientes por categoría
 - [ ] Hora de check-in registrada
 - [ ] Filtro: "Solo ausentes"
 
-### 2.6.2 - Alertas de Ausencia
+### 2.8.2 - Alertas de Ausencia
 - [ ] Advertencia al generar grupos si hay jugadores sin check-in
 - [ ] Opción de excluir automáticamente ausentes
 - [ ] Reporte de no-shows al final del torneo
 
-### 2.6.3 - QR Check-in (Opcional)
+### 2.8.3 - QR Check-in (Opcional)
 - [ ] Generar QR único por jugador
 - [ ] Escanear con celular del organizador
 - [ ] Auto check-in al escanear
@@ -378,21 +432,6 @@ JUGADOR (su celular)              SERVIDOR
 
 ---
 
-## V3.2 - Dobles
-
-**Objetivo:** Soportar torneos de dobles
-
-### 3.2.1 - Parejas
-- [ ] Crear pareja (2 jugadores)
-- [ ] Pareja como "unidad" en grupos y bracket
-- [ ] Seeding por suma de rankings
-
-### 3.2.2 - Mixtos
-- [ ] Validar género en parejas mixtas
-- [ ] Categorías: MD (Men's Doubles), WD (Women's Doubles), XD (Mixed)
-
----
-
 ## V4.0 - Multi-usuario y Cloud
 
 **Objetivo:** Varios organizadores trabajando simultáneamente
@@ -425,7 +464,6 @@ JUGADOR (su celular)              SERVIDOR
 
 Ideas para evaluar en el futuro:
 
-- **Torneos por equipos:** Ligas, formato por puntos
 - **Rankings:** Sistema de puntos acumulados entre torneos
 - **Streaming:** Integración con OBS para overlays
 - **App móvil nativa:** iOS/Android para árbitros
@@ -433,6 +471,7 @@ Ideas para evaluar en el futuro:
 - **Multi-idioma:** Portugués, inglés, francés
 - **Modo offline-first con sync:** Trabajar sin internet y sincronizar después
 - **Integración con federaciones:** Envío automático de resultados
+- **Dobles avanzado:** Soporte básico de parejas ya existe; falta categorías MD/WD/XD y validación de género en mixtos
 
 ---
 
@@ -443,12 +482,13 @@ Ideas para evaluar en el futuro:
 | 2.1.0 | MVP Comercial | Completada |
 | 2.2.0 | Pantalla Pública + Marcador Árbitro | Completada |
 | 2.3.0 | Validación Online de Licencias | Completada |
-| 2.4.0 | Reportes Personalizables | **Próxima** |
-| 2.5.0 | Portal Público para Jugadores | Planeada |
-| 2.6.0 | Check-in de Jugadores | Planeada |
+| 2.4.0 | KO Directo + Equipos + Grupo de 5 | Completada |
+| 2.5.2 | macOS, CI/CD, Colores Pot ITTF, Bugfixes | Completada |
+| 2.6.0 | Reportes Personalizables | **Próxima** |
+| 2.7.0 | Portal Público para Jugadores | Planeada |
+| 2.8.0 | Check-in de Jugadores | Planeada |
 | 3.0.0 | Notificaciones (WhatsApp/SMS) | Futura |
 | 3.1.0 | Inscripciones Online | Futura |
-| 3.2.0 | Dobles | Futura |
 | 4.0.0 | Multi-usuario y Cloud | Futura |
 
 ---

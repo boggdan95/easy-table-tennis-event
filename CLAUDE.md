@@ -22,7 +22,7 @@ Aplicación Python para gestionar torneos de tenis de mesa:
 - **Limpiar cache Playwright si hay problemas**: `rm -rf ~/Library/Caches/ms-playwright/mcp-chromium-*`
 - Después de cada cambio significativo, levantar el servidor y validar en browser
 
-## Estado Actual: V2.1.0 - Release Comercial
+## Estado Actual: V2.5.2
 
 ### ✅ Funcionalidades Completas
 
@@ -160,7 +160,7 @@ python build.py --clean
 ### CSV de Jugadores
 
 Columnas requeridas:
-- `id` - Identificador único
+- `id` - Identificador único (por categoría, no global)
 - `nombre` - Nombre
 - `apellido` - Apellido
 - `genero` - M o F
@@ -178,9 +178,11 @@ id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
 
 ### Roadmap Futuro
 
-- **V3.0:** Roles de usuario, multi-tenant, API REST
-- **V3.1:** App móvil para árbitros
-- **V4.0:** Torneos en la nube, rankings federativos
+- **V2.6:** Reportes personalizables (logo, bandera, certificados)
+- **V2.7:** Portal público para jugadores
+- **V2.8:** Check-in de jugadores
+- **V3.0:** Notificaciones (WhatsApp/SMS)
+- **V4.0:** Multi-usuario y cloud
 
 ## Workflow de Git
 
