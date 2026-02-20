@@ -2742,22 +2742,26 @@ async def admin_import_players_csv(
             current_tournament = tournament_repo.get_current()
             tournament_id = current_tournament.id if current_tournament else None
 
-            # Build set of existing original_ids to detect duplicates
+            # Build dict of existing original_ids per category to detect duplicates
             existing_players = player_repo.get_all(tournament_id=tournament_id)
-            existing_ids = {p.original_id for p in existing_players if p.original_id is not None}
+            existing_ids_by_cat = {}
+            for p in existing_players:
+                if p.original_id is not None:
+                    existing_ids_by_cat.setdefault(p.categoria, set()).add(p.original_id)
 
             imported_count = 0
             skipped_count = 0
             for player in players:
-                # Skip duplicates by original_id
-                if player.original_id is not None and player.original_id in existing_ids:
+                # Skip duplicates by (original_id, categoria)
+                cat_ids = existing_ids_by_cat.get(player.categoria, set())
+                if player.original_id is not None and player.original_id in cat_ids:
                     skipped_count += 1
                     continue
                 try:
                     player_repo.create(player, tournament_id=tournament_id)
                     imported_count += 1
                     if player.original_id is not None:
-                        existing_ids.add(player.original_id)
+                        existing_ids_by_cat.setdefault(player.categoria, set()).add(player.original_id)
                 except Exception as e:
                     print(f"[ERROR] Error saving player {player.full_name}: {e}")
 
@@ -2833,11 +2837,11 @@ async def admin_import_players_manual(
         current_tournament = tournament_repo.get_current()
         tournament_id = current_tournament.id if current_tournament else None
 
-        # Check for duplicate original_id in ALL players of current tournament (not just category)
+        # Check for duplicate original_id within the SAME category
         all_players = player_repo.get_all(tournament_id=tournament_id)
         for p in all_players:
-            if p.original_id is not None and p.original_id == original_id:
-                request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} ({p.nombre} {p.apellido} en {p.categoria})"
+            if p.original_id is not None and p.original_id == original_id and p.categoria == categoria_upper:
+                request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} en {categoria_upper} ({p.nombre} {p.apellido})"
                 request.session["flash_type"] = "error"
                 return RedirectResponse(url="/admin/import-players", status_code=303)
 
@@ -2907,6 +2911,18 @@ async def admin_edit_player(
         # Track if category changed
         old_category = player.categoria
         new_category = categoria.strip().upper()
+
+        # Check for duplicate original_id within the same category (excluding self)
+        if original_id:
+            tournament_repo = TournamentRepository(session)
+            current_tournament = tournament_repo.get_current()
+            tid = current_tournament.id if current_tournament else None
+            all_players = player_repo.get_all(tournament_id=tid)
+            for p in all_players:
+                if p.id != player_id and p.original_id == original_id and p.categoria == new_category:
+                    request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} en {new_category} ({p.nombre} {p.apellido})"
+                    request.session["flash_type"] = "error"
+                    return RedirectResponse(url="/admin/import-players", status_code=303)
 
         # Update player
         player.nombre = nombre.strip()
@@ -3185,16 +3201,28 @@ async def admin_import_pairs_csv(
                     errors.append(f"Row {row_num}: {categoria} is not a doubles category")
                     continue
 
-                # Find players by original_id
-                p1 = next((p for p in all_players if p.original_id == p1_orig_id), None)
-                p2 = next((p for p in all_players if p.original_id == p2_orig_id), None)
+                # Find players by original_id (warn if ambiguous across categories)
+                p1_matches = [p for p in all_players if p.original_id == p1_orig_id]
+                p2_matches = [p for p in all_players if p.original_id == p2_orig_id]
 
-                if not p1:
+                if not p1_matches:
                     errors.append(f"Row {row_num}: player1_id {p1_orig_id} not found")
                     continue
-                if not p2:
+                if not p2_matches:
                     errors.append(f"Row {row_num}: player2_id {p2_orig_id} not found")
                     continue
+
+                if len(p1_matches) > 1:
+                    cats = ", ".join(p.categoria for p in p1_matches)
+                    errors.append(f"Row {row_num}: player1_id {p1_orig_id} is ambiguous (exists in: {cats})")
+                    continue
+                if len(p2_matches) > 1:
+                    cats = ", ".join(p.categoria for p in p2_matches)
+                    errors.append(f"Row {row_num}: player2_id {p2_orig_id} is ambiguous (exists in: {cats})")
+                    continue
+
+                p1 = p1_matches[0]
+                p2 = p2_matches[0]
 
                 # Skip if pair already exists (either order)
                 if (p1.id, p2.id) in existing_pair_keys or (p2.id, p1.id) in existing_pair_keys:
