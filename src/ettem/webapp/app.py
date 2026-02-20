@@ -2912,6 +2912,18 @@ async def admin_edit_player(
         old_category = player.categoria
         new_category = categoria.strip().upper()
 
+        # Check for duplicate original_id within the same category (excluding self)
+        if original_id:
+            tournament_repo = TournamentRepository(session)
+            current_tournament = tournament_repo.get_current()
+            tid = current_tournament.id if current_tournament else None
+            all_players = player_repo.get_all(tournament_id=tid)
+            for p in all_players:
+                if p.id != player_id and p.original_id == original_id and p.categoria == new_category:
+                    request.session["flash_message"] = f"Ya existe un jugador con ID {original_id} en {new_category} ({p.nombre} {p.apellido})"
+                    request.session["flash_type"] = "error"
+                    return RedirectResponse(url="/admin/import-players", status_code=303)
+
         # Update player
         player.nombre = nombre.strip()
         player.apellido = apellido.strip()
@@ -3189,16 +3201,28 @@ async def admin_import_pairs_csv(
                     errors.append(f"Row {row_num}: {categoria} is not a doubles category")
                     continue
 
-                # Find players by original_id
-                p1 = next((p for p in all_players if p.original_id == p1_orig_id), None)
-                p2 = next((p for p in all_players if p.original_id == p2_orig_id), None)
+                # Find players by original_id (warn if ambiguous across categories)
+                p1_matches = [p for p in all_players if p.original_id == p1_orig_id]
+                p2_matches = [p for p in all_players if p.original_id == p2_orig_id]
 
-                if not p1:
+                if not p1_matches:
                     errors.append(f"Row {row_num}: player1_id {p1_orig_id} not found")
                     continue
-                if not p2:
+                if not p2_matches:
                     errors.append(f"Row {row_num}: player2_id {p2_orig_id} not found")
                     continue
+
+                if len(p1_matches) > 1:
+                    cats = ", ".join(p.categoria for p in p1_matches)
+                    errors.append(f"Row {row_num}: player1_id {p1_orig_id} is ambiguous (exists in: {cats})")
+                    continue
+                if len(p2_matches) > 1:
+                    cats = ", ".join(p.categoria for p in p2_matches)
+                    errors.append(f"Row {row_num}: player2_id {p2_orig_id} is ambiguous (exists in: {cats})")
+                    continue
+
+                p1 = p1_matches[0]
+                p2 = p2_matches[0]
 
                 # Skip if pair already exists (either order)
                 if (p1.id, p2.id) in existing_pair_keys or (p2.id, p1.id) in existing_pair_keys:
