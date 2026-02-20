@@ -1,0 +1,23 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "ettem",
+      "bump-minor-pre-major": true,
+      "extra-files": [
+        "pyproject.toml"
+      ],
+      "changelog-sections": [
+        { "type": "feat", "section": "Nuevas Funcionalidades" },
+        { "type": "fix", "section": "Correcciones" },
+        { "type": "perf", "section": "Rendimiento" },
+        { "type": "docs", "section": "Documentación" },
+        { "type": "chore", "section": "Mantenimiento", "hidden": true },
+        { "type": "ci", "section": "CI/CD", "hidden": true },
+        { "type": "test", "section": "Tests", "hidden": true },
+        { "type": "refactor", "section": "Refactoring", "hidden": true }
+      ]
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
