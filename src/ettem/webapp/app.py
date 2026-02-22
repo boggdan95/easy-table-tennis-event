@@ -5735,9 +5735,11 @@ async def admin_generate_bracket_form(request: Request):
         if bracket_slots:
             # Count non-BYE players
             players_count = sum(1 for slot in bracket_slots if not slot.is_bye and slot.player_id)
-            # Get bracket size from R1 (first round)
-            r1_slots = [s for s in bracket_slots if s.round_type == "R1"]
-            size = len(r1_slots) if r1_slots else 0
+            # Get bracket size from the first round (the one with the most slots)
+            round_counts = {}
+            for s in bracket_slots:
+                round_counts[s.round_type] = round_counts.get(s.round_type, 0) + 1
+            size = max(round_counts.values()) if round_counts else 0
 
             # Check if bracket is completed (final match has winner)
             final_matches = [

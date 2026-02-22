@@ -6,8 +6,12 @@
 {% block page_title %}{{ t('nav.bracket') }} - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}/bracket" class="btn btn-secondary btn-sm">
+<a href="/admin/generate-bracket" class="btn btn-secondary btn-sm">
     <span>←</span>
+    <span>Brackets</span>
+</a>
+<a href="/category/{{ category }}/bracket" class="btn btn-outline btn-sm">
+    <span>🗂️</span>
     <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
 {% if has_groups %}
