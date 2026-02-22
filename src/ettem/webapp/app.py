@@ -27,6 +27,9 @@ from ettem.storage import (
     TournamentRepository,
     migrate_v24_doubles,
     migrate_v25_teams,
+    migrate_v26_branding,
+    TournamentBrandingORM,
+    TournamentBrandingRepository,
     TeamRepository,
     TeamMatchDetailRepository,
     TeamORM,
@@ -39,7 +42,7 @@ from ettem.i18n import load_strings, get_language_from_env, clear_cache as clear
 # Clear i18n cache on app reload to pick up translation changes
 clear_i18n_cache()
 from ettem import pdf_generator
-from ettem.paths import get_templates_dir, get_static_dir
+from ettem.paths import get_templates_dir, get_static_dir, get_data_dir
 from ettem.licensing import get_current_license, get_current_license_with_online, validate_license_key, save_license, load_license, clear_license, LicenseInfo
 
 # Initialize FastAPI app
@@ -420,6 +423,7 @@ migrate_matches_add_best_of()  # Add best_of format to matches
 migrate_scheduler_tables()  # Must run before bracket_slots migration since it adds columns to tournaments
 migrate_v24_doubles(db_manager.engine)  # Add doubles support (pairs table + nullable columns)
 migrate_v25_teams(db_manager.engine)  # Add teams support (teams + team_match_details tables)
+migrate_v26_branding(db_manager.engine)  # Add tournament branding table
 migrate_bracket_slots_add_tournament_id()
 migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
@@ -509,6 +513,17 @@ def render_template(template_name: str, context: Dict[str, Any]) -> HTMLResponse
         # Add license info to context for display in UI
         _, license_info, _ = get_current_license()
         context["license_info"] = license_info
+
+        # Add country colors from branding for badge display
+        if tournament_id:
+            try:
+                branding_repo = TournamentBrandingRepository(session)
+                branding = branding_repo.get_by_tournament(tournament_id)
+                context["country_colors"] = branding.country_colors if branding else {}
+            except Exception:
+                context["country_colors"] = {}
+        else:
+            context["country_colors"] = {}
 
         print(f"[DEBUG] Categories loaded for tournament {tournament_id}: {categories}")
     except Exception as e:
@@ -7740,6 +7755,39 @@ def get_tournament_name() -> str:
         return "Torneo de Tenis de Mesa"
 
 
+def get_branding_data() -> dict:
+    """Get branding data for print templates and previews."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return {}
+
+        branding_repo = TournamentBrandingRepository(session)
+        branding = branding_repo.get_by_tournament(tournament.id)
+        if not branding:
+            return {}
+
+        result = {
+            "official_name": branding.official_name or "",
+            "organizer": branding.organizer or "",
+            "federation": branding.federation or "",
+            "venue": branding.venue or "",
+            "print_footer": branding.print_footer or "",
+            "country_colors": branding.country_colors or {},
+        }
+
+        # Logo paths
+        if branding.logo_filename:
+            data_dir = get_data_dir()
+            logo_path = data_dir / "uploads" / branding.logo_filename
+            if logo_path.exists():
+                result["logo_file_path"] = str(logo_path)  # For xhtml2pdf (file://)
+                result["logo_url"] = f"/uploads/{branding.logo_filename}"  # For browser
+
+        return result
+
+
 @app.get("/print/match/{match_id}")
 async def print_match_sheet(match_id: int):
     """Generate PDF for a single match sheet."""
@@ -7808,6 +7856,7 @@ async def print_match_sheet(match_id: int):
                 tournament_name=get_tournament_name(),
                 category=player1.categoria,
                 round_number=round_number,
+                branding=get_branding_data(),
             )
 
             filename = f"partido_{match_id}.pdf"
@@ -7998,6 +8047,7 @@ async def print_group_sheet(group_id: int):
                 results_matrix=results_matrix,
                 tournament_name=get_tournament_name(),
                 category=group.category,
+                branding=get_branding_data(),
             )
 
             filename = f"grupo_{group.name.replace(' ', '_')}.pdf"
@@ -8076,6 +8126,7 @@ async def print_group_matches(group_id: int):
                 tournament_name=get_tournament_name(),
                 category=group.category,
                 group_name=f"Grupo {group.name}",
+                branding=get_branding_data(),
             )
 
             filename = f"partidos_grupo_{group.name.replace(' ', '_')}.pdf"
@@ -8159,6 +8210,7 @@ async def print_all_group_match_sheets(group_id: int):
                 tournament_name=get_tournament_name(),
                 category=group.category,
                 is_doubles=_is_doubles,
+                branding=get_branding_data(),
             )
 
             filename = f"hojas_partido_{group.name.replace(' ', '_')}.pdf"
@@ -8245,6 +8297,7 @@ async def print_all_category_match_sheets(category: str):
                 matches_data=matches_data,
                 tournament_name=get_tournament_name(),
                 category=category,
+                branding=get_branding_data(),
             )
 
             filename = f"hojas_partido_{category}.pdf"
@@ -8574,6 +8627,469 @@ async def export_standings_csv(category: str):
             media_type="text/csv; charset=utf-8",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
+
+
+@app.get("/admin/export/tournament-excel")
+async def export_tournament_excel():
+    """Export full tournament data as Excel workbook."""
+    import json as json_mod
+    from ettem.exports import generate_tournament_excel
+    from ettem.models import RoundType
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+        standing_repo = StandingRepository(session)
+        bracket_repo = BracketRepository(session)
+        pair_repo = PairRepository(session)
+        team_repo = TeamRepository(session)
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return Response(content="No hay torneo activo", status_code=404)
+
+        tournament_id = tournament.id
+
+        # --- Players ---
+        all_players = player_repo.get_all(tournament_id=tournament_id)
+        players_data = []
+        for p in all_players:
+            group_name = ""
+            if p.group_id:
+                g = group_repo.get_by_id(p.group_id)
+                group_name = g.name if g else ""
+            players_data.append({
+                "nombre": p.nombre,
+                "apellido": p.apellido,
+                "pais_cd": p.pais_cd or "",
+                "categoria": p.categoria or "",
+                "ranking_pts": p.ranking_pts or 0,
+                "group_name": group_name,
+                "group_number": p.group_number or "",
+            })
+
+        # --- Groups ---
+        all_groups = group_repo.get_all(tournament_id=tournament_id)
+        groups_data = []
+        for g in all_groups:
+            num_in_group = sum(1 for p in all_players if p.group_id == g.id)
+            groups_data.append({
+                "category": g.category or "",
+                "name": g.name,
+                "num_players": num_in_group,
+            })
+
+        # --- Group Matches ---
+        all_matches = match_repo.get_all()
+        group_matches_data = []
+        for m in all_matches:
+            if m.group_id and m.tournament_id == tournament_id:
+                group = group_repo.get_by_id(m.group_id)
+                p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+                p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+                winner = player_repo.get_by_id(m.winner_id) if m.winner_id else None
+                sets_result = "-"
+                if m.sets_json:
+                    sets = json_mod.loads(m.sets_json)
+                    if sets:
+                        p1s = sum(1 for s in sets if s.get("player1_points", 0) > s.get("player2_points", 0))
+                        p2s = sum(1 for s in sets if s.get("player2_points", 0) > s.get("player1_points", 0))
+                        sets_result = f"{p1s}-{p2s}"
+                group_matches_data.append({
+                    "category": group.category if group else "",
+                    "group_name": group.name if group else "",
+                    "match_order": m.match_number or "",
+                    "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "winner_name": f"{winner.nombre} {winner.apellido}" if winner else "-",
+                    "sets_result": sets_result,
+                    "status": m.status or "",
+                })
+
+        # --- Standings ---
+        standings_data = []
+        for g in all_groups:
+            standings = standing_repo.get_by_group(g.id)
+            for s in standings:
+                player = player_repo.get_by_id(s.player_id)
+                standings_data.append({
+                    "category": g.category or "",
+                    "group_name": g.name,
+                    "position": s.position,
+                    "player_name": f"{player.nombre} {player.apellido}" if player else "-",
+                    "pais_cd": player.pais_cd if player else "",
+                    "points_total": s.points_total,
+                    "wins": s.wins,
+                    "losses": s.losses,
+                    "sets_w": s.sets_w,
+                    "sets_l": s.sets_l,
+                    "points_w": s.points_w,
+                    "points_l": s.points_l,
+                })
+
+        # --- Bracket Matches ---
+        round_names = {
+            "R128": "Ronda de 128", "R64": "Ronda de 64", "R32": "Ronda de 32",
+            "R16": "Octavos de Final", "QF": "Cuartos de Final",
+            "SF": "Semifinal", "F": "Final",
+        }
+        round_order = {"R128": 0, "R64": 1, "R32": 2, "R16": 3, "QF": 4, "SF": 5, "F": 6}
+        bracket_matches_data = []
+        for m in all_matches:
+            if m.group_id is None and m.tournament_id == tournament_id and m.category:
+                p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+                p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+                winner = player_repo.get_by_id(m.winner_id) if m.winner_id else None
+                sets_result = "-"
+                if m.sets_json:
+                    sets = json_mod.loads(m.sets_json)
+                    if sets:
+                        p1s = sum(1 for s in sets if s.get("player1_points", 0) > s.get("player2_points", 0))
+                        p2s = sum(1 for s in sets if s.get("player2_points", 0) > s.get("player1_points", 0))
+                        sets_result = f"{p1s}-{p2s}"
+                bracket_matches_data.append({
+                    "category": m.category,
+                    "round_name": round_names.get(m.round_type, m.round_type or ""),
+                    "round_order": round_order.get(m.round_type, 99),
+                    "match_order": m.match_number or "",
+                    "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "winner_name": f"{winner.nombre} {winner.apellido}" if winner else "-",
+                    "sets_result": sets_result,
+                    "status": m.status or "",
+                })
+        bracket_matches_data.sort(key=lambda x: (x["category"], x["round_order"], x["match_order"]))
+
+        # --- Final Positions (from bracket results) ---
+        final_positions_data = []
+        bracket_slots = bracket_repo.get_all(tournament_id=tournament_id)
+        categories_with_bracket = set(s.category for s in bracket_slots if s.category)
+        for category in sorted(categories_with_bracket):
+            # Find final match
+            cat_bracket = [m for m in all_matches if m.group_id is None and m.category == category and m.tournament_id == tournament_id]
+            final_match = None
+            for m in cat_bracket:
+                if m.round_type == "F":
+                    final_match = m
+                    break
+            if final_match and final_match.winner_id:
+                winner = player_repo.get_by_id(final_match.winner_id)
+                loser_id = final_match.player1_id if final_match.winner_id == final_match.player2_id else final_match.player2_id
+                loser = player_repo.get_by_id(loser_id) if loser_id else None
+                if winner:
+                    final_positions_data.append({
+                        "category": category,
+                        "position": 1,
+                        "player_name": f"{winner.nombre} {winner.apellido}",
+                        "pais_cd": winner.pais_cd or "",
+                    })
+                if loser:
+                    final_positions_data.append({
+                        "category": category,
+                        "position": 2,
+                        "player_name": f"{loser.nombre} {loser.apellido}",
+                        "pais_cd": loser.pais_cd or "",
+                    })
+                # 3rd place: semifinal losers
+                semis = [m for m in cat_bracket if m.round_type == "SF" and m.winner_id]
+                for sm in semis:
+                    sf_loser_id = sm.player1_id if sm.winner_id == sm.player2_id else sm.player2_id
+                    sf_loser = player_repo.get_by_id(sf_loser_id) if sf_loser_id else None
+                    if sf_loser:
+                        final_positions_data.append({
+                            "category": category,
+                            "position": 3,
+                            "player_name": f"{sf_loser.nombre} {sf_loser.apellido}",
+                            "pais_cd": sf_loser.pais_cd or "",
+                        })
+
+        branding = get_branding_data()
+
+        excel_bytes = generate_tournament_excel(
+            tournament_name=tournament.name,
+            players=players_data,
+            groups=groups_data,
+            group_matches=group_matches_data,
+            standings=standings_data,
+            bracket_matches=bracket_matches_data,
+            final_positions=final_positions_data,
+            branding=branding if branding else None,
+        )
+
+        safe_name = tournament.name.replace(" ", "_")[:30]
+        filename = f"torneo_{safe_name}.xlsx"
+
+        return Response(
+            content=excel_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
+@app.get("/admin/export/results-csv")
+async def export_results_csv():
+    """Export all results (groups + bracket) as a single CSV."""
+    import json as json_mod
+    from ettem.exports import generate_results_csv
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        player_repo = PlayerRepository(session)
+        group_repo = GroupRepository(session)
+        match_repo = MatchRepository(session)
+
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return Response(content="No hay torneo activo", status_code=404)
+
+        tournament_id = tournament.id
+        all_matches = match_repo.get_all()
+
+        round_names = {
+            "R128": "Ronda de 128", "R64": "Ronda de 64", "R32": "Ronda de 32",
+            "R16": "Octavos de Final", "QF": "Cuartos de Final",
+            "SF": "Semifinal", "F": "Final",
+        }
+
+        group_matches_data = []
+        bracket_matches_data = []
+
+        for m in all_matches:
+            if m.tournament_id != tournament_id:
+                continue
+
+            p1 = player_repo.get_by_id(m.player1_id) if m.player1_id else None
+            p2 = player_repo.get_by_id(m.player2_id) if m.player2_id else None
+            winner = player_repo.get_by_id(m.winner_id) if m.winner_id else None
+            sets_result = "-"
+            if m.sets_json:
+                sets = json_mod.loads(m.sets_json)
+                if sets:
+                    p1s = sum(1 for s in sets if s.get("player1_points", 0) > s.get("player2_points", 0))
+                    p2s = sum(1 for s in sets if s.get("player2_points", 0) > s.get("player1_points", 0))
+                    sets_result = f"{p1s}-{p2s}"
+
+            if m.group_id:
+                group = group_repo.get_by_id(m.group_id)
+                group_matches_data.append({
+                    "category": group.category if group else "",
+                    "group_name": group.name if group else "",
+                    "match_order": m.match_number or "",
+                    "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "winner_name": f"{winner.nombre} {winner.apellido}" if winner else "-",
+                    "sets_result": sets_result,
+                    "status": m.status or "",
+                })
+            elif m.category:
+                bracket_matches_data.append({
+                    "category": m.category,
+                    "round_name": round_names.get(m.round_type, m.round_type or ""),
+                    "match_order": m.match_number or "",
+                    "player1_name": f"{p1.nombre} {p1.apellido}" if p1 else "TBD",
+                    "player2_name": f"{p2.nombre} {p2.apellido}" if p2 else "TBD",
+                    "winner_name": f"{winner.nombre} {winner.apellido}" if winner else "-",
+                    "sets_result": sets_result,
+                    "status": m.status or "",
+                })
+
+        csv_bytes = generate_results_csv(group_matches_data, bracket_matches_data)
+
+        safe_name = tournament.name.replace(" ", "_")[:30]
+        filename = f"resultados_{safe_name}.csv"
+
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
+def _get_podium_for_category(category: str, tournament_id: int, session) -> list:
+    """Get podium finishers (positions 1-3) for a category. Returns list of dicts."""
+    match_repo = MatchRepository(session)
+    player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
+    bracket_repo = BracketRepository(session)
+    from ettem.models import is_doubles_category, is_teams_category
+    from ettem.webapp.helpers import get_competitor_display
+
+    _is_doubles = is_doubles_category(category)
+    _is_teams = is_teams_category(category)
+
+    all_matches = match_repo.get_all()
+    cat_bracket = [m for m in all_matches if m.group_id is None and m.category == category and m.tournament_id == tournament_id]
+
+    # Find final match
+    final_match = None
+    for m in cat_bracket:
+        if m.round_type == "F":
+            final_match = m
+            break
+
+    if not final_match or not final_match.winner_id:
+        return []
+
+    results = []
+
+    def _get_name(player_id):
+        if not player_id:
+            return "TBD", ""
+        if _is_doubles:
+            pair = pair_repo.get_by_id(player_id)
+            if pair:
+                p1 = player_repo.get_by_id(pair.player1_id)
+                p2 = player_repo.get_by_id(pair.player2_id)
+                name = f"{p1.nombre} {p1.apellido} / {p2.nombre} {p2.apellido}" if p1 and p2 else "TBD"
+                pais = p1.pais_cd if p1 else ""
+                return name, pais
+        elif _is_teams:
+            team = team_repo.get_by_id(player_id)
+            if team:
+                return team.name, team.country_code or ""
+        player = player_repo.get_by_id(player_id)
+        if player:
+            return f"{player.nombre} {player.apellido}", player.pais_cd or ""
+        return "TBD", ""
+
+    # 1st place
+    name, pais = _get_name(final_match.winner_id)
+    results.append({"player_name": name, "pais_cd": pais, "position": 1, "category": category})
+
+    # 2nd place
+    loser_id = final_match.player1_id if final_match.winner_id == final_match.player2_id else final_match.player2_id
+    name, pais = _get_name(loser_id)
+    results.append({"player_name": name, "pais_cd": pais, "position": 2, "category": category})
+
+    # 3rd place (semifinal losers)
+    semis = [m for m in cat_bracket if m.round_type == "SF" and m.winner_id]
+    for sm in semis:
+        sf_loser_id = sm.player1_id if sm.winner_id == sm.player2_id else sm.player2_id
+        name, pais = _get_name(sf_loser_id)
+        results.append({"player_name": name, "pais_cd": pais, "position": 3, "category": category})
+
+    return results
+
+
+@app.get("/admin/certificates/all")
+async def generate_all_certificates():
+    """Generate certificate PDFs for all categories with champions."""
+    from ettem.pdf_generator import generate_certificate_pdf
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        bracket_repo = BracketRepository(session)
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return Response(content="No hay torneo activo", status_code=404)
+
+        bracket_slots = bracket_repo.get_all(tournament_id=tournament.id)
+        categories = sorted(set(s.category for s in bracket_slots if s.category))
+
+        all_certificates = []
+        for cat in categories:
+            certs = _get_podium_for_category(cat, tournament.id, session)
+            all_certificates.extend(certs)
+
+        if not all_certificates:
+            return RedirectResponse(
+                url="/admin/print-center?error=No+hay+campeones+definidos+aún",
+                status_code=303,
+            )
+
+        branding = get_branding_data()
+        try:
+            pdf_bytes = generate_certificate_pdf(
+                certificates=all_certificates,
+                tournament_name=tournament.name,
+                branding=branding if branding else None,
+            )
+        except ImportError:
+            return RedirectResponse(
+                url="/admin/print-center?error=PDF+no+disponible.+Use+Imprimir+desde+la+vista+previa.",
+                status_code=303,
+            )
+
+        filename = "diplomas_todos.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
+@app.get("/admin/certificates/{category}")
+async def generate_certificates_for_category(category: str):
+    """Generate certificate PDFs for podium finishers of a category."""
+    from ettem.pdf_generator import generate_certificate_pdf
+
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return Response(content="No hay torneo activo", status_code=404)
+
+        certificates = _get_podium_for_category(category, tournament.id, session)
+        if not certificates:
+            return RedirectResponse(
+                url=f"/category/{category}/results?error=No+hay+campeón+definido+aún",
+                status_code=303,
+            )
+
+        branding = get_branding_data()
+        try:
+            pdf_bytes = generate_certificate_pdf(
+                certificates=certificates,
+                tournament_name=tournament.name,
+                branding=branding if branding else None,
+            )
+        except ImportError:
+            return RedirectResponse(
+                url=f"/preview/certificate/{category}/1?error=PDF+no+disponible.+Use+Imprimir+desde+la+vista+previa.",
+                status_code=303,
+            )
+
+        filename = f"diplomas_{category}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+
+@app.get("/preview/certificate/{category}/{position}", response_class=HTMLResponse)
+async def preview_certificate(request: Request, category: str, position: int):
+    """Preview a certificate for a specific position in a category."""
+    with get_db_session() as session:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+        if not tournament:
+            return RedirectResponse(url="/", status_code=303)
+
+        podium = _get_podium_for_category(category, tournament.id, session)
+        cert = None
+        for c in podium:
+            if c["position"] == position:
+                cert = c
+                break
+
+        if not cert:
+            return RedirectResponse(
+                url=f"/category/{category}/results?error=Posición+no+disponible",
+                status_code=303,
+            )
+
+        branding = get_branding_data()
+        return render_template("print/preview_certificate.html", {
+            "request": request,
+            "certificates": [cert],
+            "tournament_name": tournament.name,
+            "category": category,
+            "branding": branding,
+        })
 
 
 @app.get("/admin/print-center", response_class=HTMLResponse)
@@ -8927,6 +9443,7 @@ async def preview_group_sheet(request: Request, group_id: int):
             "players": players,
             "matches": matches,
             "results_matrix": results_matrix,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_group_sheet.html", context)
@@ -9120,6 +9637,7 @@ async def preview_all_group_sheets(request: Request, category: str):
             "tournament_name": get_tournament_name(),
             "category": category,
             "groups": groups_data,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_all_group_sheets.html", context)
@@ -9194,6 +9712,7 @@ async def preview_group_matches(request: Request, group_id: int):
             "category": group.category,
             "group_name": f"Grupo {group.name}",
             "matches": matches,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_list.html", context)
@@ -9279,6 +9798,7 @@ async def preview_all_group_match_sheets(request: Request, group_id: int):
             "category": group.category,
             "matches_pairs": matches_pairs,
             "is_doubles": _is_doubles,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_sheets.html", context)
@@ -9367,6 +9887,7 @@ async def preview_all_category_match_sheets(request: Request, category: str):
             "tournament_name": get_tournament_name(),
             "category": category,
             "matches_pairs": matches_pairs,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_sheets.html", context)
@@ -9448,6 +9969,7 @@ async def preview_bracket_match_sheet(request: Request, match_id: int):
             "category": category,
             "matches_pairs": matches_pairs,
             "is_doubles": _is_doubles,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_sheets.html", context)
@@ -9532,6 +10054,7 @@ async def preview_bracket_all_match_sheets(request: Request, category: str):
             "category": category,
             "matches_pairs": matches_pairs,
             "is_doubles": _is_doubles,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_sheets.html", context)
@@ -9606,6 +10129,7 @@ async def print_bracket_match_sheet(match_id: int):
                 tournament_name=get_tournament_name(),
                 category=category,
                 is_doubles=_is_doubles,
+                branding=get_branding_data(),
             )
 
             filename = f"partido_bracket_{match_orm.round_type}_{match_id}.pdf"
@@ -9720,6 +10244,7 @@ async def print_bracket_selected_matches(
             "back_url": "/admin/print-center",
             "preview_title": f"Hojas de Partido - Bracket {category}",
             "is_doubles": _is_doubles,
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_match_sheets.html", context)
@@ -9796,6 +10321,7 @@ async def print_bracket_all_match_sheets(category: str):
                 tournament_name=get_tournament_name(),
                 category=category,
                 is_doubles=_is_doubles,
+                branding=get_branding_data(),
             )
 
             filename = f"partidos_bracket_{category}.pdf"
@@ -9976,6 +10502,7 @@ async def preview_bracket_tree(request: Request, category: str):
             "is_doubles": _is_doubles,
             "schedule_info": schedule_info,
             "generation_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "branding": get_branding_data(),
         }
 
         return render_template("print/preview_bracket_tree.html", context)
@@ -10148,6 +10675,7 @@ async def print_bracket_tree(category: str):
         }
 
         try:
+            context["branding"] = get_branding_data()
             pdf_bytes = pdf_generator.generate_bracket_tree_pdf(context)
             filename = f"llave_{category}.pdf"
             return Response(
@@ -10802,6 +11330,7 @@ async def print_scheduler_grid_pdf(session_id: int):
         }
 
         try:
+            context["branding"] = get_branding_data()
             pdf_bytes = pdf_generator.generate_scheduler_pdf(context)
             filename = f"programacion_{session_obj.name.replace(' ', '_')}.pdf"
             return Response(
@@ -12209,6 +12738,195 @@ async def api_get_live_scores():
             })
 
         return {"scores": result}
+
+
+# ============================================================================
+# Tournament Branding / Settings Routes (V2.6)
+# ============================================================================
+
+
+@app.get("/admin/tournament-settings", response_class=HTMLResponse)
+async def admin_tournament_settings(request: Request):
+    """Tournament branding and customization page."""
+    session = get_db_session()
+    try:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            request.session["flash_message"] = "No hay torneo activo"
+            request.session["flash_type"] = "warning"
+            return RedirectResponse(url="/tournaments", status_code=303)
+
+        branding_repo = TournamentBrandingRepository(session)
+        branding = branding_repo.get_or_create(tournament.id)
+
+        # Get unique country/club codes from players
+        player_repo = PlayerRepository(session)
+        players = player_repo.get_all(tournament_id=tournament.id)
+        unique_codes = sorted(set(p.pais_cd for p in players if p.pais_cd))
+
+        # Build color map with defaults for missing codes
+        country_colors = branding.country_colors
+        color_data = []
+        for code in unique_codes:
+            color_data.append({
+                "code": code,
+                "color": country_colors.get(code, ""),
+            })
+
+        return render_template("admin_tournament_settings.html", {
+            "request": request,
+            "tournament": tournament,
+            "branding": branding,
+            "color_data": color_data,
+        })
+    finally:
+        session.close()
+
+
+@app.post("/admin/tournament-settings", response_class=HTMLResponse)
+async def admin_tournament_settings_save(
+    request: Request,
+    official_name: str = Form(""),
+    organizer: str = Form(""),
+    federation: str = Form(""),
+    venue: str = Form(""),
+    print_footer: str = Form(""),
+    logo: UploadFile = File(None),
+):
+    """Save tournament branding info and logo."""
+    session = get_db_session()
+    try:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url="/tournaments", status_code=303)
+
+        branding_repo = TournamentBrandingRepository(session)
+        branding = branding_repo.get_or_create(tournament.id)
+
+        branding.official_name = official_name.strip()
+        branding.organizer = organizer.strip()
+        branding.federation = federation.strip()
+        branding.venue = venue.strip()
+        branding.print_footer = print_footer.strip()
+
+        # Handle logo upload
+        if logo and logo.filename:
+            import shutil
+            uploads_dir = get_data_dir() / "uploads"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+
+            # Remove old logo if exists
+            if branding.logo_filename:
+                old_path = uploads_dir / branding.logo_filename
+                if old_path.exists():
+                    old_path.unlink()
+
+            # Save new logo with safe filename
+            ext = Path(logo.filename).suffix.lower()
+            if ext not in (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"):
+                request.session["flash_message"] = "Formato de imagen no soportado. Use PNG, JPG, GIF, SVG o WebP."
+                request.session["flash_type"] = "error"
+                return RedirectResponse(url="/admin/tournament-settings", status_code=303)
+
+            safe_name = f"logo_{tournament.id}{ext}"
+            dest = uploads_dir / safe_name
+
+            with open(dest, "wb") as f:
+                content = await logo.read()
+                f.write(content)
+
+            branding.logo_filename = safe_name
+
+        branding_repo.update(branding)
+
+        request.session["flash_message"] = "Configuración guardada correctamente"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/tournament-settings", status_code=303)
+    finally:
+        session.close()
+
+
+@app.post("/admin/tournament-settings/colors")
+async def admin_tournament_settings_colors(request: Request):
+    """Save country/club color configuration."""
+    session = get_db_session()
+    try:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url="/tournaments", status_code=303)
+
+        form = await request.form()
+        branding_repo = TournamentBrandingRepository(session)
+        branding = branding_repo.get_or_create(tournament.id)
+
+        # Extract color values from form: color_XXX = #RRGGBB
+        colors = {}
+        for key, value in form.items():
+            if key.startswith("color_") and value and value.strip():
+                code = key[6:]  # Remove "color_" prefix
+                colors[code] = value.strip()
+
+        branding.country_colors = colors
+        branding_repo.update(branding)
+
+        request.session["flash_message"] = "Colores guardados correctamente"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/tournament-settings", status_code=303)
+    finally:
+        session.close()
+
+
+@app.post("/admin/tournament-settings/remove-logo")
+async def admin_tournament_settings_remove_logo(request: Request):
+    """Remove tournament logo."""
+    session = get_db_session()
+    try:
+        tournament_repo = TournamentRepository(session)
+        tournament = tournament_repo.get_current()
+
+        if not tournament:
+            return RedirectResponse(url="/tournaments", status_code=303)
+
+        branding_repo = TournamentBrandingRepository(session)
+        branding = branding_repo.get_or_create(tournament.id)
+
+        if branding.logo_filename:
+            uploads_dir = get_data_dir() / "uploads"
+            logo_path = uploads_dir / branding.logo_filename
+            if logo_path.exists():
+                logo_path.unlink()
+            branding.logo_filename = None
+            branding_repo.update(branding)
+
+        request.session["flash_message"] = "Logo eliminado"
+        request.session["flash_type"] = "success"
+        return RedirectResponse(url="/admin/tournament-settings", status_code=303)
+    finally:
+        session.close()
+
+
+@app.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    """Serve uploaded files (logos, etc.)."""
+    from fastapi.responses import FileResponse
+
+    uploads_dir = get_data_dir() / "uploads"
+    file_path = uploads_dir / filename
+
+    if not file_path.exists():
+        return Response(content="Not found", status_code=404)
+
+    # Security: prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return Response(content="Not found", status_code=404)
+
+    return FileResponse(file_path)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('admin.tournament_settings.title') }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ t('admin.tournament_settings.title') }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>{{ t('common.back') }}</span>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Section 1: Tournament Info -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('admin.tournament_settings.tournament_info') }}</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="/admin/tournament-settings" enctype="multipart/form-data">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label for="official_name">{{ t('admin.tournament_settings.official_name') }}</label>
+                    <input type="text" class="form-control" id="official_name" name="official_name"
+                           value="{{ branding.official_name or '' }}"
+                           placeholder="{{ t('admin.tournament_settings.official_name_placeholder') }}">
+                </div>
+                <div class="form-group">
+                    <label for="organizer">{{ t('admin.tournament_settings.organizer') }}</label>
+                    <input type="text" class="form-control" id="organizer" name="organizer"
+                           value="{{ branding.organizer or '' }}"
+                           placeholder="{{ t('admin.tournament_settings.organizer_placeholder') }}">
+                </div>
+                <div class="form-group">
+                    <label for="federation">{{ t('admin.tournament_settings.federation') }}</label>
+                    <input type="text" class="form-control" id="federation" name="federation"
+                           value="{{ branding.federation or '' }}"
+                           placeholder="{{ t('admin.tournament_settings.federation_placeholder') }}">
+                </div>
+                <div class="form-group">
+                    <label for="venue">{{ t('admin.tournament_settings.venue') }}</label>
+                    <input type="text" class="form-control" id="venue" name="venue"
+                           value="{{ branding.venue or '' }}"
+                           placeholder="{{ t('admin.tournament_settings.venue_placeholder') }}">
+                </div>
+            </div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label for="print_footer">{{ t('admin.tournament_settings.print_footer') }}</label>
+                <input type="text" class="form-control" id="print_footer" name="print_footer"
+                       value="{{ branding.print_footer or '' }}"
+                       placeholder="{{ t('admin.tournament_settings.print_footer_placeholder') }}">
+            </div>
+
+            <!-- Logo Upload -->
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                <h4 style="margin-bottom: 1rem;">{{ t('admin.tournament_settings.logo') }}</h4>
+                {% if branding.logo_filename %}
+                <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 0.5rem; background: white;">
+                        <img src="/uploads/{{ branding.logo_filename }}" alt="Logo"
+                             style="max-width: 150px; max-height: 100px; object-fit: contain;">
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); margin-bottom: 0.5rem;">{{ t('admin.tournament_settings.current_logo') }}</div>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removeLogo()">
+                            {{ t('admin.tournament_settings.remove_logo') }}
+                        </button>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted); margin-bottom: 0.5rem;">{{ t('admin.tournament_settings.no_logo') }}</p>
+                {% endif %}
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="file" class="form-control" id="logo" name="logo"
+                           accept=".png,.jpg,.jpeg,.gif,.svg,.webp"
+                           style="max-width: 400px;">
+                    <small style="color: var(--text-muted);">{{ t('admin.tournament_settings.logo_help') }}</small>
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{ t('admin.tournament_settings.save_info') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Section 2: Country/Club Colors -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">{{ t('admin.tournament_settings.colors') }}</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+            {{ t('admin.tournament_settings.colors_help') }}
+        </p>
+
+        {% if color_data %}
+        <form method="POST" action="/admin/tournament-settings/colors">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                {% for item in color_data %}
+                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: var(--border-radius);">
+                    <div style="min-width: 60px;">
+                        <span class="badge badge-secondary color-preview-badge"
+                              id="preview_{{ item.code }}"
+                              {% if item.color %}style="background-color: {{ item.color }}; color: white;"{% endif %}>
+                            {{ item.code }}
+                        </span>
+                    </div>
+                    <input type="color" name="color_{{ item.code }}" id="colorpicker_{{ item.code }}"
+                           value="{{ item.color or '#6c757d' }}"
+                           onchange="updatePreview('{{ item.code }}', this.value)"
+                           style="width: 40px; height: 32px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <input type="text" name="colortext_{{ item.code }}" id="colortext_{{ item.code }}"
+                           value="{{ item.color or '' }}"
+                           placeholder="#RRGGBB"
+                           oninput="syncColor('{{ item.code }}', this.value)"
+                           style="width: 90px; font-family: monospace; font-size: 0.85rem;"
+                           class="form-control">
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            onclick="clearColor('{{ item.code }}')"
+                            title="{{ t('admin.tournament_settings.reset_color') }}">
+                        ✕
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    {{ t('admin.tournament_settings.save_colors') }}
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">🎨</div>
+            <p>{{ t('admin.tournament_settings.no_codes') }}</p>
+            <a href="/admin/import-players" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">
+                {{ t('nav.import_players') }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePreview(code, color) {
+    var badge = document.getElementById('preview_' + code);
+    var textInput = document.getElementById('colortext_' + code);
+    if (badge) {
+        badge.style.backgroundColor = color;
+        badge.style.color = 'white';
+    }
+    if (textInput) {
+        textInput.value = color;
+    }
+}
+
+function syncColor(code, value) {
+    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+        var picker = document.getElementById('colorpicker_' + code);
+        var badge = document.getElementById('preview_' + code);
+        if (picker) picker.value = value;
+        if (badge) {
+            badge.style.backgroundColor = value;
+            badge.style.color = 'white';
+        }
+    }
+}
+
+function clearColor(code) {
+    var picker = document.getElementById('colorpicker_' + code);
+    var textInput = document.getElementById('colortext_' + code);
+    var badge = document.getElementById('preview_' + code);
+    if (picker) picker.value = '#6c757d';
+    if (textInput) textInput.value = '';
+    if (badge) {
+        badge.style.backgroundColor = '';
+        badge.style.color = '';
+    }
+}
+
+function removeLogo() {
+    if (confirm('{{ t("admin.tournament_settings.remove_logo_confirm") }}')) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/tournament-settings/remove-logo';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// On form submit for colors, only submit codes that have a text value set
+document.addEventListener('DOMContentLoaded', function() {
+    var colorsForm = document.querySelector('form[action="/admin/tournament-settings/colors"]');
+    if (colorsForm) {
+        colorsForm.addEventListener('submit', function() {
+            var inputs = colorsForm.querySelectorAll('input[id^="colortext_"]');
+            inputs.forEach(function(input) {
+                var code = input.id.replace('colortext_', '');
+                var colorInput = colorsForm.querySelector('input[name="color_' + code + '"]');
+                if (colorInput) {
+                    if (input.value && /^#[0-9A-Fa-f]{6}$/.test(input.value)) {
+                        // Has valid color: use text input value
+                        colorInput.value = input.value;
+                    } else {
+                        // No color set: remove from submission
+                        colorInput.disabled = true;
+                    }
+                }
+            });
+            // Remove colortext_ fields from submission
+            inputs.forEach(function(input) {
+                input.removeAttribute('name');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Estado del Torneo - ETTEM{% endblock %}
 
@@ -210,7 +211,7 @@
                         <strong style="font-size: 1.1rem; color: var(--warning);">
                             {{ status.champion.nombre }} {{ status.champion.apellido }}
                         </strong>
-                        <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ status.champion.pais_cd }}</span>
+                        <span style="margin-left: 0.5rem;">{{ cc_badge(status.champion.pais_cd) }}</span>
                     </td>
                 </tr>
                 {% endif %}

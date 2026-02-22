@@ -34,7 +34,7 @@
             <span style="font-size: 2rem;">🖨️</span>
             <div>
                 <h3 style="margin: 0;">{{ tournament_name }}</h3>
-                <p style="margin: 0; color: var(--text-muted);">Genera PDFs para imprimir hojas de partido, grupos y más.</p>
+                <p style="margin: 0; color: var(--text-muted);">Genera PDFs, exporta datos y crea diplomas.</p>
             </div>
         </div>
     </div>
@@ -62,243 +62,217 @@
 </div>
 {% else %}
 
-<!-- Quick Actions -->
-<div class="card mb-3">
-    <div class="card-header">
-        <h3 class="card-title">Acciones Rapidas</h3>
-    </div>
-    <div class="card-body">
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            Genera documentos para toda una categoria de una vez:
-        </p>
-        <div class="d-flex gap-2" style="flex-wrap: wrap;">
-            {% for category, groups in categories_groups.items() %}
-            <a href="/preview/category/{{ category }}/all-match-sheets"
-               class="btn btn-primary"
-               title="Todas las hojas de partido de {{ category }}">
-                <span>📋</span>
-                <span>Hojas Partido {{ category }}</span>
-            </a>
-            <a href="/preview/category/{{ category }}/all-group-sheets"
-               class="btn btn-secondary"
-               title="Todas las hojas de grupo de {{ category }}">
-                <span>📊</span>
-                <span>Hojas Grupo {{ category }}</span>
-            </a>
-            <a href="/preview/bracket/{{ category }}/tree"
-               class="btn btn-warning"
-               title="Vista de llave eliminatoria {{ category }}">
-                <span>🏅</span>
-                <span>Llave {{ category }}</span>
-            </a>
-            {% endfor %}
-            {% for category in categories_brackets.keys() %}
-            {% if category not in categories_groups %}
-            <a href="/preview/bracket/{{ category }}/tree"
-               class="btn btn-warning"
-               title="Vista de llave eliminatoria {{ category }}">
-                <span>🏅</span>
-                <span>Llave {{ category }}</span>
-            </a>
-            {% endif %}
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-
-{% if categories_groups %}
-<!-- CSV Exports -->
-<div class="card mb-3">
-    <div class="card-header">
-        <h3 class="card-title">📥 Exportar a CSV</h3>
-    </div>
-    <div class="card-body">
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            Descarga datos en formato CSV para Excel o análisis:
-        </p>
-        <div class="d-flex gap-2" style="flex-wrap: wrap;">
-            {% for category, groups in categories_groups.items() %}
-            <a href="/export/standings/{{ category }}"
-               class="btn btn-success btn-sm"
-               title="Exportar clasificación de {{ category }}">
-                <span>📊</span>
-                <span>Standings {{ category }}</span>
-            </a>
-            <a href="/export/bracket/{{ category }}"
-               class="btn btn-warning btn-sm"
-               title="Exportar bracket de {{ category }}">
-                <span>🏆</span>
-                <span>Bracket {{ category }}</span>
-            </a>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- By Category (Groups) -->
-{% for category, groups in categories_groups.items() %}
-<details class="card mb-3" open>
-    <summary class="card-header" style="cursor: pointer; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
-        <span class="details-arrow">▶</span>
-        <h3 class="card-title" style="margin: 0;">📁 Categoría: {{ category }} ({{ groups|length }} grupos)</h3>
-    </summary>
-    <div class="card-body" style="padding: 0;">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Grupo</th>
-                    <th style="text-align: center;">Hoja de Grupo</th>
-                    <th style="text-align: center;">Lista de Partidos</th>
-                    <th style="text-align: center;">Hojas de Partido</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for group in groups %}
-                <tr>
-                    <td>
-                        <strong>{{ group.name }}</strong>
-                    </td>
-                    <td style="text-align: center;">
-                        <a href="/preview/group/{{ group.id }}/sheet"
-                           class="btn btn-secondary btn-sm"
-                           title="Hoja de grupo con matriz de resultados">
-                            <span>📊</span>
-                            <span>Ver</span>
-                        </a>
-                    </td>
-                    <td style="text-align: center;">
-                        <a href="/preview/group/{{ group.id }}/matches"
-                           class="btn btn-secondary btn-sm"
-                           title="Lista de partidos del grupo">
-                            <span>📝</span>
-                            <span>Ver</span>
-                        </a>
-                    </td>
-                    <td style="text-align: center;">
-                        <a href="/preview/group/{{ group.id }}/all-match-sheets"
-                           class="btn btn-success btn-sm"
-                           title="Todas las hojas de partido (2 por página)">
-                            <span>📋</span>
-                            <span>Ver</span>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</details>
+{# Compute all unique categories (union of groups + brackets) #}
+{% set ns = namespace(cats=[]) %}
+{% for cat in categories_groups.keys() %}
+    {% set ns.cats = ns.cats + [cat] %}
 {% endfor %}
-{% endif %}
+{% for cat in categories_brackets.keys() %}
+    {% if cat not in ns.cats %}
+        {% set ns.cats = ns.cats + [cat] %}
+    {% endif %}
+{% endfor %}
 
-<style>
-details .details-arrow { transition: transform 0.2s; font-size: 0.8rem; }
-details[open] .details-arrow { transform: rotate(90deg); }
-details summary::-webkit-details-marker { display: none; }
-details summary { user-select: none; }
-
-@keyframes pulse-badge {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-.badge-in-progress {
-    background-color: #0d6efd !important;
-    color: white !important;
-    animation: pulse-badge 1.5s ease-in-out infinite;
-}
-.row-in-progress {
-    background-color: rgba(13, 110, 253, 0.1) !important;
-}
-</style>
-
-<script>
-// Details state persistence (for all details elements on page)
-(function() {
-    function saveDetailsState() {
-        const detailsElements = document.querySelectorAll('details');
-        const state = {};
-        detailsElements.forEach((el, index) => {
-            const summary = el.querySelector('summary');
-            const key = summary ? summary.textContent.trim().substring(0, 50) : 'details-' + index;
-            state[key] = el.open;
-        });
-        localStorage.setItem('printCenterDetailsState', JSON.stringify(state));
-    }
-
-    function restoreDetailsState() {
-        const saved = localStorage.getItem('printCenterDetailsState');
-        if (!saved) return;
-        try {
-            const state = JSON.parse(saved);
-            const detailsElements = document.querySelectorAll('details');
-            detailsElements.forEach((el, index) => {
-                const summary = el.querySelector('summary');
-                const key = summary ? summary.textContent.trim().substring(0, 50) : 'details-' + index;
-                if (key in state) {
-                    el.open = state[key];
-                }
-            });
-        } catch (e) { console.error('Error restoring details state:', e); }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('details').forEach(el => {
-            el.addEventListener('toggle', saveDetailsState);
-        });
-        restoreDetailsState();
-    });
-})();
-</script>
-
-<!-- Bracket Section -->
-{% if categories_brackets %}
-<div class="card mb-3">
-    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 class="card-title">🏆 Llave Eliminatoria (Bracket)</h3>
-        <a href="/admin/sync-bracket-all" class="btn btn-secondary btn-sm" title="Sincronizar datos de partidos con la llave">
-            🔄 Sincronizar
-        </a>
+<!-- Tab Bar -->
+<div class="card mb-3" style="padding: 0;">
+    <div class="print-tabs">
+        <button class="print-tab active" data-tab="tournament" onclick="switchTab('tournament')">
+            🌐 Torneo
+        </button>
+        {% for cat in ns.cats %}
+        <button class="print-tab" data-tab="{{ cat }}" onclick="switchTab('{{ cat }}')">
+            {{ cat }}
+        </button>
+        {% endfor %}
     </div>
-    <div class="card-body">
-        <p style="color: var(--text-muted); margin-bottom: 1rem;">
-            Selecciona los partidos que deseas imprimir. Si los datos no están actualizados, haz clic en "Sincronizar".
-        </p>
+</div>
 
-        {% for category, cat_data in categories_brackets.items() %}
-        <form action="/print/bracket/selected" method="post" id="bracket-form-{{ category }}">
-            <input type="hidden" name="category" value="{{ category }}">
+<!-- ==================== TAB: Tournament (global) ==================== -->
+<div id="tab-tournament" class="tab-content active">
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">📥 Exportaciones del Torneo</h3>
+        </div>
+        <div class="card-body">
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                Exporta todos los datos del torneo en un solo archivo:
+            </p>
+            <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                <a href="/admin/export/tournament-excel"
+                   class="btn btn-success"
+                   title="Excel con todas las hojas (jugadores, grupos, resultados, standings, bracket, posiciones)">
+                    <span>📊</span>
+                    <span>Descargar Excel (.xlsx)</span>
+                </a>
+                <a href="/admin/export/results-csv"
+                   class="btn btn-secondary"
+                   title="CSV con todos los resultados (grupos + bracket)">
+                    <span>📄</span>
+                    <span>Todos los Resultados (.csv)</span>
+                </a>
+                {% if categories_brackets %}
+                <a href="/admin/certificates/all"
+                   class="btn btn-warning"
+                   title="Generar todos los diplomas en un solo PDF">
+                    <span>📜</span>
+                    <span>Todos los Diplomas (PDF)</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
-            <details style="margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 8px;" open>
-                <summary style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; cursor: pointer; list-style: none; background: var(--bg-color); border-radius: 8px 8px 0 0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="details-arrow">▶</span>
-                        <h4 style="margin: 0;">📁 {{ category }} ({{ cat_data.total_matches }} partidos)</h4>
-                    </div>
-                    <div class="d-flex gap-2" onclick="event.stopPropagation();">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ category }}', true)">
-                            ☑️ Todos
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ category }}', false)">
-                            ☐ Ninguno
-                        </button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleReadyBracket('{{ category }}')">
-                            ✅ Solo listos
-                        </button>
-                        <button type="submit" class="btn btn-primary btn-sm">
-                            👁️ Ver seleccionados
-                        </button>
-                    </div>
-                </summary>
-                <div style="padding: 1rem;">
+<!-- ==================== TABs: Per-category ==================== -->
+{% for cat in ns.cats %}
+<div id="tab-{{ cat }}" class="tab-content">
+
+    <!-- Quick Actions -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">⚡ Documentos Rápidos</h3>
+        </div>
+        <div class="card-body">
+            <div class="d-flex gap-2" style="flex-wrap: wrap;">
+                {% if cat in categories_groups %}
+                <a href="/preview/category/{{ cat }}/all-match-sheets"
+                   class="btn btn-primary btn-sm"
+                   title="Todas las hojas de partido de {{ cat }}">
+                    <span>📋</span>
+                    <span>Hojas de Partido</span>
+                </a>
+                <a href="/preview/category/{{ cat }}/all-group-sheets"
+                   class="btn btn-secondary btn-sm"
+                   title="Todas las hojas de grupo de {{ cat }}">
+                    <span>📊</span>
+                    <span>Hojas de Grupo</span>
+                </a>
+                {% endif %}
+                {% if cat in categories_brackets %}
+                <a href="/preview/bracket/{{ cat }}/tree"
+                   class="btn btn-warning btn-sm"
+                   title="Vista de llave eliminatoria">
+                    <span>🏅</span>
+                    <span>Llave</span>
+                </a>
+                {% endif %}
+                {% if cat in categories_groups %}
+                <a href="/export/standings/{{ cat }}"
+                   class="btn btn-success btn-sm"
+                   title="Exportar clasificación">
+                    <span>📊</span>
+                    <span>Standings CSV</span>
+                </a>
+                <a href="/export/bracket/{{ cat }}"
+                   class="btn btn-success btn-sm"
+                   title="Exportar bracket">
+                    <span>🏆</span>
+                    <span>Bracket CSV</span>
+                </a>
+                {% endif %}
+                {% if cat in categories_brackets %}
+                <a href="/admin/certificates/{{ cat }}"
+                   class="btn btn-warning btn-sm"
+                   title="Diplomas para {{ cat }}">
+                    <span>📜</span>
+                    <span>Diplomas</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Groups Table -->
+    {% if cat in categories_groups %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">👥 Grupos ({{ categories_groups[cat]|length }})</h3>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Grupo</th>
+                        <th style="text-align: center;">Hoja de Grupo</th>
+                        <th style="text-align: center;">Lista de Partidos</th>
+                        <th style="text-align: center;">Hojas de Partido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in categories_groups[cat] %}
+                    <tr>
+                        <td>
+                            <strong>{{ group.name }}</strong>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="/preview/group/{{ group.id }}/sheet"
+                               class="btn btn-secondary btn-sm"
+                               title="Hoja de grupo con matriz de resultados">
+                                <span>📊</span>
+                                <span>Ver</span>
+                            </a>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="/preview/group/{{ group.id }}/matches"
+                               class="btn btn-secondary btn-sm"
+                               title="Lista de partidos del grupo">
+                                <span>📝</span>
+                                <span>Ver</span>
+                            </a>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="/preview/group/{{ group.id }}/all-match-sheets"
+                               class="btn btn-success btn-sm"
+                               title="Todas las hojas de partido (2 por página)">
+                                <span>📋</span>
+                                <span>Ver</span>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Bracket Section -->
+    {% if cat in categories_brackets %}
+    {% set cat_data = categories_brackets[cat] %}
+    <div class="card mb-3">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 class="card-title">🏆 Llave Eliminatoria ({{ cat_data.total_matches }} partidos)</h3>
+            <a href="/admin/sync-bracket-all" class="btn btn-secondary btn-sm" title="Sincronizar datos de partidos con la llave">
+                🔄 Sincronizar
+            </a>
+        </div>
+        <div class="card-body">
+            <form action="/print/bracket/selected" method="post" id="bracket-form-{{ cat }}">
+                <input type="hidden" name="category" value="{{ cat }}">
+
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ cat }}', true)">
+                        ☑️ Todos
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAllBracket('{{ cat }}', false)">
+                        ☐ Ninguno
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleReadyBracket('{{ cat }}')">
+                        ✅ Solo listos
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        👁️ Ver seleccionados
+                    </button>
+                </div>
+
                 {% for round_type, round_data in cat_data.rounds.items() %}
                 <div style="margin-bottom: 1rem;">
                     <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.5rem; background: var(--bg-color); border-radius: 4px;">
                         <input type="checkbox"
-                               id="round-{{ category }}-{{ round_type }}"
-                               onchange="toggleRound('{{ category }}', '{{ round_type }}', this.checked)"
+                               id="round-{{ cat }}-{{ round_type }}"
+                               onchange="toggleRound('{{ cat }}', '{{ round_type }}', this.checked)"
                                style="width: 18px; height: 18px;">
-                        <label for="round-{{ category }}-{{ round_type }}" style="margin: 0; font-weight: 600; cursor: pointer;">
+                        <label for="round-{{ cat }}-{{ round_type }}" style="margin: 0; font-weight: 600; cursor: pointer;">
                             {{ round_data.name }} ({{ round_data.matches|length }})
                         </label>
                     </div>
@@ -308,7 +282,7 @@ details summary { user-select: none; }
                             {% for match in round_data.matches %}
                             {% set is_pending = match.is_ready and match.status != 'completed' %}
                             <tr class="bracket-match-row {% if match.status == 'completed' %}row-completed{% elif match.status == 'in_progress' %}row-in-progress{% endif %}"
-                                data-category="{{ category }}"
+                                data-category="{{ cat }}"
                                 data-round="{{ round_type }}"
                                 data-ready="{{ 'true' if match.is_ready else 'false' }}"
                                 data-pending="{{ 'true' if is_pending else 'false' }}"
@@ -317,7 +291,7 @@ details summary { user-select: none; }
                                     <input type="checkbox"
                                            name="match_ids"
                                            value="{{ match.id }}"
-                                           class="bracket-checkbox bracket-{{ category }} round-{{ category }}-{{ round_type }}"
+                                           class="bracket-checkbox bracket-{{ cat }} round-{{ cat }}-{{ round_type }}"
                                            {% if is_pending %}checked{% endif %}
                                            style="width: 18px; height: 18px;">
                                 </td>
@@ -352,56 +326,138 @@ details summary { user-select: none; }
                     </table>
                 </div>
                 {% endfor %}
-                </div>
-            </details>
-        </form>
-        {% endfor %}
+            </form>
+        </div>
     </div>
-</div>
+    {% endif %}
 
+</div>
+{% endfor %}
+
+<!-- Styles -->
+<style>
+/* Tabs */
+.print-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.print-tab {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.print-tab:hover {
+    color: var(--text-color);
+    background: var(--bg-color);
+}
+.print-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+.tab-content {
+    display: none;
+}
+.tab-content.active {
+    display: block;
+}
+
+/* Bracket animations */
+@keyframes pulse-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.badge-in-progress {
+    background-color: #0d6efd !important;
+    color: white !important;
+    animation: pulse-badge 1.5s ease-in-out infinite;
+}
+.row-in-progress {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+</style>
+
+<!-- Scripts -->
 <script>
+// Tab switching with localStorage persistence
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    document.querySelectorAll('.print-tab').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    var tabContent = document.getElementById('tab-' + tabId);
+    var tabButton = document.querySelector('[data-tab="' + tabId + '"]');
+    if (tabContent) tabContent.classList.add('active');
+    if (tabButton) tabButton.classList.add('active');
+    localStorage.setItem('printCenterActiveTab', tabId);
+}
+
+// Bracket checkbox functions
 function toggleAllBracket(category, checked) {
-    document.querySelectorAll('.bracket-' + category).forEach(cb => {
+    document.querySelectorAll('.bracket-' + category).forEach(function(cb) {
         cb.checked = checked;
     });
     updateRoundCheckboxes(category);
 }
 
 function toggleReadyBracket(category) {
-    document.querySelectorAll('.bracket-' + category).forEach(cb => {
-        const row = cb.closest('tr');
-        const isPending = row.dataset.pending === 'true';
+    document.querySelectorAll('.bracket-' + category).forEach(function(cb) {
+        var row = cb.closest('tr');
+        var isPending = row.dataset.pending === 'true';
         cb.checked = isPending;
     });
     updateRoundCheckboxes(category);
 }
 
 function toggleRound(category, round, checked) {
-    document.querySelectorAll('.round-' + category + '-' + round).forEach(cb => {
+    document.querySelectorAll('.round-' + category + '-' + round).forEach(function(cb) {
         cb.checked = checked;
     });
 }
 
 function updateRoundCheckboxes(category) {
-    // Update round header checkboxes based on their matches
-    document.querySelectorAll('[id^="round-' + category + '-"]').forEach(roundCb => {
-        const round = roundCb.id.replace('round-' + category + '-', '');
-        const matches = document.querySelectorAll('.round-' + category + '-' + round);
-        const checkedMatches = document.querySelectorAll('.round-' + category + '-' + round + ':checked');
+    document.querySelectorAll('[id^="round-' + category + '-"]').forEach(function(roundCb) {
+        var round = roundCb.id.replace('round-' + category + '-', '');
+        var matches = document.querySelectorAll('.round-' + category + '-' + round);
+        var checkedMatches = document.querySelectorAll('.round-' + category + '-' + round + ':checked');
         roundCb.checked = matches.length > 0 && matches.length === checkedMatches.length;
     });
 }
 
-// Initialize on load
+// Restore tab + initialize bracket on load
 document.addEventListener('DOMContentLoaded', function() {
+    // Restore active tab
+    var saved = localStorage.getItem('printCenterActiveTab');
+    var validTabs = [];
+    document.querySelectorAll('.print-tab').forEach(function(el) {
+        validTabs.push(el.dataset.tab);
+    });
+    if (saved && validTabs.indexOf(saved) !== -1) {
+        switchTab(saved);
+    } else {
+        switchTab('tournament');
+    }
+
+    // Initialize bracket round checkboxes
     {% for category in categories_brackets.keys() %}
     updateRoundCheckboxes('{{ category }}');
     {% endfor %}
 });
 </script>
-{% endif %}
 
-<!-- Help Section -->
+<!-- Help Section (always visible) -->
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">ℹ️ Tipos de Documentos</h3>

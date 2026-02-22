@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Sorteo Manual - {{ category }} - ETTEM{% endblock %}
 
@@ -237,7 +238,7 @@ details[open] .details-arrow { transform: rotate(90deg); }
                         <span class="player-name">{{ comp.nombre }} {{ comp.apellido }}</span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ comp.pais_cd }}</span>
+                        {{ cc_badge(comp.pais_cd) }}
                         <span style="font-size: 0.75rem; color: var(--text-muted);">{{ comp.ranking_pts }} pts</span>
                     </div>
                 </div>

@@ -236,7 +236,7 @@
             <div class="match-sheet">
                 <!-- Header -->
                 <div class="header">
-                    <h1>{{ tournament_name }}</h1>
+                    {% include "_branding_header.html" %}
                     <div class="subtitle">
                         {% if category %}{{ category }}{% endif %}
                         {% if m.group_name %} - {{ m.group_name }}{% endif %}
@@ -268,12 +268,20 @@
                     <div class="player-box">
                         <div class="player-label">{% if is_doubles %}PAREJA A{% else %}JUGADOR A{% endif %}</div>
                         <div class="player-name">{{ m.player1.nombre }} {{ m.player1.apellido }}</div>
+                        {% if country_colors and m.player1.pais_cd and country_colors.get(m.player1.pais_cd) %}
+                        <div class="player-country"><span style="background-color: {{ country_colors[m.player1.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ m.player1.pais_cd }}</span></div>
+                        {% else %}
                         <div class="player-country">({{ m.player1.pais_cd }})</div>
+                        {% endif %}
                     </div>
                     <div class="player-box">
                         <div class="player-label">{% if is_doubles %}PAREJA B{% else %}JUGADOR B{% endif %}</div>
                         <div class="player-name">{{ m.player2.nombre }} {{ m.player2.apellido }}</div>
+                        {% if country_colors and m.player2.pais_cd and country_colors.get(m.player2.pais_cd) %}
+                        <div class="player-country"><span style="background-color: {{ country_colors[m.player2.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ m.player2.pais_cd }}</span></div>
+                        {% else %}
                         <div class="player-country">({{ m.player2.pais_cd }})</div>
+                        {% endif %}
                     </div>
                 </div>
 

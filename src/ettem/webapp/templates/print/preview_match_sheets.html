@@ -7,7 +7,10 @@
     <div class="match-sheet-half">
         <!-- Header -->
         <div class="header">
-            <h2>{{ tournament_name }}</h2>
+            {% if branding and branding.logo_url %}
+            <div style="margin-bottom: 3px;"><img src="{{ branding.logo_url }}" style="max-height: 30px;" alt=""></div>
+            {% endif %}
+            <h2>{% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}</h2>
             <div class="subtitle">
                 {% if category %}{{ category }}{% endif %}
                 {% if md.group_name %} - {{ md.group_name }}{% endif %}
@@ -39,12 +42,20 @@
             <div class="player-box">
                 <div class="player-label">{% if is_doubles %}PAREJA A{% else %}JUGADOR A{% endif %}</div>
                 <div class="player-name">{{ md.player1.nombre }} {{ md.player1.apellido }}</div>
+                {% if country_colors and md.player1.pais_cd and country_colors.get(md.player1.pais_cd) %}
+                <div class="player-country"><span style="background-color: {{ country_colors[md.player1.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ md.player1.pais_cd }}</span></div>
+                {% else %}
                 <div class="player-country">({{ md.player1.pais_cd }})</div>
+                {% endif %}
             </div>
             <div class="player-box">
                 <div class="player-label">{% if is_doubles %}PAREJA B{% else %}JUGADOR B{% endif %}</div>
                 <div class="player-name">{{ md.player2.nombre }} {{ md.player2.apellido }}</div>
+                {% if country_colors and md.player2.pais_cd and country_colors.get(md.player2.pais_cd) %}
+                <div class="player-country"><span style="background-color: {{ country_colors[md.player2.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ md.player2.pais_cd }}</span></div>
+                {% else %}
                 <div class="player-country">({{ md.player2.pais_cd }})</div>
+                {% endif %}
             </div>
         </div>
 

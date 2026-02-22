@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{{ category }} - {{ t('app.short_title') }}{% endblock %}
 
@@ -105,7 +106,7 @@
                 <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--card-bg-secondary); border-radius: 6px;">
                     <span class="badge badge-primary">{{ player.seed }}</span>
                     <span style="flex: 1; font-weight: 500;">{{ player.nombre }} {{ player.apellido }}</span>
-                    <span class="badge badge-secondary">{{ player.pais_cd }}</span>
+                    {{ cc_badge(player.pais_cd) }}
                 </div>
                 {% endfor %}
             </div>

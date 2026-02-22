@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{{ t('nav.matches') }} {{ t('category.group') }} {{ group.name }} - {{ t('app.short_title') }}{% endblock %}
 
@@ -83,12 +84,12 @@
                         </td>
                         <td>
                             <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
-                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>
+                            <span style="margin-left: 0.5rem;">{{ cc_badge(m.player1.pais_cd) }}</span>
                         </td>
                         <td style="text-align: center; color: var(--text-muted);">{{ t('matches.vs') }}</td>
                         <td>
                             <strong>{{ m.player2.nombre }} {{ m.player2.apellido }}</strong>
-                            <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player2.pais_cd }}</span>
+                            <span style="margin-left: 0.5rem;">{{ cc_badge(m.player2.pais_cd) }}</span>
                         </td>
                         <td style="text-align: center;">
                             {% if m.match.status == 'WALKOVER' %}

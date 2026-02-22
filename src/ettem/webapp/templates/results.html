@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{{ t('results.title') }} - {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
@@ -55,9 +56,7 @@
             {{ champion.nombre }} {{ champion.apellido }}
         </div>
         <div style="display: flex; justify-content: center; gap: 1rem; font-size: 1.2rem;">
-            <span class="badge badge-primary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
-                🌍 {{ champion.pais_cd }}
-            </span>
+            {{ cc_badge(champion.pais_cd) }}
             <span class="badge badge-secondary" style="font-size: 1.1rem; padding: 0.5rem 1rem;">
                 Seed: {{ champion.seed }}
             </span>
@@ -80,7 +79,7 @@
                     <div style="font-size: 1.3rem; font-weight: bold; color: #1a1a1a; margin-bottom: 0.5rem;">
                         {{ second_place.nombre }} {{ second_place.apellido }}
                     </div>
-                    <span class="badge" style="background: #666; color: #fff;">{{ second_place.pais_cd }}</span>
+                    {{ cc_badge(second_place.pais_cd) }}
                 </div>
                 <div style="background: #E0E0E0; padding: 1rem; text-align: center; font-weight: bold; color: #1a1a1a; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 80px; display: flex; align-items: center; justify-content: center;">
                     {{ t('results.second_place') }}
@@ -95,7 +94,7 @@
                     <div style="font-size: 1.5rem; font-weight: bold; color: #1a1a1a; margin-bottom: 0.5rem;">
                         {{ champion.nombre }} {{ champion.apellido }}
                     </div>
-                    <span class="badge" style="background: #1a1a1a; color: #fff;">{{ champion.pais_cd }}</span>
+                    {{ cc_badge(champion.pais_cd) }}
                 </div>
                 <div style="background: #FFD700; padding: 1.5rem; text-align: center; font-weight: bold; color: #1a1a1a; border-radius: 0 0 var(--border-radius) var(--border-radius); width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
                     {{ t('results.first_place') }}
@@ -114,7 +113,7 @@
                         {% for player in third_fourth %}
                         <div style="margin-bottom: 0.25rem;">
                             {{ player.nombre }} {{ player.apellido }}
-                            <span class="badge" style="background: rgba(0,0,0,0.3); color: #fff; margin-left: 0.25rem;">{{ player.pais_cd }}</span>
+                            <span style="margin-left: 0.25rem;">{{ cc_badge(player.pais_cd) }}</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -124,6 +123,40 @@
                 </div>
             </div>
             {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Certificates Section -->
+<div class="card mb-3">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 class="card-title">📜 Diplomas</h3>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+            Genera diplomas para los ganadores de esta categoría:
+        </p>
+        <div class="d-flex gap-2" style="flex-wrap: wrap;">
+            <a href="/preview/certificate/{{ category }}/1" class="btn btn-warning btn-sm" title="Vista previa diploma del campeón">
+                <span>🥇</span>
+                <span>Diploma 1er Lugar</span>
+            </a>
+            {% if second_place %}
+            <a href="/preview/certificate/{{ category }}/2" class="btn btn-secondary btn-sm" title="Vista previa diploma subcampeón">
+                <span>🥈</span>
+                <span>Diploma 2do Lugar</span>
+            </a>
+            {% endif %}
+            {% if third_fourth %}
+            <a href="/preview/certificate/{{ category }}/3" class="btn btn-secondary btn-sm" title="Vista previa diploma tercer lugar">
+                <span>🥉</span>
+                <span>Diploma 3er Lugar</span>
+            </a>
+            {% endif %}
+            <a href="/admin/certificates/{{ category }}" class="btn btn-primary btn-sm" title="Descargar todos los diplomas como PDF">
+                <span>📥</span>
+                <span>Descargar Todos (PDF)</span>
+            </a>
         </div>
     </div>
 </div>
@@ -180,7 +213,7 @@
                             {% endif %}
                         </td>
                         <td style="text-align: center;">
-                            <span class="badge badge-secondary">{{ item.player.pais_cd }}</span>
+                            {{ cc_badge(item.player.pais_cd) }}
                         </td>
                         <td style="text-align: center;">
                             <span class="badge badge-primary">{{ item.player.seed }}</span>

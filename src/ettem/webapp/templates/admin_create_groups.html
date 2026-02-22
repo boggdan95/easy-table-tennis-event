@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Crear Grupos - ETTEM{% endblock %}
 
@@ -711,32 +712,23 @@ async function confirmGroupCreation() {
     form.submit();
 }
 
+// Country colors from server (assigned per-tournament)
+const COUNTRY_COLORS = {{ country_colors | default({}) | tojson }};
+
 // Helper function to get consistent color for each country
 function getCountryColor(countryCode) {
-    const colors = {
-        'ESP': '#E74C3C',  // Red
-        'MEX': '#27AE60',  // Green
-        'ARG': '#3498DB',  // Blue
-        'BRA': '#F39C12',  // Orange
-        'CHI': '#9B59B6',  // Purple
-        'COL': '#1ABC9C',  // Teal
-        'PER': '#E67E22',  // Dark Orange
-        'URU': '#34495E',  // Dark Gray
-        'VEN': '#D35400',  // Pumpkin
-        'ECU': '#16A085',  // Green Sea
-    };
-
-    // If country not in map, generate a color based on hash
-    if (!colors[countryCode]) {
-        let hash = 0;
-        for (let i = 0; i < countryCode.length; i++) {
-            hash = countryCode.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const hue = hash % 360;
-        return `hsl(${hue}, 65%, 50%)`;
+    // Use server-assigned colors first
+    if (COUNTRY_COLORS[countryCode]) {
+        return COUNTRY_COLORS[countryCode];
     }
 
-    return colors[countryCode];
+    // Fallback: generate a color based on hash
+    let hash = 0;
+    for (let i = 0; i < countryCode.length; i++) {
+        hash = countryCode.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 65%, 50%)`;
 }
 
 // ITTF seed pot colors

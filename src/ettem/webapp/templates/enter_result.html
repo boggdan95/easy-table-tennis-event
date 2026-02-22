@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{% if match.status == 'pending' %}{{ t('matches.enter_result') }}{% else %}{{ t('matches.edit_result') }}{% endif %} - {{ t('app.short_title') }}{% endblock %}
 
@@ -42,12 +43,12 @@
         <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; font-size: 1.25rem;">
             <div style="text-align: right; flex: 1;">
                 <strong>{% if is_doubles %}{{ display1.full_name }}{% else %}{{ player1.nombre }} {{ player1.apellido }}{% endif %}</strong>
-                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ display1.pais_cd }}</span>
+                <span style="margin-left: 0.5rem;">{{ cc_badge(display1.pais_cd) }}</span>
             </div>
             <div style="font-size: 1.5rem; color: var(--text-muted);">VS</div>
             <div style="text-align: left; flex: 1;">
                 <strong>{% if is_doubles %}{{ display2.full_name }}{% else %}{{ player2.nombre }} {{ player2.apellido }}{% endif %}</strong>
-                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ display2.pais_cd }}</span>
+                <span style="margin-left: 0.5rem;">{{ cc_badge(display2.pais_cd) }}</span>
             </div>
         </div>
     </div>

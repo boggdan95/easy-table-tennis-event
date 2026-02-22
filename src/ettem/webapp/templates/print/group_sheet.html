@@ -161,8 +161,9 @@
     <div class="group-sheet">
         <!-- Header -->
         <div class="header">
-            <h1>{{ group.name }}</h1>
-            {% if category %}<div class="subtitle">{{ category }} - {{ tournament_name }}</div>{% endif %}
+            {% include "_branding_header.html" %}
+            <div style="font-size: 14pt; font-weight: bold; margin-top: 4px;">{{ group.name }}</div>
+            {% if category %}<div class="subtitle">{{ category }}</div>{% endif %}
         </div>
 
         <!-- Results Matrix -->
@@ -183,7 +184,12 @@
                 {% for p in players %}
                 <tr>
                     <td class="player-cell">
-                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }} <span class="country">({{ p.player.pais_cd }})</span>
+                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }}
+                        {% if country_colors and p.player.pais_cd and country_colors.get(p.player.pais_cd) %}
+                        <span style="background-color: {{ country_colors[p.player.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px; font-size: 8pt; font-weight: normal;">{{ p.player.pais_cd }}</span>
+                        {% else %}
+                        <span class="country">({{ p.player.pais_cd }})</span>
+                        {% endif %}
                     </td>
                     {% for opponent in players %}
                         {% if p.player.id == opponent.player.id %}
@@ -231,7 +237,7 @@
             </div>
         </div>
 
-        <div class="small-footer">ETTEM - Easy Table Tennis Event Manager</div>
+        <div class="small-footer">{% if branding and branding.print_footer %}{{ branding.print_footer }}{% else %}ETTEM - Easy Table Tennis Event Manager{% endif %}</div>
     </div>
 </body>
 </html>
