@@ -12134,6 +12134,10 @@ async def referee_scoreboard(request: Request, table_number: int):
                         "player2_points": s.get("player2_points", 0),
                     })
 
+        # Get all active tables for table selector
+        all_tables = [t for t in table_config_repo.get_by_tournament(tournament.id) if t.is_active]
+        all_tables.sort(key=lambda t: t.table_number)
+
         response = render_template("referee_scoreboard.html", {
             "request": request,
             "table": table,
@@ -12145,6 +12149,7 @@ async def referee_scoreboard(request: Request, table_number: int):
             "session_token": session_token,
             "locked": False,
             "available_matches": available_matches,
+            "all_tables": all_tables,
         })
 
         # Set cookie with session token

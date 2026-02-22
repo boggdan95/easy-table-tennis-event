@@ -5,9 +5,9 @@
 {% block page_title %}{{ category }} - {{ t('bracket.title') }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/bracket/{{ category }}" class="btn btn-secondary btn-sm">
+<a href="/category/{{ category }}" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>{{ t('nav.matches') }}</span>
+    <span>{{ category }}</span>
 </a>
 {% if has_groups %}
 <a href="/category/{{ category }}" class="btn btn-outline btn-sm">

@@ -6,6 +6,10 @@
 {% block page_title %}{{ category }}{% endblock %}
 
 {% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>{{ t('nav.home') }}</span>
+</a>
 <a href="/category/{{ category }}/results" class="btn btn-warning btn-sm">
     <span>🏆</span>
     <span>{{ t('results.title') }}</span>

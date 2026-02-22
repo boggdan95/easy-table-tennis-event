@@ -65,6 +65,14 @@
                         <span class="icon">⚡</span>
                         <span class="sidebar-text">{{ t('nav.live_results') }}</span>
                     </a>
+                    <a href="/admin/calculate-standings" class="nav-link" title="{{ t('nav.calculate_standings', default='Calcular Standings') }}">
+                        <span class="icon">📊</span>
+                        <span class="sidebar-text">Calcular Standings</span>
+                    </a>
+                    <a href="/admin/generate-bracket" class="nav-link" title="{{ t('nav.generate_bracket', default='Generar Bracket') }}">
+                        <span class="icon">🏅</span>
+                        <span class="sidebar-text">Generar Bracket</span>
+                    </a>
                 </div>
 
                 {% if categories %}
