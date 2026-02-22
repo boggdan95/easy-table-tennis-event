@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Resultados en Vivo - ETTEM{% endblock %}
 
@@ -158,7 +159,7 @@
                                     {% if match.winner_id == p1.id %}<span style="color: var(--success);">🏆</span>{% endif %}
                                     {% if p1 %}
                                     <strong>{{ p1.nombre }} {{ p1.apellido }}</strong>
-                                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p1.pais_cd }}</span>
+                                    {{ cc_badge(p1.pais_cd) }}
                                     {% else %}
                                     <span style="color: var(--text-muted);">TBD</span>
                                     {% endif %}
@@ -180,7 +181,7 @@
                             <td>
                                 <div style="display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end;">
                                     {% if p2 %}
-                                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p2.pais_cd }}</span>
+                                    {{ cc_badge(p2.pais_cd) }}
                                     <strong>{{ p2.nombre }} {{ p2.apellido }}</strong>
                                     {% if match.winner_id == p2.id %}<span style="color: var(--success);">🏆</span>{% endif %}
                                     {% else %}
@@ -290,7 +291,7 @@
                         </td>
                         <td>
                             <strong>{{ p1.nombre }} {{ p1.apellido }}</strong>
-                            <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p1.pais_cd }}</span>
+                            {{ cc_badge(p1.pais_cd) }}
                         </td>
                         <td style="text-align: center;">
                             {% if is_completed %}
@@ -306,7 +307,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ p2.pais_cd }}</span>
+                            {{ cc_badge(p2.pais_cd) }}
                             <strong>{{ p2.nombre }} {{ p2.apellido }}</strong>
                         </td>
                         <td style="text-align: center;">

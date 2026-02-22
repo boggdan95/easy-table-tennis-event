@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Importar Equipos - ETTEM{% endblock %}
 
@@ -196,7 +197,7 @@ Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</code>
                         <tr>
                             <td>{{ t.id }}</td>
                             <td><strong>{{ t.name }}</strong></td>
-                            <td><span class="badge badge-secondary">{{ t.pais_cd }}</span></td>
+                            <td>{{ cc_badge(t.pais_cd) }}</td>
                             <td>
                                 {% for pname in t.player_names %}
                                 <span style="font-size: 0.8rem;">{{ pname }}{% if not loop.last %}, {% endif %}</span>

@@ -1,12 +1,17 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{{ t('nav.bracket') }} {{ category }} - {{ t('app.short_title') }}{% endblock %}
 
 {% block page_title %}{{ t('nav.bracket') }} - {{ category }}{% endblock %}
 
 {% block topbar_actions %}
-<a href="/category/{{ category }}/bracket" class="btn btn-secondary btn-sm">
+<a href="/admin/generate-bracket" class="btn btn-secondary btn-sm">
     <span>←</span>
+    <span>Brackets</span>
+</a>
+<a href="/category/{{ category }}/bracket" class="btn btn-outline btn-sm">
+    <span>🗂️</span>
     <span>{{ t('bracket.visual_bracket') }}</span>
 </a>
 {% if has_groups %}
@@ -43,7 +48,7 @@
                 <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem;">{{ t('bracket.tournament_finished') }}</div>
                 <div style="font-size: 1.3rem; font-weight: bold;">
                     👑 {{ t('bracket.champion') }}: <span style="color: var(--primary-color);">{{ champion.nombre }} {{ champion.apellido }}</span>
-                    <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ champion.pais_cd }}</span>
+                    <span style="margin-left: 0.5rem;">{{ cc_badge(champion.pais_cd) }}</span>
                 </div>
             </div>
             <a href="/category/{{ category }}/results" class="btn btn-warning" style="margin-left: 1rem;">
@@ -104,12 +109,12 @@
                             <td><span class="badge badge-secondary">{{ m.match.match_number }}</span></td>
                             <td>
                                 <strong>{{ m.player1.nombre }} {{ m.player1.apellido }}</strong>
-                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player1.pais_cd }}</span>
+                                <span style="margin-left: 0.5rem;">{{ cc_badge(m.player1.pais_cd) }}</span>
                             </td>
                             <td style="text-align: center; color: var(--text-muted);">vs</td>
                             <td>
                                 <strong>{{ m.player2.nombre }} {{ m.player2.apellido }}</strong>
-                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.player2.pais_cd }}</span>
+                                <span style="margin-left: 0.5rem;">{{ cc_badge(m.player2.pais_cd) }}</span>
                             </td>
                             <td style="text-align: center;">
                                 {% if m.match.status == 'WALKOVER' %}

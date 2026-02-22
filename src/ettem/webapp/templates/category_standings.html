@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Clasificación {{ category }} - ETTEM{% endblock %}
 
@@ -118,7 +119,7 @@
                         <td>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <strong>{{ s.player.nombre }} {{ s.player.apellido }}</strong>
-                                <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ s.player.pais_cd }}</span>
+                                {{ cc_badge(s.player.pais_cd) }}
                                 {% if s.tiebreaker %}
                                 <span class="badge badge-warning" style="font-size: 0.7rem;" title="Desempate por {{ s.tiebreaker.tie_broken_by }}">⚖️</span>
                                 {% endif %}

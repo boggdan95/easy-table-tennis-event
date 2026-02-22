@@ -5,14 +5,24 @@
   .nombre, .apellido, .pais_cd, .full_name attributes).
 
   Usage:
-    {% from "_macros.html" import player_name, player_name_short %}
-    {{ player_name(match.player1) }}
+    {% from "_macros.html" import player_name, player_name_short, cc_badge %}
+    {{ player_name(c) }}
+    {{ cc_badge(some_code) }}
 #}
+
+{# Color-aware country/club badge. Uses country_colors from global context. #}
+{% macro cc_badge(pais_cd) %}
+{%- if country_colors is defined and pais_cd and country_colors.get(pais_cd) -%}
+<span class="badge" style="background-color: {{ country_colors[pais_cd] }}; color: white;">{{ pais_cd }}</span>
+{%- else -%}
+<span class="badge badge-secondary">{{ pais_cd }}</span>
+{%- endif -%}
+{% endmacro %}
 
 {# Full name with country badge #}
 {% macro player_name(c) %}
 <strong>{{ c.nombre }} {{ c.apellido }}</strong>
-<span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ c.pais_cd }}</span>
+<span style="margin-left: 0.25rem;">{{ cc_badge(c.pais_cd) }}</span>
 {% endmacro %}
 
 {# Short name: "J. Pérez" or "Pérez / López" #}
@@ -34,7 +44,7 @@
 {{ c.full_name }}
 {% endmacro %}
 
-{# Country badge only #}
+{# Country badge only (legacy alias) #}
 {% macro country_badge(c) %}
-<span class="badge badge-secondary">{{ c.pais_cd }}</span>
+{{ cc_badge(c.pais_cd) }}
 {% endmacro %}

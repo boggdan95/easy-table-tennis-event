@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Importar Jugadores - ETTEM{% endblock %}
 
@@ -487,7 +488,7 @@ Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                         <tr>
                             <td><span class="badge badge-secondary">{{ player.seed or '-' }}</span></td>
                             <td><strong>{{ player.nombre }} {{ player.apellido }}</strong></td>
-                            <td><span class="badge badge-secondary">{{ player.pais_cd }}</span></td>
+                            <td>{{ cc_badge(player.pais_cd) }}</td>
                             <td>{{ player.ranking_pts }}</td>
                             <td>{% if player.group_id %}<span class="badge badge-success">G{{ player.group_number or '?' }}</span>{% else %}-{% endif %}</td>
                             <td style="text-align: center;">
@@ -527,11 +528,11 @@ Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                             <td><span class="badge badge-secondary">{{ pair.seed or '-' }}</span></td>
                             <td>
                                 <strong>{{ pair.player1_name }}</strong>
-                                <span class="badge badge-secondary" style="font-size: 0.7rem; margin-left: 0.25rem;">{{ pair.player1_pais }}</span>
+                                <span style="margin-left: 0.25rem;">{{ cc_badge(pair.player1_pais) }}</span>
                             </td>
                             <td>
                                 <strong>{{ pair.player2_name }}</strong>
-                                <span class="badge badge-secondary" style="font-size: 0.7rem; margin-left: 0.25rem;">{{ pair.player2_pais }}</span>
+                                <span style="margin-left: 0.25rem;">{{ cc_badge(pair.player2_pais) }}</span>
                             </td>
                             <td>{{ pair.ranking_pts }}</td>
                             <td>{% if pair.group_id %}<span class="badge badge-success">G{{ pair.group_number or '?' }}</span>{% else %}-{% endif %}</td>
@@ -569,7 +570,7 @@ Mexico,MEX,David,Ramirez,MEX,Luis,Morales,MEX,Pablo,Torres,MEX,4200,MT</pre>
                         <tr>
                             <td><span class="badge badge-secondary">{{ team.seed or '-' }}</span></td>
                             <td><strong>{{ team.name }}</strong></td>
-                            <td><span class="badge badge-secondary">{{ team.pais_cd }}</span></td>
+                            <td>{{ cc_badge(team.pais_cd) }}</td>
                             <td>
                                 {% for pname in team.player_names %}
                                 <span style="font-size: 0.85rem;">{{ pname }}{% if not loop.last %}, {% endif %}</span>

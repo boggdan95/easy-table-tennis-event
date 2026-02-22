@@ -222,7 +222,7 @@
     <div class="scheduler-sheet">
         <!-- Header -->
         <div class="header">
-            <h1>{{ tournament_name }}</h1>
+            {% include "_branding_header.html" %}
             <div class="subtitle">{{ session.name }}</div>
             <div class="date-info">
                 {{ session.date.strftime('%d/%m/%Y') }} | {{ session.start_time }} - {{ session.end_time }}
@@ -273,11 +273,11 @@
                                 <span class="match-category">{{ cell_data.category }}</span>
                             </div>
                             <div class="player-line">
-                                {% if cell_data.player1_country %}<span class="country-code">[{{ cell_data.player1_country }}]</span> {% endif %}{{ cell_data.player1 }}
+                                {% if cell_data.player1_country %}{% if country_colors and country_colors.get(cell_data.player1_country) %}<span style="background-color: {{ country_colors[cell_data.player1_country] }}; color: white; padding: 0 2px; border-radius: 1px; font-size: 6pt; font-weight: bold;">{{ cell_data.player1_country }}</span>{% else %}<span class="country-code">[{{ cell_data.player1_country }}]</span>{% endif %} {% endif %}{{ cell_data.player1 }}
                             </div>
                             <div class="vs-line">vs</div>
                             <div class="player-line">
-                                {% if cell_data.player2_country %}<span class="country-code">[{{ cell_data.player2_country }}]</span> {% endif %}{{ cell_data.player2 }}
+                                {% if cell_data.player2_country %}{% if country_colors and country_colors.get(cell_data.player2_country) %}<span style="background-color: {{ country_colors[cell_data.player2_country] }}; color: white; padding: 0 2px; border-radius: 1px; font-size: 6pt; font-weight: bold;">{{ cell_data.player2_country }}</span>{% else %}<span class="country-code">[{{ cell_data.player2_country }}]</span>{% endif %} {% endif %}{{ cell_data.player2 }}
                             </div>
                         </div>
                         {% else %}
@@ -292,7 +292,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            ETTEM - Easy Table Tennis Event Manager | Generado: {{ generation_date }}
+            {% if branding and branding.print_footer %}{{ branding.print_footer }}{% else %}ETTEM - Easy Table Tennis Event Manager{% endif %} | Generado: {{ generation_date }}
         </div>
     </div>
 </body>

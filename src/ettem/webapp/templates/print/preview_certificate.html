@@ -1,0 +1,77 @@
+{% extends "print/preview.html" %}
+
+{% block preview_content %}
+{% for cert in certificates %}
+<div class="preview-page landscape">
+    <div style="border: 3px solid #1a3a5c; padding: 8px; height: 100%; box-sizing: border-box;">
+        <div style="border: 1px solid {% if cert.position == 1 %}#B8860B{% elif cert.position == 2 %}#808080{% else %}#8B4513{% endif %}; padding: 30px 40px; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; font-family: 'Times New Roman', Georgia, serif;">
+
+            <!-- Header -->
+            <div style="text-align: center;">
+                {% if branding and branding.logo_url %}
+                <div style="margin-bottom: 5px;"><img src="{{ branding.logo_url }}" style="max-height: 60px;" alt=""></div>
+                {% endif %}
+                <div style="font-size: 16pt; font-weight: bold; color: #1a3a5c; margin: 5px 0;">
+                    {% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}
+                </div>
+                {% if branding and branding.organizer %}
+                <div style="font-size: 11pt; color: #555;">{{ branding.organizer }}</div>
+                {% endif %}
+                {% if branding and branding.federation %}
+                <div style="font-size: 11pt; color: #666;">{{ branding.federation }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <div style="font-size: 28pt; font-weight: bold; color: #1a3a5c; text-transform: uppercase; letter-spacing: 3px;">
+                Diploma
+            </div>
+
+            <!-- Award -->
+            <div style="text-align: center;">
+                <div style="font-size: 11pt; color: #666; margin-bottom: 5px;">Se otorga el presente diploma a</div>
+                <div style="font-size: 26pt; font-weight: bold; color: #1a3a5c; border-bottom: 2px solid #c5a55a; padding-bottom: 5px; display: inline-block; min-width: 300px;">
+                    {{ cert.player_name }}
+                </div>
+                {% if cert.pais_cd %}
+                <div style="font-size: 12pt; color: #666; margin-top: 5px;">{{ cert.pais_cd }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Achievement -->
+            <div style="text-align: center;">
+                <div style="font-size: 36pt; margin: 5px 0;">
+                    {% if cert.position == 1 %}🥇{% elif cert.position == 2 %}🥈{% elif cert.position == 3 %}🥉{% endif %}
+                </div>
+                <div style="font-size: 18pt; font-weight: bold; color: {% if cert.position == 1 %}#B8860B{% elif cert.position == 2 %}#808080{% else %}#8B4513{% endif %}; margin: 5px 0;">
+                    {% if cert.position == 1 %}Primer Lugar — Campeón
+                    {% elif cert.position == 2 %}Segundo Lugar — Subcampeón
+                    {% elif cert.position == 3 %}Tercer Lugar
+                    {% endif %}
+                </div>
+                <div style="font-size: 14pt; color: #333;">Categoría: {{ cert.category }}</div>
+            </div>
+
+            <!-- Footer -->
+            <div style="text-align: center; width: 100%;">
+                <div style="display: flex; justify-content: space-around; width: 100%; margin-top: 10px;">
+                    <div style="text-align: center; min-width: 200px;">
+                        <div style="border-top: 1px solid #333; width: 200px; margin: 0 auto 5px auto;"></div>
+                        <div style="font-size: 9pt; color: #666;">Director del Torneo</div>
+                    </div>
+                    <div style="text-align: center; min-width: 200px;">
+                        <div style="border-top: 1px solid #333; width: 200px; margin: 0 auto 5px auto;"></div>
+                        <div style="font-size: 9pt; color: #666;">
+                            {% if branding and branding.organizer %}{{ branding.organizer }}{% else %}Organizador{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if branding and branding.print_footer %}
+                <div style="font-size: 8pt; color: #999; margin-top: 5px;">{{ branding.print_footer }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

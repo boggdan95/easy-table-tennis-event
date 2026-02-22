@@ -5,8 +5,13 @@
     <div class="group-sheet-compact">
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 8px;">
-            <div style="font-size: 14pt; font-weight: bold;">{{ group.name }}</div>
-            {% if category %}<div style="font-size: 10pt; color: #555;">{{ category }} - {{ tournament_name }}</div>{% endif %}
+            {% if branding and branding.logo_url %}
+            <div style="margin-bottom: 5px;"><img src="{{ branding.logo_url }}" style="max-height: 40px;" alt=""></div>
+            {% endif %}
+            <div style="font-size: 16pt; font-weight: bold;">{% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}</div>
+            {% if branding and branding.organizer %}<div style="font-size: 9pt; color: #555;">{{ branding.organizer }}</div>{% endif %}
+            <div style="font-size: 14pt; font-weight: bold; margin-top: 4px;">{{ group.name }}</div>
+            {% if category %}<div style="font-size: 10pt; color: #555;">{{ category }}</div>{% endif %}
         </div>
 
         <!-- Compact Results Matrix -->
@@ -27,7 +32,12 @@
                 {% for p in players %}
                 <tr>
                     <td class="player-cell" style="text-align: left; padding: 6px 10px; font-weight: bold; white-space: nowrap;">
-                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }} <span style="color: #666; font-weight: normal;">({{ p.player.pais_cd }})</span>
+                        {{ p.player.group_number }}. {{ p.player.nombre }} {{ p.player.apellido }}
+                        {% if country_colors and p.player.pais_cd and country_colors.get(p.player.pais_cd) %}
+                        <span style="background-color: {{ country_colors[p.player.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px; font-size: 8pt; font-weight: normal;">{{ p.player.pais_cd }}</span>
+                        {% else %}
+                        <span style="color: #666; font-weight: normal;">({{ p.player.pais_cd }})</span>
+                        {% endif %}
                     </td>
                     {% for opponent in players %}
                         {% if p.player.id == opponent.player.id %}
