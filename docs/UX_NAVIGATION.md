@@ -3,6 +3,20 @@
 > Documento de referencia para el flujo de navegacion, estructura de pantallas y convenciones de UX.
 > Ultima actualizacion: v2.6 (Feb 2026)
 
+## Capturas de Referencia
+
+| Dashboard | Hub de Categoria | Partidos de Grupo |
+|-----------|-----------------|-------------------|
+| ![Dashboard](screenshots/ux/01-home-dashboard.png) | ![Category Hub](screenshots/ux/02-category-hub-MS.png) | ![Group Matches](screenshots/ux/05-group-matches.png) |
+
+| Bracket Matches | Resultados / Podio | Estado del Torneo |
+|----------------|-------------------|-------------------|
+| ![Bracket](screenshots/ux/03-bracket-matches.png) | ![Results](screenshots/ux/04-results-podium.png) | ![Status](screenshots/ux/07-tournament-status.png) |
+
+| Centro de Impresion |
+|--------------------|
+| ![Print Center](screenshots/ux/06-print-center.png) |
+
 ---
 
 ## Filosofia de Navegacion
@@ -61,6 +75,9 @@ Crear Torneo → Importar → Organizar → Jugar → Calcular → Coronar Campe
 ## Mapa de Pantallas
 
 ### Nivel 0: Home
+
+![Dashboard](screenshots/ux/01-home-dashboard.png)
+
 ```
 / (Dashboard)
 ├── Resumen del torneo activo
@@ -88,6 +105,8 @@ Crear Torneo → Importar → Organizar → Jugar → Calcular → Coronar Campe
 | Centro Impresion | `/admin/print-center` | `← Inicio` → `/` | PDFs, exports, diplomas |
 
 ### Nivel 2: Categoria (hub)
+
+![Category Hub](screenshots/ux/02-category-hub-MS.png)
 
 ```
 /category/{cat}  ← Pagina central de la categoria
@@ -139,6 +158,16 @@ Crear Torneo → Importar → Organizar → Jugar → Calcular → Coronar Campe
 ## Flujos de Trabajo
 
 ### Flujo 1: Torneo Individual con Grupos (mas comun)
+
+> Capturas del flujo completo: Dashboard → Category → Group Matches → Bracket → Results
+
+| Paso | Pantalla |
+|------|----------|
+| 1. Dashboard | ![](screenshots/ux/01-home-dashboard.png) |
+| 2. Hub Categoria | ![](screenshots/ux/02-category-hub-MS.png) |
+| 3. Partidos Grupo | ![](screenshots/ux/05-group-matches.png) |
+| 4. Bracket Matches | ![](screenshots/ux/03-bracket-matches.png) |
+| 5. Resultados | ![](screenshots/ux/04-results-podium.png) |
 
 ```
 1. / ──────────────────────── Dashboard
@@ -209,6 +238,8 @@ Admin (PC):                          Arbitro (movil):
 ```
 
 ### Flujo 5: Impresion y Exportacion
+
+![Print Center - Tabs por Categoria](screenshots/ux/06-print-center.png)
 
 ```
 /admin/print-center
