@@ -775,7 +775,17 @@
             <div class="header-center">
                 <h1>{{ t('admin.referee.table_n', n=table.table_number) }}</h1>
             </div>
-            <div class="header-right"></div>
+            <div class="header-right">
+                {% if all_tables and all_tables|length > 1 %}
+                <select onchange="if(this.value) window.location.href='/mesa/'+this.value" style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 8px; padding: 4px 8px; font-size: 0.85rem; cursor: pointer;">
+                    {% for t in all_tables %}
+                    <option value="{{ t.table_number }}" {{ 'selected' if t.table_number == table.table_number }} style="color: #333;">
+                        Mesa {{ t.table_number }}{% if t.name %} - {{ t.name }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
         </div>
         <div class="status">
             <span class="status-indicator status-online" id="status-indicator"></span>

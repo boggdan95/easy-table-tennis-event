@@ -36,6 +36,15 @@ def render_html(template_name: str, context: Dict[str, Any]) -> str:
     return template.render(**context)
 
 
+def _prepare_branding_for_pdf(branding: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert branding data for PDF rendering (file:// URI for logo)."""
+    result = dict(branding)
+    if "logo_file_path" in result:
+        # xhtml2pdf needs file:// URI for local images
+        result["logo_src"] = f"file://{result['logo_file_path']}"
+    return result
+
+
 def html_to_pdf(html_content: str) -> bytes:
     """Convert HTML string to PDF bytes."""
     if not HAS_PISA:
@@ -66,26 +75,10 @@ def generate_match_sheet_pdf(
     tournament_name: Optional[str] = None,
     category: Optional[str] = None,
     round_number: Optional[int] = None,
-    is_doubles: bool = False
+    is_doubles: bool = False,
+    branding: Optional[Dict[str, Any]] = None
 ) -> bytes:
-    """
-    Generate a match sheet PDF for referees.
-
-    Args:
-        match: Match data dict
-        player1: Player 1 data dict
-        player2: Player 2 data dict
-        group_name: Optional group name (e.g., "Grupo A")
-        table_number: Optional table number
-        scheduled_time: Optional scheduled time string
-        tournament_name: Optional tournament name
-        category: Optional category name
-        round_number: Optional round number for group matches
-        is_doubles: Whether this is a doubles category
-
-    Returns:
-        PDF as bytes
-    """
+    """Generate a match sheet PDF for referees."""
     context = {
         "match": match,
         "player1": player1,
@@ -97,6 +90,8 @@ def generate_match_sheet_pdf(
         "category": category,
         "round_number": round_number,
         "is_doubles": is_doubles,
+        "branding": _prepare_branding_for_pdf(branding) if branding else {},
+        "country_colors": branding.get("country_colors", {}) if branding else {},
     }
 
     html = render_html("match_sheet.html", context)
@@ -109,22 +104,10 @@ def generate_group_sheet_pdf(
     matches: List[Dict[str, Any]],
     results_matrix: Dict[int, Dict[int, str]],
     tournament_name: Optional[str] = None,
-    category: Optional[str] = None
+    category: Optional[str] = None,
+    branding: Optional[Dict[str, Any]] = None
 ) -> bytes:
-    """
-    Generate a group sheet PDF with all matches and result matrix.
-
-    Args:
-        group: Group data dict
-        players: List of player dicts with group_number
-        matches: List of match dicts
-        results_matrix: Results matrix for display
-        tournament_name: Optional tournament name
-        category: Optional category name
-
-    Returns:
-        PDF as bytes
-    """
+    """Generate a group sheet PDF with all matches and result matrix."""
     context = {
         "group": group,
         "players": players,
@@ -132,6 +115,8 @@ def generate_group_sheet_pdf(
         "results_matrix": results_matrix,
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
+        "branding": _prepare_branding_for_pdf(branding) if branding else {},
+        "country_colors": branding.get("country_colors", {}) if branding else {},
     }
 
     html = render_html("group_sheet.html", context)
@@ -143,27 +128,18 @@ def generate_match_list_pdf(
     title: str = "Lista de Partidos",
     tournament_name: Optional[str] = None,
     category: Optional[str] = None,
-    group_name: Optional[str] = None
+    group_name: Optional[str] = None,
+    branding: Optional[Dict[str, Any]] = None
 ) -> bytes:
-    """
-    Generate a match list PDF.
-
-    Args:
-        matches: List of match dicts with player info
-        title: Title for the document
-        tournament_name: Optional tournament name
-        category: Optional category name
-        group_name: Optional group name
-
-    Returns:
-        PDF as bytes
-    """
+    """Generate a match list PDF."""
     context = {
         "matches": matches,
         "title": title,
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
         "group_name": group_name,
+        "branding": _prepare_branding_for_pdf(branding) if branding else {},
+        "country_colors": branding.get("country_colors", {}) if branding else {},
     }
 
     html = render_html("match_list.html", context)
@@ -174,25 +150,17 @@ def generate_all_match_sheets_pdf(
     matches_data: List[Dict[str, Any]],
     tournament_name: Optional[str] = None,
     category: Optional[str] = None,
-    is_doubles: bool = False
+    is_doubles: bool = False,
+    branding: Optional[Dict[str, Any]] = None
 ) -> bytes:
-    """
-    Generate a single PDF with all match sheets (one per page).
-
-    Args:
-        matches_data: List of dicts with match, player1, player2, group_name
-        tournament_name: Optional tournament name
-        category: Optional category name
-        is_doubles: Whether this is a doubles category
-
-    Returns:
-        PDF as bytes
-    """
+    """Generate a single PDF with all match sheets (2 per page)."""
     context = {
         "matches_data": matches_data,
         "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
         "category": category,
         "is_doubles": is_doubles,
+        "branding": _prepare_branding_for_pdf(branding) if branding else {},
+        "country_colors": branding.get("country_colors", {}) if branding else {},
     }
 
     html = render_html("all_match_sheets.html", context)
@@ -200,43 +168,45 @@ def generate_all_match_sheets_pdf(
 
 
 def generate_bracket_tree_pdf(context: Dict[str, Any]) -> bytes:
-    """
-    Generate a bracket tree PDF (visual bracket visualization).
-
-    Args:
-        context: Dict with bracket data including:
-            - tournament_name: Tournament name
-            - category: Category name
-            - slots_by_round: Dict[round_type, List[{slot, player}]]
-            - matches_by_round: Dict[round_type, List[{match, player1, player2}]]
-            - round_order: List of round types in order
-            - round_names: Dict mapping round types to display names
-            - best_of: Match format (3, 5, or 7)
-            - champion: Champion player object or None
-            - generation_date: Date string
-
-    Returns:
-        PDF as bytes
-    """
+    """Generate a bracket tree PDF."""
+    if "branding" in context and context["branding"]:
+        context["branding"] = _prepare_branding_for_pdf(context["branding"])
+    if "branding" not in context:
+        context["branding"] = {}
+    if "country_colors" not in context:
+        context["country_colors"] = context.get("branding", {}).get("country_colors", {})
     html = render_html("bracket_tree.html", context)
     return html_to_pdf(html)
 
 
 def generate_scheduler_pdf(context: Dict[str, Any]) -> bytes:
-    """
-    Generate a scheduler grid PDF.
+    """Generate a scheduler grid PDF."""
+    if "branding" in context and context["branding"]:
+        context["branding"] = _prepare_branding_for_pdf(context["branding"])
+    if "branding" not in context:
+        context["branding"] = {}
+    if "country_colors" not in context:
+        context["country_colors"] = context.get("branding", {}).get("country_colors", {})
+    html = render_html("scheduler_grid.html", context)
+    return html_to_pdf(html)
+
+
+def generate_certificate_pdf(
+    certificates: List[Dict[str, Any]],
+    tournament_name: Optional[str] = None,
+    branding: Optional[Dict[str, Any]] = None,
+) -> bytes:
+    """Generate certificate/diploma PDFs for podium finishers.
 
     Args:
-        context: Dict with scheduler data including:
-            - tournament_name: Tournament name
-            - session: Session object
-            - time_slots: List of time slots
-            - tables: List of table numbers
-            - schedule_grid: Dict mapping (time, table) to match data
-            - generation_date: Date string
-
-    Returns:
-        PDF as bytes
+        certificates: List of dicts with keys: player_name, pais_cd, position, category
+        tournament_name: Tournament name fallback
+        branding: Branding data (logo, organizer, etc.)
     """
-    html = render_html("scheduler_grid.html", context)
+    context = {
+        "certificates": certificates,
+        "tournament_name": tournament_name or "Torneo de Tenis de Mesa",
+        "branding": _prepare_branding_for_pdf(branding) if branding else {},
+    }
+    html = render_html("certificate.html", context)
     return html_to_pdf(html)

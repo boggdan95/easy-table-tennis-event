@@ -193,7 +193,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>{{ tournament_name }}</h1>
+        {% include "_branding_header.html" %}
         <div class="subtitle">{{ category }}{% if best_of %} - Mejor de {{ best_of }}{% endif %}</div>
         {% if champion %}
         <div class="champion">Campeon: {{ champion.nombre }} {{ champion.apellido }} ({{ champion.pais_cd }})</div>
@@ -308,7 +308,7 @@
     </table>
 
     <div class="footer">
-        ETTEM - {{ generation_date }}
+        {% if branding and branding.print_footer %}{{ branding.print_footer }}{% else %}ETTEM{% endif %} - {{ generation_date }}
     </div>
 </body>
 </html>

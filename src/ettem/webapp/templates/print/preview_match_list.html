@@ -5,7 +5,11 @@
     <div class="match-list-preview">
         <!-- Header -->
         <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
-            <h1 style="font-size: 16pt; margin: 0 0 5px 0;">{{ tournament_name }}</h1>
+            {% if branding and branding.logo_url %}
+            <div style="margin-bottom: 5px;"><img src="{{ branding.logo_url }}" style="max-height: 40px;" alt=""></div>
+            {% endif %}
+            <h1 style="font-size: 16pt; margin: 0 0 5px 0;">{% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}</h1>
+            {% if branding and branding.organizer %}<div style="font-size: 9pt; color: #555;">{{ branding.organizer }}</div>{% endif %}
             <div style="font-size: 13pt; font-weight: bold;">{{ title }}</div>
             {% if category %}<div style="font-size: 10pt; color: #555;">Categoría: {{ category }}</div>{% endif %}
             {% if group_name %}<div style="font-size: 10pt; color: #555;">{{ group_name }}</div>{% endif %}
@@ -33,12 +37,20 @@
                     <td style="text-align: center;">{{ m.scheduled_time if m.scheduled_time else '__:__' }}</td>
                     <td>
                         {{ m.player1.nombre }} {{ m.player1.apellido }}
+                        {% if country_colors and m.player1.pais_cd and country_colors.get(m.player1.pais_cd) %}
+                        <span style="background-color: {{ country_colors[m.player1.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px; font-size: 0.8em;">{{ m.player1.pais_cd }}</span>
+                        {% else %}
                         <span style="color: #666; font-size: 0.85em;">({{ m.player1.pais_cd }})</span>
+                        {% endif %}
                     </td>
                     <td class="vs">vs</td>
                     <td>
                         {{ m.player2.nombre }} {{ m.player2.apellido }}
+                        {% if country_colors and m.player2.pais_cd and country_colors.get(m.player2.pais_cd) %}
+                        <span style="background-color: {{ country_colors[m.player2.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px; font-size: 0.8em;">{{ m.player2.pais_cd }}</span>
+                        {% else %}
                         <span style="color: #666; font-size: 0.85em;">({{ m.player2.pais_cd }})</span>
+                        {% endif %}
                     </td>
                     <td class="result">
                         {% if m.result %}{{ m.result }}{% else %}___ - ___{% endif %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Bracket Manual - {{ category }} - ETTEM{% endblock %}
 
@@ -352,7 +353,7 @@ details[open] .details-arrow { transform: rotate(90deg); }
                         <span class="group-badge">G{{ player.group_name }}</span>
                         <span class="player-name">{{ player.nombre }} {{ player.apellido }}</span>
                     </div>
-                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ player.pais_cd }}</span>
+                    {{ cc_badge(player.pais_cd) }}
                 </div>
                 {% endfor %}
             </div>
@@ -371,7 +372,7 @@ details[open] .details-arrow { transform: rotate(90deg); }
                         <span class="group-badge">G{{ player.group_name }}</span>
                         <span class="player-name">{{ player.nombre }} {{ player.apellido }}</span>
                     </div>
-                    <span class="badge badge-secondary" style="font-size: 0.7rem;">{{ player.pais_cd }}</span>
+                    {{ cc_badge(player.pais_cd) }}
                 </div>
                 {% endfor %}
             </div>

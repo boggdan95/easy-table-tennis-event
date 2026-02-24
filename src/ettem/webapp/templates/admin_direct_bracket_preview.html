@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Sorteo - {{ category }} - ETTEM{% endblock %}
 
@@ -71,7 +72,7 @@
                                 <span style="color: #ccc;">-</span>
                             {% else %}
                                 <strong>{{ m.competitor1.nombre }} {{ m.competitor1.apellido }}</strong>
-                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.competitor1.pais_cd }}</span>
+                                <span style="margin-left: 0.5rem;">{{ cc_badge(m.competitor1.pais_cd) }}</span>
                             {% endif %}
                             <span style="color: #999; font-size: 0.8rem; margin-left: 0.25rem;">[{{ m.seed1 }}]</span>
                         </td>
@@ -83,7 +84,7 @@
                                 <span style="color: #ccc;">-</span>
                             {% else %}
                                 <strong>{{ m.competitor2.nombre }} {{ m.competitor2.apellido }}</strong>
-                                <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ m.competitor2.pais_cd }}</span>
+                                <span style="margin-left: 0.5rem;">{{ cc_badge(m.competitor2.pais_cd) }}</span>
                             {% endif %}
                             <span style="color: #999; font-size: 0.8rem; margin-left: 0.25rem;">[{{ m.seed2 }}]</span>
                         </td>

@@ -5,6 +5,10 @@
 {% block page_title %}{{ t('tournaments.title') }}{% endblock %}
 
 {% block topbar_actions %}
+<a href="/" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>{{ t('nav.home') }}</span>
+</a>
 <button type="button" class="btn btn-primary btn-sm" onclick="showCreateModal()">
     <span>+</span>
     <span>{{ t('tournaments.create_new') }}</span>

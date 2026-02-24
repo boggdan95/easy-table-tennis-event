@@ -5,7 +5,11 @@
     <div class="bracket-tree-print">
         <!-- Header -->
         <div class="bracket-header">
-            <h1>{{ tournament_name }}</h1>
+            {% if branding and branding.logo_url %}
+            <div style="margin-bottom: 5px;"><img src="{{ branding.logo_url }}" style="max-height: 40px;" alt=""></div>
+            {% endif %}
+            <h1>{% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}</h1>
+            {% if branding and branding.organizer %}<div style="font-size: 9pt; color: #555;">{{ branding.organizer }}</div>{% endif %}
             <div class="subtitle">{{ category }}{% if best_of %} - Mejor de {{ best_of }}{% endif %}</div>
             {% if champion %}
             <div class="champion">Campeon: {{ champion.nombre }} {{ champion.apellido }} ({{ champion.pais_cd }})</div>
@@ -111,7 +115,7 @@
 
         <!-- Footer -->
         <div class="bracket-footer">
-            ETTEM - {{ generation_date }}
+            {% if branding and branding.print_footer %}{{ branding.print_footer }}{% else %}ETTEM{% endif %} - {{ generation_date }}
         </div>
     </div>
 </div>

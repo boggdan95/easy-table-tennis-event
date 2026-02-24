@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: landscape;
+            margin: 0;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Times New Roman", Georgia, serif;
+        }
+
+        .certificate {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 40px 60px;
+            position: relative;
+            page-break-after: always;
+            background: #fff;
+        }
+
+        .certificate:last-child {
+            page-break-after: avoid;
+        }
+
+        /* Decorative border */
+        .border-outer {
+            border: 3px solid #1a3a5c;
+            padding: 8px;
+            height: calc(100% - 80px);
+            box-sizing: border-box;
+        }
+
+        .border-inner {
+            border: 1px solid #c5a55a;
+            padding: 30px 40px;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Medal colors */
+        .medal-1 { color: #B8860B; }
+        .medal-2 { color: #808080; }
+        .medal-3 { color: #8B4513; }
+
+        .border-accent-1 { border-color: #B8860B; }
+        .border-accent-2 { border-color: #808080; }
+        .border-accent-3 { border-color: #8B4513; }
+
+        /* Content sections */
+        .cert-header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .cert-header img {
+            max-height: 60px;
+            margin-bottom: 5px;
+        }
+
+        .cert-tournament {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #1a3a5c;
+            margin: 5px 0;
+        }
+
+        .cert-organizer {
+            font-size: 11pt;
+            color: #555;
+            margin: 3px 0;
+        }
+
+        .cert-title {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #1a3a5c;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 10px 0;
+        }
+
+        .cert-award {
+            text-align: center;
+            margin: 5px 0;
+        }
+
+        .cert-award-to {
+            font-size: 11pt;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .cert-player-name {
+            font-size: 26pt;
+            font-weight: bold;
+            color: #1a3a5c;
+            border-bottom: 2px solid #c5a55a;
+            padding-bottom: 5px;
+            display: inline-block;
+            min-width: 300px;
+            text-align: center;
+        }
+
+        .cert-country {
+            font-size: 12pt;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .cert-achievement {
+            text-align: center;
+            margin: 5px 0;
+        }
+
+        .cert-position {
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .cert-medal-icon {
+            font-size: 36pt;
+            margin: 5px 0;
+        }
+
+        .cert-category {
+            font-size: 14pt;
+            color: #333;
+            margin: 5px 0;
+        }
+
+        .cert-footer {
+            text-align: center;
+            width: 100%;
+        }
+
+        .cert-signatures {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .cert-signature {
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .cert-signature-line {
+            border-top: 1px solid #333;
+            width: 200px;
+            margin: 0 auto 5px auto;
+        }
+
+        .cert-signature-label {
+            font-size: 9pt;
+            color: #666;
+        }
+
+        .cert-date {
+            font-size: 9pt;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .cert-footer-text {
+            font-size: 8pt;
+            color: #999;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+{% for cert in certificates %}
+<div class="certificate">
+    <div class="border-outer">
+        <div class="border-inner border-accent-{{ cert.position }}">
+            <!-- Header -->
+            <div class="cert-header">
+                {% if branding and branding.logo_src %}
+                <div><img src="{{ branding.logo_src }}" alt=""></div>
+                {% elif branding and branding.logo_url %}
+                <div><img src="{{ branding.logo_url }}" alt=""></div>
+                {% endif %}
+                <div class="cert-tournament">
+                    {% if branding and branding.official_name %}{{ branding.official_name }}{% else %}{{ tournament_name }}{% endif %}
+                </div>
+                {% if branding and branding.organizer %}
+                <div class="cert-organizer">{{ branding.organizer }}</div>
+                {% endif %}
+                {% if branding and branding.federation %}
+                <div class="cert-organizer">{{ branding.federation }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <div class="cert-title">Diploma</div>
+
+            <!-- Award -->
+            <div class="cert-award">
+                <div class="cert-award-to">Se otorga el presente diploma a</div>
+                <div class="cert-player-name">{{ cert.player_name }}</div>
+                {% if cert.pais_cd %}
+                <div class="cert-country">{{ cert.pais_cd }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Achievement -->
+            <div class="cert-achievement">
+                <div class="cert-medal-icon medal-{{ cert.position }}">
+                    {% if cert.position == 1 %}🥇{% elif cert.position == 2 %}🥈{% elif cert.position == 3 %}🥉{% endif %}
+                </div>
+                <div class="cert-position medal-{{ cert.position }}">
+                    {% if cert.position == 1 %}Primer Lugar — Campeón
+                    {% elif cert.position == 2 %}Segundo Lugar — Subcampeón
+                    {% elif cert.position == 3 %}Tercer Lugar
+                    {% endif %}
+                </div>
+                <div class="cert-category">Categoría: {{ cert.category }}</div>
+            </div>
+
+            <!-- Footer -->
+            <div class="cert-footer">
+                <div class="cert-signatures">
+                    <div class="cert-signature">
+                        <div class="cert-signature-line"></div>
+                        <div class="cert-signature-label">Director del Torneo</div>
+                    </div>
+                    <div class="cert-signature">
+                        <div class="cert-signature-line"></div>
+                        <div class="cert-signature-label">
+                            {% if branding and branding.organizer %}{{ branding.organizer }}{% else %}Organizador{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if branding and branding.print_footer %}
+                <div class="cert-footer-text">{{ branding.print_footer }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</body>
+</html>

@@ -62,6 +62,43 @@ class TournamentORM(Base):
     sessions = relationship("SessionORM", back_populates="tournament")
 
 
+class TournamentBrandingORM(Base):
+    """Tournament branding/configuration for reports and display."""
+
+    __tablename__ = "tournament_branding"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False, unique=True)
+
+    # Extended tournament info for print headers
+    official_name = Column(String(300), nullable=True)
+    organizer = Column(String(200), nullable=True)
+    federation = Column(String(200), nullable=True)
+    venue = Column(String(200), nullable=True)
+
+    # Logo
+    logo_filename = Column(String(200), nullable=True)  # stored in {data_dir}/uploads/
+
+    # Country/Club color mapping (JSON)
+    country_colors_json = Column(Text, nullable=False, default="{}")
+
+    # Custom footer for print documents
+    print_footer = Column(String(300), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tournament = relationship("TournamentORM")
+
+    @property
+    def country_colors(self) -> dict:
+        return json.loads(self.country_colors_json) if self.country_colors_json else {}
+
+    @country_colors.setter
+    def country_colors(self, value: dict):
+        self.country_colors_json = json.dumps(value)
+
+
 class PlayerORM(Base):
     """Player table.
 
@@ -649,6 +686,32 @@ class TournamentRepository:
         return self.session.query(TournamentORM).filter(
             TournamentORM.status == "archived"
         ).order_by(TournamentORM.created_at.desc()).all()
+
+
+class TournamentBrandingRepository:
+    """Repository for tournament branding/configuration."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def get_by_tournament(self, tournament_id: int) -> Optional[TournamentBrandingORM]:
+        return self.session.query(TournamentBrandingORM).filter(
+            TournamentBrandingORM.tournament_id == tournament_id
+        ).first()
+
+    def get_or_create(self, tournament_id: int) -> TournamentBrandingORM:
+        branding = self.get_by_tournament(tournament_id)
+        if not branding:
+            branding = TournamentBrandingORM(tournament_id=tournament_id)
+            self.session.add(branding)
+            self.session.commit()
+            self.session.refresh(branding)
+        return branding
+
+    def update(self, branding: TournamentBrandingORM) -> TournamentBrandingORM:
+        self.session.commit()
+        self.session.refresh(branding)
+        return branding
 
 
 class PlayerRepository:
@@ -2513,6 +2576,43 @@ def migrate_v25_teams(engine):
         # Add team_id to bracket_slots and group_standings
         _safe_add_column(session, "bracket_slots", "team_id", "INTEGER")
         _safe_add_column(session, "group_standings", "team_id", "INTEGER")
+
+    finally:
+        session.close()
+
+
+def migrate_v26_branding(engine):
+    """Run V2.6 migration: add tournament_branding table.
+
+    Safe to run multiple times (idempotent).
+    """
+    from sqlalchemy import text, inspect
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        if "tournament_branding" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS tournament_branding (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tournament_id INTEGER NOT NULL UNIQUE,
+                    official_name VARCHAR(300),
+                    organizer VARCHAR(200),
+                    federation VARCHAR(200),
+                    venue VARCHAR(200),
+                    logo_filename VARCHAR(200),
+                    country_colors_json TEXT NOT NULL DEFAULT '{}',
+                    print_footer VARCHAR(300),
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
+                )
+            """))
+            session.commit()
 
     finally:
         session.close()

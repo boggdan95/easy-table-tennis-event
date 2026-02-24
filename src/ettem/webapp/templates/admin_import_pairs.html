@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}{{ t('pairs.import_pairs') }} - ETTEM{% endblock %}
 
@@ -298,7 +299,7 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
                         <td>
                             {% if pair.player1 %}
                             <strong>{{ pair.player1.nombre }} {{ pair.player1.apellido }}</strong>
-                            <span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ pair.player1.pais_cd }}</span>
+                            <span style="margin-left: 0.25rem;">{{ cc_badge(pair.player1.pais_cd) }}</span>
                             {% else %}
                             <span style="color: var(--text-muted);">ID {{ pair.player1.id if pair.player1 else '?' }}</span>
                             {% endif %}
@@ -306,7 +307,7 @@ Carlos,Rodriguez,MEX,Miguel,Sanchez,MEX,2650,MD</pre>
                         <td>
                             {% if pair.player2 %}
                             <strong>{{ pair.player2.nombre }} {{ pair.player2.apellido }}</strong>
-                            <span class="badge badge-secondary" style="margin-left: 0.25rem;">{{ pair.player2.pais_cd }}</span>
+                            <span style="margin-left: 0.25rem;">{{ cc_badge(pair.player2.pais_cd) }}</span>
                             {% else %}
                             <span style="color: var(--text-muted);">ID {{ pair.player2.id if pair.player2 else '?' }}</span>
                             {% endif %}

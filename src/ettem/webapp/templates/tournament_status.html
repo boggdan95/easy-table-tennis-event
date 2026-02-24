@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import cc_badge with context %}
 
 {% block title %}Estado del Torneo - ETTEM{% endblock %}
 
@@ -7,7 +8,7 @@
 {% block topbar_actions %}
 <a href="/" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver</span>
+    <span>{{ t('nav.home') }}</span>
 </a>
 {% endblock %}
 
@@ -207,10 +208,10 @@
                         <strong>👑 Campeón</strong>
                     </td>
                     <td colspan="2">
-                        <strong style="font-size: 1.1rem; color: var(--warning);">
+                        <strong style="font-size: 1.1rem; color: #5a3e00;">
                             {{ status.champion.nombre }} {{ status.champion.apellido }}
                         </strong>
-                        <span class="badge badge-secondary" style="margin-left: 0.5rem;">{{ status.champion.pais_cd }}</span>
+                        <span style="margin-left: 0.5rem;">{{ cc_badge(status.champion.pais_cd) }}</span>
                     </td>
                 </tr>
                 {% endif %}

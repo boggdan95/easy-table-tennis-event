@@ -7,7 +7,7 @@
 {% block topbar_actions %}
 <a href="/" class="btn btn-secondary btn-sm">
     <span>←</span>
-    <span>Volver al Inicio</span>
+    <span>{{ t('nav.home') }}</span>
 </a>
 {% endblock %}
 
@@ -183,22 +183,27 @@
                 </thead>
                 <tbody>
                     {% for bracket in existing_brackets %}
-                    <tr {% if bracket.is_completed %}style="background: linear-gradient(90deg, rgba(40, 167, 69, 0.1), transparent);"{% endif %}>
+                    <tr {% if bracket.is_completed %}style="background: linear-gradient(90deg, rgba(40, 167, 69, 0.1), transparent);"
+                        {% elif bracket.players == 0 %}style="background: linear-gradient(90deg, rgba(108, 117, 125, 0.1), transparent);"{% endif %}>
                         <td><span class="badge badge-primary">{{ bracket.category }}</span></td>
                         <td>{{ bracket.size }}</td>
                         <td>{{ bracket.players }}</td>
                         <td>
                             {% if bracket.is_completed %}
                             <span class="badge badge-success">✅ Completado</span>
+                            {% elif bracket.players == 0 %}
+                            <span class="badge badge-secondary">📋 Sin jugadores</span>
                             {% else %}
                             <span class="badge badge-warning">🔄 En progreso</span>
                             {% endif %}
                         </td>
                         <td>
+                            {% if bracket.players > 0 %}
                             <a href="/bracket/{{ bracket.category }}" class="btn btn-primary btn-sm">
                                 <span>👁️</span>
                                 <span>Ver Bracket</span>
                             </a>
+                            {% endif %}
                             {% if bracket.is_completed %}
                             <a href="/category/{{ bracket.category }}/results" class="btn btn-success btn-sm">
                                 <span>🏆</span>

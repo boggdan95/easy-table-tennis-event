@@ -174,7 +174,7 @@
     <div class="match-list">
         <!-- Header -->
         <div class="header">
-            <h1>{{ tournament_name }}</h1>
+            {% include "_branding_header.html" %}
             <div class="subtitle">{{ title }}</div>
             {% if category %}<div class="category">Categoría: {{ category }}</div>{% endif %}
             {% if group_name %}<div class="category">{{ group_name }}</div>{% endif %}
@@ -202,12 +202,12 @@
                     <td class="time-col">{{ m.scheduled_time if m.scheduled_time else '___:___' }}</td>
                     <td class="player">
                         {{ m.player1.nombre }} {{ m.player1.apellido }}
-                        <br><small style="color: #666;">({{ m.player1.pais_cd }})</small>
+                        <br>{% if country_colors and m.player1.pais_cd and country_colors.get(m.player1.pais_cd) %}<small style="background-color: {{ country_colors[m.player1.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ m.player1.pais_cd }}</small>{% else %}<small style="color: #666;">({{ m.player1.pais_cd }})</small>{% endif %}
                     </td>
                     <td class="vs">vs</td>
                     <td class="player">
                         {{ m.player2.nombre }} {{ m.player2.apellido }}
-                        <br><small style="color: #666;">({{ m.player2.pais_cd }})</small>
+                        <br>{% if country_colors and m.player2.pais_cd and country_colors.get(m.player2.pais_cd) %}<small style="background-color: {{ country_colors[m.player2.pais_cd] }}; color: white; padding: 0 3px; border-radius: 2px;">{{ m.player2.pais_cd }}</small>{% else %}<small style="color: #666;">({{ m.player2.pais_cd }})</small>{% endif %}
                     </td>
                     <td class="result">
                         {% if m.result %}
@@ -252,7 +252,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            ETTEM - Easy Table Tennis Event Manager
+            {% if branding and branding.print_footer %}{{ branding.print_footer }}{% else %}ETTEM - Easy Table Tennis Event Manager{% endif %}
         </div>
     </div>
 </body>
