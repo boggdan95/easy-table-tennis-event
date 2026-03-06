@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipos - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="index.html" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="index.html">Introducci&oacute;n</a></li>
+            <li><a href="instalacion.html">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard.html">Panel Principal</a></li>
+            <li><a href="jugadores.html">Importar Jugadores</a></li>
+            <li><a href="grupos.html">Crear Grupos</a></li>
+            <li><a href="resultados.html">Ingresar Resultados</a></li>
+            <li><a href="standings.html">Standings</a></li>
+            <li><a href="bracket.html">Bracket (Llave)</a></li>
+            <li><a href="equipos.html" class="active">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler.html">Scheduler</a></li>
+            <li><a href="arbitro.html">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display.html">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion.html">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding.html">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar.html">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados.html">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq.html">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Equipos <span class="badge badge-new">Nuevo V2.4</span></h1>
+    <p class="page-subtitle">Gesti&oacute;n completa de torneos por equipos con los tres sistemas de partido reconocidos por la ITTF.</p>
+
+    <div class="callout callout-info">
+        <strong>Funcionalidad nueva en V2.4</strong>
+        El soporte para torneos de equipos es completamente nuevo en la versi&oacute;n 2.4.
+        Toda la secci&oacute;n est&aacute; marcada como nueva porque no exist&iacute;a en versiones anteriores.
+    </div>
+
+    <h2>¿Qu&eacute; es un torneo de equipos?</h2>
+    <p>
+        En un torneo de equipos, cada enfrentamiento es entre dos <strong>equipos</strong>
+        (no jugadores individuales). Cada enfrentamiento se compone de una serie de partidos
+        individuales (singles y/o dobles) que se juegan en un orden preestablecido. El equipo
+        que gana la mayor&iacute;a de esos partidos individuales gana el encuentro.
+    </p>
+    <p>
+        ETTEM soporta los tres sistemas oficiales de la ITTF para torneos de equipos:
+        <strong>Swaythling</strong>, <strong>Corbillon</strong> y <strong>Olympic</strong>.
+    </p>
+
+    <h2>Sistemas de Partido de Equipo <span class="badge badge-new">Nuevo V2.4</span></h2>
+
+    <h3>Sistema Swaythling &mdash; 5 Singles</h3>
+    <p>
+        El sistema m&aacute;s cl&aacute;sico: cinco partidos de singles individuales.
+        El primero en ganar <strong>3 partidos</strong> gana el encuentro.
+        El orden oficial de los partidos es:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>N&ordm;</th>
+                <th>Partido</th>
+                <th>Descripci&oacute;n</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>A1 vs B1</strong></td>
+                <td>Primer titular del equipo A contra primer titular del equipo B</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>A2 vs B2</strong></td>
+                <td>Segundo titular del equipo A contra segundo titular del equipo B</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>A3 vs B3</strong></td>
+                <td>Tercer titular del equipo A contra tercer titular del equipo B</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>A1 vs B2</strong></td>
+                <td>Primer titular A contra segundo titular B</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>A2 vs B1</strong></td>
+                <td>Segundo titular A contra primer titular B</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+        Si un equipo gana los primeros 3 partidos (3&ndash;0), los restantes no se juegan.
+        Si el marcador es 2&ndash;2 al llegar al partido 5, este es el partido decisivo.
+    </p>
+
+    <h3>Sistema Corbillon &mdash; 4 Singles + 1 Dobles</h3>
+    <p>
+        Similar al Swaythling pero con un partido de dobles en el centro de la secuencia.
+        El primero en ganar <strong>3 partidos</strong> gana el encuentro.
+        El orden oficial es:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>N&ordm;</th>
+                <th>Partido</th>
+                <th>Descripci&oacute;n</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>A1 vs B1</strong></td>
+                <td>Singles &mdash; primer titular contra primer titular</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>A2 vs B2</strong></td>
+                <td>Singles &mdash; segundo titular contra segundo titular</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>Dobles</strong></td>
+                <td>Pareja de dobles del equipo A contra pareja de dobles del equipo B</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>A1 vs B2</strong></td>
+                <td>Singles &mdash; primer titular A contra segundo titular B</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>A2 vs B1</strong></td>
+                <td>Singles &mdash; segundo titular A contra primer titular B</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Sistema Olympic &mdash; 1 Dobles + 4 Singles</h3>
+    <p>
+        El formato ol&iacute;mpico: comienza con el partido de dobles y luego sigue con los singles.
+        El primero en ganar <strong>3 partidos</strong> gana el encuentro. El orden oficial es:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>N&ordm;</th>
+                <th>Partido</th>
+                <th>Descripci&oacute;n</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>Dobles</strong></td>
+                <td>Pareja de dobles del equipo A contra pareja de dobles del equipo B</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>A1 vs B1</strong></td>
+                <td>Singles &mdash; primer titular contra primer titular</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>A2 vs B2</strong></td>
+                <td>Singles &mdash; segundo titular contra segundo titular</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>A1 vs B2</strong></td>
+                <td>Singles &mdash; primer titular A contra segundo titular B</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>A2 vs B1</strong></td>
+                <td>Singles &mdash; segundo titular A contra primer titular B</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-info">
+        <strong>Elecci&oacute;n del sistema</strong>
+        El sistema de partido (Swaythling, Corbillon u Olympic) se elige una &uacute;nica vez
+        al momento de importar los equipos. Todos los encuentros de la misma categor&iacute;a
+        usan el mismo sistema.
+    </div>
+
+    <h2>Configurar un Torneo de Equipos <span class="badge badge-new">Nuevo V2.4</span></h2>
+
+    <h3>Paso 1 &mdash; Preparar el CSV de equipos</h3>
+    <p>
+        El CSV de equipos tiene una columna adicional respecto al CSV de jugadores individuales:
+        la columna <code>equipo</code> que agrupa a los jugadores en un equipo.
+        Todos los jugadores del mismo equipo deben tener el mismo valor en esa columna.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Columna</th>
+                <th>Descripci&oacute;n</th>
+                <th>Ejemplo</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>id</code></td>
+                <td>Identificador &uacute;nico del jugador</td>
+                <td>1, 2, 3&hellip;</td>
+            </tr>
+            <tr>
+                <td><code>nombre</code></td>
+                <td>Nombre del jugador</td>
+                <td>Juan</td>
+            </tr>
+            <tr>
+                <td><code>apellido</code></td>
+                <td>Apellido del jugador</td>
+                <td>P&eacute;rez</td>
+            </tr>
+            <tr>
+                <td><code>genero</code></td>
+                <td>M o F</td>
+                <td>M</td>
+            </tr>
+            <tr>
+                <td><code>pais_cd</code></td>
+                <td>C&oacute;digo ISO-3 del pa&iacute;s</td>
+                <td>ESP</td>
+            </tr>
+            <tr>
+                <td><code>ranking_pts</code></td>
+                <td>Puntos de ranking del jugador</td>
+                <td>1200</td>
+            </tr>
+            <tr>
+                <td><code>categoria</code></td>
+                <td>Categor&iacute;a del torneo</td>
+                <td>MS</td>
+            </tr>
+            <tr>
+                <td><code>equipo</code></td>
+                <td>Nombre del equipo al que pertenece</td>
+                <td>Club Espa&ntilde;a A</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Paso 2 &mdash; Importar y elegir el sistema</h3>
+    <p>
+        Al importar el CSV, ETTEM detecta autom&aacute;ticamente que es un torneo de equipos
+        (por la presencia de la columna <code>equipo</code>). En ese momento deber&aacute;s
+        seleccionar el <strong>sistema de partido</strong> que se usar&aacute; en todos los encuentros:
+        Swaythling, Corbillon u Olympic.
+    </p>
+
+    <h3>Paso 3 &mdash; Crear grupos y jugar</h3>
+    <p>
+        Una vez importados los equipos, la creaci&oacute;n de grupos y la generaci&oacute;n
+        del bracket funcionan exactamente igual que en un torneo individual. La diferencia
+        es que la unidad es el <strong>equipo</strong>, no el jugador.
+    </p>
+
+    <h2>Ingresar Resultados de Encuentros de Equipo <span class="badge badge-new">Nuevo V2.4</span></h2>
+    <p>
+        Al hacer clic en un encuentro de equipos, se despliegan los partidos individuales
+        que lo componen en el orden del sistema elegido. Cada partido individual se ingresa
+        por separado:
+    </p>
+    <ol>
+        <li>Haz clic en el encuentro de equipos que quieres registrar.</li>
+        <li>Ver&aacute;s la lista de partidos individuales (singles y/o dobles) en orden.</li>
+        <li>Ingresa el marcador de cada partido individual (set a set).</li>
+        <li>ETTEM calcula autom&aacute;ticamente si el encuentro ya tiene ganador (3 victorias)
+            y detiene la serie &mdash; los partidos restantes quedan marcados como no disputados.</li>
+        <li>El resultado del encuentro (equipo ganador) se actualiza autom&aacute;ticamente
+            en el standing de grupos o en el bracket.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Prevenci&oacute;n de duplicados</strong>
+        ETTEM detecta y previene el ingreso de resultados duplicados. Si intentas registrar
+        un partido individual que ya fue completado, el sistema mostrar&aacute; un aviso antes
+        de sobreescribir el resultado.
+    </div>
+
+    <h2>Standings y Bracket de Equipos <span class="badge badge-new">Nuevo V2.4</span></h2>
+    <p>
+        Los standings y el bracket de equipos funcionan id&eacute;nticamente a los de
+        jugadores individuales, pero las filas de la tabla representan equipos en lugar
+        de jugadores:
+    </p>
+    <ul>
+        <li>Cada victoria de encuentro suma puntos de partido al equipo.</li>
+        <li>Los mismos criterios de desempate aplican: head-to-head, ratio de sets, ratio de puntos.</li>
+        <li>El bracket KO se genera con los equipos clasificados de cada grupo.</li>
+        <li>El bracket KO Directo tambi&eacute;n est&aacute; disponible para equipos.</li>
+    </ul>
+
+    <div class="callout callout-info">
+        <strong>Homologaci&oacute;n de resultados</strong>
+        ETTEM verifica que el resultado final del encuentro (p. ej. 3&ndash;1 a favor del
+        equipo A) sea consistente con los resultados de los partidos individuales ingresados.
+        Si hay alguna inconsistencia, el sistema mostrar&aacute; un aviso antes de guardar.
+    </div>
+
+    <div class="page-nav">
+        <a href="bracket.html">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Bracket (Llave)</span>
+        </a>
+        <a href="scheduler.html" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Scheduler</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

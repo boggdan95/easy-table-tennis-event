@@ -33,6 +33,7 @@ nav:
   print_center: "Centro de Impresión"
   table_config: "Configurar Mesas"
   tournament_settings: "Personalización"
+  user_guide: "Guía de Usuario"
   collapse_menu: "Colapsar/Expandir menú"
   change_theme: "Cambiar tema"
   groups_of: "Grupos de {category}"

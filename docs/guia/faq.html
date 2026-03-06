@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preguntas Frecuentes - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="index.html" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="index.html">Introducci&oacute;n</a></li>
+            <li><a href="instalacion.html">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard.html">Panel Principal</a></li>
+            <li><a href="jugadores.html">Importar Jugadores</a></li>
+            <li><a href="grupos.html">Crear Grupos</a></li>
+            <li><a href="resultados.html">Ingresar Resultados</a></li>
+            <li><a href="standings.html">Standings</a></li>
+            <li><a href="bracket.html">Bracket (Llave)</a></li>
+            <li><a href="equipos.html">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler.html">Scheduler</a></li>
+            <li><a href="arbitro.html">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display.html">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion.html">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding.html">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar.html">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados.html">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq.html" class="active">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Preguntas Frecuentes</h1>
+    <p class="page-subtitle">Respuestas a las dudas m&aacute;s comunes sobre el uso de ETTEM.</p>
+
+    <h2>Datos y Almacenamiento</h2>
+
+    <h3>&iquest;D&oacute;nde se guardan mis datos?</h3>
+    <p>
+        Todos los datos del torneo se guardan localmente en la carpeta <code>.ettem/</code>
+        dentro del directorio donde se encuentra el ejecutable de ETTEM. Dentro de esa
+        carpeta encontrar&aacute;s dos archivos principales:
+    </p>
+    <ul>
+        <li><code>ettem.sqlite</code> &mdash; la base de datos con todos los datos del torneo (jugadores, grupos, partidos, resultados, etc.).</li>
+        <li><code>license.key</code> &mdash; el archivo con tu clave de licencia activada.</li>
+    </ul>
+    <p>
+        En <strong>macOS</strong> cuando se usa el ejecutable <code>.app</code>, los datos
+        se guardan en <code>~/Library/Application Support/ETTEM/</code>.
+    </p>
+
+    <h3>&iquest;Puedo hacer backup de mis datos?</h3>
+    <p>
+        S&iacute;. Para hacer una copia de seguridad completa, simplemente copia la
+        carpeta <code>.ettem/</code> a otro lugar (disco externo, servicio de nube, etc.).
+        Para restaurar, vuelve a pegar la carpeta en el mismo lugar antes de abrir ETTEM.
+    </p>
+    <div class="callout callout-tip">
+        <strong>Recomendaci&oacute;n</strong>
+        Haz un backup al final de cada jornada del torneo y otro al cierre definitivo.
+        Con eso proteges todos los resultados ingresados en caso de un fallo de hardware.
+    </div>
+
+    <h2>Licencia</h2>
+
+    <h3>&iquest;Puedo usar la misma licencia en otra computadora?</h3>
+    <p>
+        S&iacute;. Tu licencia de ETTEM no est&aacute; bloqueada a un &uacute;nico equipo.
+        Puedes instalar y activar ETTEM con la misma clave en otra computadora sin problema.
+        Ten en cuenta que los datos del torneo <strong>no se sincronizan</strong> entre
+        equipos &mdash; cada instalaci&oacute;n tiene su propia base de datos local.
+    </p>
+
+    <h3>&iquest;Qu&eacute; pasa si mi licencia expira durante un torneo?</h3>
+    <p>
+        Si tu licencia expira mientras tienes un torneo en curso, ETTEM pasa a modo de
+        <strong>solo lectura</strong>: podr&aacute;s ver todos los datos existentes,
+        pero no podr&aacute;s ingresar nuevos resultados ni realizar cambios hasta
+        renovar la licencia. Para renovar, contacta a
+        <a href="mailto:ettem@boggdan.com">ettem@boggdan.com</a> y recibir&aacute;s
+        una nueva clave de licencia.
+    </p>
+    <div class="callout callout-warning">
+        <strong>Renueva con anticipaci&oacute;n</strong>
+        Si tienes un torneo importante programado, aseg&uacute;rate de que tu licencia
+        no venza durante el evento. Puedes verificar la fecha de vencimiento en la
+        pantalla de activaci&oacute;n de licencia dentro de ETTEM.
+    </div>
+
+    <h2>Gesti&oacute;n del Torneo</h2>
+
+    <h3>&iquest;C&oacute;mo cambio un resultado ya ingresado?</h3>
+    <p>
+        Para modificar un resultado ya guardado:
+    </p>
+    <ol>
+        <li>Ve a la p&aacute;gina de partidos del grupo correspondiente (o del bracket si es un partido KO).</li>
+        <li>Haz clic sobre el partido cuyo resultado quieres corregir.</li>
+        <li>El sistema mostrar&aacute; el marcador actual en modo edici&oacute;n.</li>
+        <li>Modifica los sets necesarios y haz clic en <strong>Guardar</strong>.</li>
+    </ol>
+    <p>
+        ETTEM recalcula autom&aacute;ticamente los standings y avances de bracket
+        tan pronto como se guarda el resultado corregido.
+    </p>
+
+    <h3>&iquest;Puedo eliminar una categor&iacute;a?</h3>
+    <p>
+        S&iacute;. Desde el panel principal puedes eliminar una categor&iacute;a completa.
+        Ten en cuenta que esta acci&oacute;n es <strong>irreversible</strong> y borra
+        permanentemente todos los datos asociados: jugadores inscritos, grupos, partidos
+        y resultados de esa categor&iacute;a. ETTEM te pedir&aacute; confirmaci&oacute;n
+        antes de proceder.
+    </p>
+    <div class="callout callout-warning">
+        <strong>Acci&oacute;n irreversible</strong>
+        No hay papelera ni opci&oacute;n de deshacer. Si necesitas recuperar una categor&iacute;a
+        eliminada, deber&aacute;s restaurar desde un backup previo.
+    </div>
+
+    <h2>Problemas T&eacute;cnicos</h2>
+
+    <h3>El programa no abre o se cierra inesperadamente</h3>
+    <p>
+        Si ETTEM no abre o se cierra sin mostrar ning&uacute;n mensaje:
+    </p>
+    <ol>
+        <li>
+            <strong>Verifica la licencia:</strong> aseg&uacute;rate de que el archivo
+            <code>license.key</code> est&aacute; en la carpeta <code>.ettem/</code>
+            junto al ejecutable y que la licencia no haya expirado.
+        </li>
+        <li>
+            <strong>Ejecuta desde la l&iacute;nea de comandos</strong> para ver los mensajes
+            de error. En Windows, abre el S&iacute;mbolo del sistema en la carpeta de ETTEM
+            y escribe <code>ETTEM.exe</code> (o el nombre del ejecutable). Los errores
+            aparecer&aacute;n en la consola.
+        </li>
+        <li>
+            <strong>Antivirus:</strong> algunos antivirus bloquean ejecutables de
+            terceros. A&ntilde;ade ETTEM a la lista de excepciones de tu antivirus.
+        </li>
+        <li>
+            Si el problema persiste, contacta a <a href="mailto:ettem@boggdan.com">ettem@boggdan.com</a>
+            con el mensaje de error que aparece en la consola.
+        </li>
+    </ol>
+
+    <h3>&iquest;C&oacute;mo actualizo a una nueva versi&oacute;n de ETTEM?</h3>
+    <p>
+        Actualizar ETTEM es sencillo y no requiere desinstalar nada:
+    </p>
+    <ol>
+        <li>Descarga el nuevo ejecutable desde <a href="https://ettem.boggdan.com">ettem.boggdan.com</a> o desde el enlace de descarga que recibiste al comprar la licencia.</li>
+        <li>Reemplaza el ejecutable antiguo (<code>ETTEM.exe</code> o <code>ETTEM.app</code>) con el nuevo.</li>
+        <li>La carpeta <code>.ettem/</code> con tus datos y licencia se conserva intacta.</li>
+        <li>Abre ETTEM normalmente &mdash; tus datos y torneos anteriores seguir&aacute;n disponibles.</li>
+    </ol>
+    <div class="callout callout-tip">
+        <strong>Haz un backup antes de actualizar</strong>
+        Aunque las actualizaciones de ETTEM son compatibles hacia atr&aacute;s con los
+        datos de versiones anteriores, siempre es buena pr&aacute;ctica hacer un backup
+        de la carpeta <code>.ettem/</code> antes de actualizar, por precauci&oacute;n.
+    </div>
+
+    <h2>Compatibilidad <span class="badge badge-new">Nuevo V2.6</span></h2>
+
+    <h3>&iquest;Funciona en macOS? <span class="badge badge-new">Nuevo V2.6</span></h3>
+    <p>
+        S&iacute;. A partir de la versi&oacute;n 2.6, ETTEM ofrece soporte oficial para
+        macOS mediante un archivo <code>.dmg</code> descargable. Las funcionalidades son
+        id&eacute;nticas a la versi&oacute;n de Windows. Para instalar en macOS:
+    </p>
+    <ol>
+        <li>Descarga el archivo <code>ETTEM.dmg</code> desde la p&aacute;gina de descargas.</li>
+        <li>Abre el <code>.dmg</code> y arrastra <code>ETTEM.app</code> a la carpeta Aplicaciones.</li>
+        <li>La primera vez que abras la app, macOS puede mostrar una advertencia de seguridad
+        (Gatekeeper). Haz clic derecho sobre el icono de ETTEM y selecciona <strong>Abrir</strong>
+        para autorizar la ejecuci&oacute;n.</li>
+    </ol>
+    <p>
+        En macOS, los datos se guardan en
+        <code>~/Library/Application Support/ETTEM/</code>.
+    </p>
+
+    <h3>&iquest;Puedo usar categor&iacute;as de equipos y de singles en el mismo torneo? <span class="badge badge-new">Nuevo V2.6</span></h3>
+    <p>
+        S&iacute;. ETTEM permite mezclar libremente categor&iacute;as de
+        <strong>singles individuales</strong> y de <strong>equipos</strong> dentro
+        del mismo torneo. Cada categor&iacute;a funciona de forma independiente con
+        su propio modo de juego. Por ejemplo, puedes tener:
+    </p>
+    <ul>
+        <li>U15BS (Sub-15 Masculino Singles) con partidos individuales al mejor de 5.</li>
+        <li>MS (Masculino por Equipos Swaythling) con encuentros de 5 partidos individuales.</li>
+    </ul>
+    <p>
+        Al importar jugadores o equipos, selecciona la categor&iacute;a correspondiente
+        y el sistema aplicar&aacute; autom&aacute;ticamente las reglas correctas para
+        cada una.
+    </p>
+
+    <h3>&iquest;Los certificados incluyen mi logo? <span class="badge badge-new">Nuevo V2.6</span></h3>
+    <p>
+        S&iacute;. Los <a href="certificados.html">certificados de premiaci&oacute;n</a>
+        incluyen autom&aacute;ticamente el logo, el nombre del organizador y el pie de
+        p&aacute;gina que hayas configurado en la p&aacute;gina de
+        <a href="branding.html">Configuraci&oacute;n del Torneo</a>. Si no has subido
+        un logo todav&iacute;a, el certificado se genera igualmente pero sin imagen en
+        el encabezado. Puedes configurar el branding en cualquier momento antes de
+        generar los certificados.
+    </p>
+
+    <h2>Contacto y Soporte</h2>
+    <p>
+        Si tu pregunta no est&aacute; resuelta en esta p&aacute;gina o necesitas ayuda
+        t&eacute;cnica adicional, contacta al equipo de ETTEM:
+    </p>
+    <ul>
+        <li><strong>Correo electr&oacute;nico:</strong> <a href="mailto:ettem@boggdan.com">ettem@boggdan.com</a></li>
+        <li><strong>Sitio web:</strong> <a href="https://ettem.boggdan.com">ettem.boggdan.com</a></li>
+    </ul>
+    <p>
+        Al contactar soporte, inclu&iacute; la versi&oacute;n de ETTEM que est&aacute;s
+        usando (visible en la pantalla de activaci&oacute;n) y una descripci&oacute;n
+        detallada del problema o el mensaje de error que aparece.
+    </p>
+
+    <div class="page-nav">
+        <a href="certificados.html">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Certificados</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

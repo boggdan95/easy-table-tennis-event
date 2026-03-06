@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standings - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="index.html" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="index.html">Introducci&oacute;n</a></li>
+            <li><a href="instalacion.html">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard.html">Panel Principal</a></li>
+            <li><a href="jugadores.html">Importar Jugadores</a></li>
+            <li><a href="grupos.html">Crear Grupos</a></li>
+            <li><a href="resultados.html">Ingresar Resultados</a></li>
+            <li><a href="standings.html" class="active">Standings</a></li>
+            <li><a href="bracket.html">Bracket (Llave)</a></li>
+            <li><a href="equipos.html">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler.html">Scheduler</a></li>
+            <li><a href="arbitro.html">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display.html">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion.html">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding.html">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar.html">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados.html">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq.html">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Standings</h1>
+    <p class="page-subtitle">C&oacute;mo se calculan y muestran las posiciones finales de la fase de grupos.</p>
+
+    <h2>Vista de Standings</h2>
+    <p>
+        Los <strong>standings</strong> muestran la tabla de posiciones de cada grupo al finalizar
+        la fase de Round Robin. ETTEM los calcula autom&aacute;ticamente a medida que se ingresan
+        resultados, sin necesidad de ning&uacute;n c&aacute;lculo manual.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/09_category_standings.png" alt="Tabla de standings de una categor&iacute;a" loading="lazy">
+        <div class="screenshot-caption">Standings de una categor&iacute;a mostrando posiciones, puntos, sets y ratio de puntos.</div>
+    </div>
+
+    <h2>Sistema de Puntos</h2>
+    <p>Cada partido en la fase de grupos asigna puntos de partido seg&uacute;n el resultado:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Resultado</th>
+                <th>Puntos para el ganador</th>
+                <th>Puntos para el perdedor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Victoria normal</td>
+                <td><strong>2</strong></td>
+                <td><strong>1</strong></td>
+            </tr>
+            <tr>
+                <td>Derrota normal</td>
+                <td>&mdash;</td>
+                <td><strong>1</strong></td>
+            </tr>
+            <tr>
+                <td>Victoria por walkover (W.O.)</td>
+                <td><strong>2</strong></td>
+                <td>&mdash;</td>
+            </tr>
+            <tr>
+                <td>Derrota por walkover (W.O.)</td>
+                <td>&mdash;</td>
+                <td><strong>0</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-info">
+        <strong>Importante</strong>
+        Incluso al perder un partido normal, el jugador recibe <strong>1 punto</strong>.
+        Solo una derrota por walkover (W.O.) otorga 0 puntos. Esto incentiva que todos los jugadores
+        compitan hasta el final.
+    </div>
+
+    <h2>Columnas de la Tabla de Standings</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Columna</th>
+                <th>Descripci&oacute;n</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Pos.</strong></td>
+                <td>Posici&oacute;n en el grupo (1&ordm;, 2&ordm;, etc.)</td>
+            </tr>
+            <tr>
+                <td><strong>Jugador</strong></td>
+                <td>Nombre y bandera del pa&iacute;s</td>
+            </tr>
+            <tr>
+                <td><strong>PJ</strong></td>
+                <td>Partidos jugados</td>
+            </tr>
+            <tr>
+                <td><strong>PG</strong></td>
+                <td>Partidos ganados</td>
+            </tr>
+            <tr>
+                <td><strong>PP</strong></td>
+                <td>Partidos perdidos</td>
+            </tr>
+            <tr>
+                <td><strong>Pts</strong></td>
+                <td>Puntos de partido acumulados</td>
+            </tr>
+            <tr>
+                <td><strong>Sets +/-</strong></td>
+                <td>Sets ganados y perdidos</td>
+            </tr>
+            <tr>
+                <td><strong>Ratio Sets</strong></td>
+                <td>Cociente de sets ganados / sets perdidos</td>
+            </tr>
+            <tr>
+                <td><strong>Pts +/-</strong></td>
+                <td>Puntos anotados y recibidos en todos los sets</td>
+            </tr>
+            <tr>
+                <td><strong>Ratio Pts</strong></td>
+                <td>Cociente de puntos a favor / puntos en contra</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Reglas de Desempate (Tiebreak)</h2>
+    <p>
+        Cuando dos o m&aacute;s jugadores tienen el mismo n&uacute;mero de <strong>puntos de partido</strong>,
+        ETTEM aplica los siguientes criterios de desempate <strong>en orden</strong>:
+    </p>
+
+    <ol>
+        <li>
+            <strong>Resultado entre s&iacute; (head-to-head)</strong> &mdash; Si solo hay dos jugadores empatados,
+            gana quien venci&oacute; al otro en el enfrentamiento directo dentro del grupo.
+        </li>
+        <li>
+            <strong>Ratio de sets</strong> &mdash; Cociente entre sets ganados y sets perdidos.
+            Un ratio m&aacute;s alto significa mejor posici&oacute;n.
+            <br><em>Ejemplo: 8 sets ganados / 3 sets perdidos = ratio 2.67</em>
+        </li>
+        <li>
+            <strong>Ratio de puntos</strong> &mdash; Cociente entre puntos totales a favor y puntos
+            totales en contra en todos los sets del grupo.
+            <br><em>Ejemplo: 220 puntos a favor / 185 en contra = ratio 1.19</em>
+        </li>
+        <li>
+            <strong>Semilla original</strong> &mdash; Si a&uacute;n hay empate despu&eacute;s de los
+            criterios anteriores, se usa la semilla asignada al crear los grupos (mejor ranking = mejor posici&oacute;n).
+        </li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        Los criterios de desempate se aplican solo entre los jugadores empatados, recalculando
+        estad&iacute;sticas &uacute;nicamente con los partidos jugados <em>entre ellos</em>
+        (no todos los partidos del grupo).
+    </div>
+
+    <h2>Actualizaci&oacute;n Autom&aacute;tica</h2>
+    <p>
+        Los standings se actualizan en tiempo real conforme se ingresan resultados. No es necesario
+        hacer ning&uacute;n c&aacute;lculo manual ni recargar la p&aacute;gina &mdash; cada vez que
+        guardas un resultado, las posiciones se recalculan instant&aacute;neamente.
+    </p>
+
+    <h2>Clasificaci&oacute;n para el Bracket</h2>
+    <p>
+        Al completar todos los partidos de la fase de grupos, los standings determinan qu&eacute;
+        jugadores avanzan al bracket de eliminaci&oacute;n directa. ETTEM toma autom&aacute;ticamente
+        a los clasificados seg&uacute;n la configuraci&oacute;n del torneo (ej: los 2 primeros de
+        cada grupo, el mejor tercero, etc.).
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Nota</strong>
+        La cantidad de clasificados por grupo se define en la configuraci&oacute;n de la categor&iacute;a.
+        El bracket se genera autom&aacute;ticamente una vez que todos los partidos de grupos
+        est&eacute;n completados.
+    </div>
+
+    <h2>Imprimir Standings</h2>
+    <p>
+        Desde la vista de standings puedes imprimir la tabla de posiciones en formato PDF para
+        publicar en el recinto del torneo. Ve al <strong>Centro de Impresi&oacute;n</strong> o
+        usa el bot&oacute;n <strong>Imprimir</strong> en la p&aacute;gina de standings de la categor&iacute;a.
+    </p>
+
+    <div class="page-nav">
+        <a href="resultados.html">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Ingresar Resultados</span>
+        </a>
+        <a href="bracket.html" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Bracket (Llave)</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

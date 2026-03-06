@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branding y Personalizaci&oacute;n - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="index.html" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="index.html">Introducci&oacute;n</a></li>
+            <li><a href="instalacion.html">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard.html">Panel Principal</a></li>
+            <li><a href="jugadores.html">Importar Jugadores</a></li>
+            <li><a href="grupos.html">Crear Grupos</a></li>
+            <li><a href="resultados.html">Ingresar Resultados</a></li>
+            <li><a href="standings.html">Standings</a></li>
+            <li><a href="bracket.html">Bracket (Llave)</a></li>
+            <li><a href="equipos.html">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler.html">Scheduler</a></li>
+            <li><a href="arbitro.html">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display.html">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion.html">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding.html" class="active">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar.html">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados.html">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq.html">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Branding y Personalizaci&oacute;n <span class="badge badge-new">Nuevo V2.6</span></h1>
+    <p class="page-subtitle">Dale identidad propia a tu torneo: logo, colores, nombre del organizador y pie de p&aacute;gina en todos los documentos impresos y certificados.</p>
+
+    <h2>Descripci&oacute;n General</h2>
+    <p>
+        A partir de la versi&oacute;n 2.6, ETTEM permite configurar la identidad visual del
+        torneo a trav&eacute;s de la p&aacute;gina de <strong>Configuraci&oacute;n del
+        Torneo</strong>. Una vez configurado el branding, todos los documentos generados
+        por el sistema &mdash; hojas de grupo, brackets, grillas del scheduler y certificados
+        &mdash; incluir&aacute;n autom&aacute;ticamente el encabezado personalizado con el
+        logo y los datos del organizador.
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Nueva funcionalidad en V2.6</strong>
+        El branding es una funcionalidad completamente nueva en la versi&oacute;n 2.6.
+        Si estabas usando una versi&oacute;n anterior, todos los documentos seguir&aacute;n
+        funcionando igual &mdash; el encabezado de branding simplemente no aparecer&aacute;
+        hasta que lo configures.
+    </div>
+
+    <h2>Acceder a la Configuraci&oacute;n del Torneo</h2>
+    <p>
+        La p&aacute;gina de configuraci&oacute;n est&aacute; disponible en
+        <code>/admin/tournament-settings</code>. Puedes acceder desde:
+    </p>
+    <ul>
+        <li>El men&uacute; de administraci&oacute;n en la barra lateral, bajo <strong>Configuraci&oacute;n</strong>.</li>
+        <li>El bot&oacute;n <strong>Configuraci&oacute;n del Torneo</strong> en el Centro de Impresi&oacute;n.</li>
+        <li>Directamente desde la URL <code>http://127.0.0.1:8000/admin/tournament-settings</code>.</li>
+    </ul>
+
+    <h2>Logo del Torneo <span class="badge badge-new">Nuevo V2.6</span></h2>
+    <p>
+        Puedes subir el logo de tu torneo, federaci&oacute;n o patrocinador principal.
+        Este logo aparecer&aacute; en el encabezado de todos los documentos impresos
+        y en los certificados de premiaci&oacute;n.
+    </p>
+    <h3>Requisitos del archivo</h3>
+    <ul>
+        <li>Formatos aceptados: <strong>PNG</strong> o <strong>JPG/JPEG</strong>.</li>
+        <li>Tama&ntilde;o m&aacute;ximo recomendado: 2 MB.</li>
+        <li>Resoluci&oacute;n recomendada: al menos 300 &times; 300 p&iacute;xeles para buena calidad de impresi&oacute;n.</li>
+        <li>Preferiblemente con fondo transparente (PNG) para que quede bien sobre cualquier color de fondo.</li>
+    </ul>
+    <h3>C&oacute;mo subir el logo</h3>
+    <ol>
+        <li>Ve a <strong>Configuraci&oacute;n del Torneo</strong>.</li>
+        <li>En la secci&oacute;n <strong>Logo</strong>, haz clic en <strong>Seleccionar archivo</strong>.</li>
+        <li>Elige el archivo PNG o JPG desde tu computadora.</li>
+        <li>Haz clic en <strong>Guardar</strong>. El logo aparece inmediatamente en la vista previa.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Vista previa instant&aacute;nea</strong>
+        Despu&eacute;s de guardar el logo, puedes ir al Centro de Impresi&oacute;n y
+        hacer clic en cualquier documento para ver c&oacute;mo quedar&aacute; el
+        encabezado antes de imprimir.
+    </div>
+
+    <h2>Nombre del Organizador y del Evento <span class="badge badge-new">Nuevo V2.6</span></h2>
+    <p>
+        Configura el nombre oficial que aparecer&aacute; en los documentos impresos y certificados:
+    </p>
+    <ul>
+        <li>
+            <strong>Nombre del organizador:</strong> el club, federaci&oacute;n o entidad que
+            organiza el torneo (ej.: &ldquo;Club Deportivo Pingpong Madrid&rdquo;).
+        </li>
+        <li>
+            <strong>Nombre del evento:</strong> el t&iacute;tulo oficial del torneo
+            (ej.: &ldquo;IV Torneo Open Sub-17 Comunidad de Madrid 2026&rdquo;).
+        </li>
+    </ul>
+    <p>
+        Estos textos aparecer&aacute;n debajo del logo en el encabezado de todos los
+        documentos generados por ETTEM.
+    </p>
+
+    <h2>Colores de Banderas por Pa&iacute;s <span class="badge badge-new">Nuevo V2.6</span></h2>
+    <p>
+        ETTEM muestra los c&oacute;digos de pa&iacute;s de los jugadores como
+        <strong>badges de color</strong> en las tablas de standings, resultados y documentos
+        impresos. Puedes personalizar los colores de fondo y texto para cada pa&iacute;s
+        participante en tu torneo.
+    </p>
+    <p>
+        En la secci&oacute;n <strong>Colores de Pa&iacute;ses</strong> de la configuraci&oacute;n
+        del torneo, ver&aacute;s una lista de todos los pa&iacute;ses registrados con sus
+        jugadores. Para cada uno puedes definir:
+    </p>
+    <ul>
+        <li><strong>Color de fondo:</strong> usando el selector de color o introduciendo un valor hexadecimal (#RRGGBB).</li>
+        <li><strong>Color de texto:</strong> para asegurar contraste legible sobre el fondo elegido.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Contraste m&iacute;nimo recomendado</strong>
+        Para que los badges sean legibles, elige combinaciones con suficiente contraste.
+        Por ejemplo: fondo rojo oscuro (#c0392b) con texto blanco (#ffffff), o fondo
+        amarillo (#f1c40f) con texto negro (#000000).
+    </div>
+
+    <h2>Pie de P&aacute;gina para Documentos Impresos <span class="badge badge-new">Nuevo V2.6</span></h2>
+    <p>
+        Puedes definir un texto de pie de p&aacute;gina que aparecer&aacute; en la parte
+        inferior de todos los documentos impresos. Es &uacute;til para incluir:
+    </p>
+    <ul>
+        <li>Informaci&oacute;n de contacto del organizador.</li>
+        <li>Sitio web o redes sociales del torneo.</li>
+        <li>Texto legal o reglamentario obligatorio.</li>
+        <li>Patrocinadores del evento.</li>
+    </ul>
+
+    <h2>Impacto del Branding en los Documentos</h2>
+    <p>
+        Una vez configurado, el branding aparece autom&aacute;ticamente en los siguientes
+        documentos generados por ETTEM:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Documento</th>
+                <th>Logo</th>
+                <th>Nombre del organizador</th>
+                <th>Pie de p&aacute;gina</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Hoja de Grupo</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+            </tr>
+            <tr>
+                <td>Hoja de Partido</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+            </tr>
+            <tr>
+                <td>Bracket (Llave)</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+            </tr>
+            <tr>
+                <td>Grilla del Scheduler</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+            </tr>
+            <tr>
+                <td>Certificados de Premiaci&oacute;n</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+                <td>S&iacute;</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-warning">
+        <strong>El branding es por torneo</strong>
+        La configuraci&oacute;n de branding est&aacute; vinculada a la sesi&oacute;n activa.
+        Si creas un torneo nuevo, deber&aacute;s volver a configurar el branding para esa
+        nueva sesi&oacute;n.
+    </div>
+
+    <div class="page-nav">
+        <a href="impresion.html">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Centro de Impresi&oacute;n</span>
+        </a>
+        <a href="exportar.html" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Exportar Datos</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

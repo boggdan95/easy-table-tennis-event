@@ -33,6 +33,7 @@ nav:
   print_center: "Print Center"
   table_config: "Configure Tables"
   tournament_settings: "Customization"
+  user_guide: "User Guide"
   collapse_menu: "Collapse/Expand menu"
   change_theme: "Change theme"
   groups_of: "Groups of {category}"

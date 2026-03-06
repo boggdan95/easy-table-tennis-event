@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bracket (Llave) - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="index.html" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="index.html">Introducci&oacute;n</a></li>
+            <li><a href="instalacion.html">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard.html">Panel Principal</a></li>
+            <li><a href="jugadores.html">Importar Jugadores</a></li>
+            <li><a href="grupos.html">Crear Grupos</a></li>
+            <li><a href="resultados.html">Ingresar Resultados</a></li>
+            <li><a href="standings.html">Standings</a></li>
+            <li><a href="bracket.html" class="active">Bracket (Llave)</a></li>
+            <li><a href="equipos.html">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler.html">Scheduler</a></li>
+            <li><a href="arbitro.html">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display.html">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion.html">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding.html">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar.html">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados.html">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq.html">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Bracket (Llave)</h1>
+    <p class="page-subtitle">Eliminaci&oacute;n directa: generaci&oacute;n autom&aacute;tica, modo manual y KO Directo sin fase de grupos.</p>
+
+    <h2>Acerca del Bracket</h2>
+    <p>
+        El bracket es la fase de eliminaci&oacute;n directa (KO) que sigue a la fase de grupos.
+        ETTEM genera la llave autom&aacute;ticamente a partir de los standings finales siguiendo
+        las reglas ITTF de colocaci&oacute;n, o permite ajustarla manualmente con validaciones
+        incorporadas.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/10_bracket.png" alt="Vista general del bracket de eliminaci&oacute;n directa" loading="lazy">
+        <div class="screenshot-caption">Vista general del bracket de eliminaci&oacute;n directa con los clasificados de la fase de grupos.</div>
+    </div>
+
+    <h2>Modos de Bracket</h2>
+    <p>ETTEM ofrece dos modos para generar la llave de eliminaci&oacute;n:</p>
+
+    <h3>Modo Autom&aacute;tico (ITTF)</h3>
+    <p>
+        ETTEM coloca autom&aacute;ticamente a los clasificados en la llave siguiendo las reglas
+        de siembra de la ITTF:
+    </p>
+    <ul>
+        <li>
+            <strong>Mitad superior:</strong> el mejor primer lugar de todos los grupos ocupa la
+            posici&oacute;n 1 (cabeza de serie) en el extremo superior del bracket.
+        </li>
+        <li>
+            <strong>Mitad inferior:</strong> el segundo mejor primer lugar va al extremo inferior
+            del bracket (posici&oacute;n opuesta).
+        </li>
+        <li>
+            <strong>Segundos lugares:</strong> se colocan en la mitad opuesta al primer lugar
+            de su propio grupo, garantizando que clasificados del mismo grupo no se puedan
+            enfrentar hasta las semifinales o finales.
+        </li>
+        <li>
+            El resto de las posiciones se asignan por ranking de standings para equilibrar
+            la llave.
+        </li>
+    </ul>
+
+    <div class="callout callout-info">
+        <strong>Regla ITTF de mitades</strong>
+        Ning&uacute;n jugador del mismo grupo puede quedar en la misma mitad del bracket.
+        Esto asegura que los rivales de grupo solo se puedan volver a encontrar a partir
+        de las semifinales.
+    </div>
+
+    <h3>Modo Manual (Drag &amp; Drop)</h3>
+    <p>
+        Si necesitas ajustar la colocaci&oacute;n, puedes arrastrar y soltar jugadores entre
+        posiciones del bracket. ETTEM valida cada movimiento en tiempo real:
+    </p>
+    <ul>
+        <li>
+            <strong>Validaci&oacute;n de mitades:</strong> ETTEM impide colocar a dos jugadores
+            del mismo grupo en la misma mitad del bracket. Si intentas hacerlo, ver&aacute;s
+            un aviso de error.
+        </li>
+        <li>
+            <strong>Advertencia de compatriotas:</strong> si dos jugadores del mismo pa&iacute;s
+            quedar&iacute;an en la misma primera ronda, ETTEM muestra una advertencia (aunque
+            permite continuar, ya que no es una regla obligatoria).
+        </li>
+        <li>
+            Puedes deshacer cualquier movimiento regresando al modo autom&aacute;tico y
+            regenerando la llave.
+        </li>
+    </ul>
+
+    <div class="screenshot">
+        <img src="img/23_bracket_tree.png" alt="&Aacute;rbol del bracket con todos los enfrentamientos" loading="lazy">
+        <div class="screenshot-caption">&Aacute;rbol completo del bracket mostrando todas las rondas, desde octavos hasta la final.</div>
+    </div>
+
+    <h2>Ingresar Resultados del Bracket</h2>
+    <p>
+        Los resultados de los partidos del bracket se ingresan exactamente igual que los de
+        la fase de grupos: haz clic en el partido, ingresa el marcador set por set y guarda.
+        El ganador avanza autom&aacute;ticamente a la siguiente ronda.
+    </p>
+    <ul>
+        <li>El formato de partido (Bo3, Bo5, Bo7) se configura por categor&iacute;a.</li>
+        <li>Las reglas de validaci&oacute;n ITTF aplican igual que en grupos (m&aacute;nimo 11 puntos, diferencia de 2, etc.).</li>
+        <li>Al completar la final, ETTEM registra al campe&oacute;n y genera el certificado correspondiente.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        Puedes imprimir la llave vac&iacute;a antes de iniciar los partidos para exhibirla en
+        el recinto. Ve al <strong>Centro de Impresi&oacute;n</strong> y selecciona
+        &ldquo;Imprimir Bracket&rdquo;.
+    </div>
+
+    <h2>KO Directo (sin fase de grupos) <span class="badge badge-new">Nuevo V2.4</span></h2>
+    <p>
+        ETTEM V2.4 introduce el formato de <strong>KO Directo</strong>: un torneo de eliminaci&oacute;n
+        directa que omite completamente la fase de grupos Round Robin. Es ideal para torneos r&aacute;pidos,
+        play-offs o competencias con pocos jugadores y poco tiempo.
+    </p>
+
+    <h3>C&oacute;mo funcionar el KO Directo</h3>
+    <ol>
+        <li>
+            <strong>Importar jugadores</strong> como de costumbre (CSV o manualmente). No es
+            necesario ning&uacute;n cambio en el archivo CSV.
+        </li>
+        <li>
+            En la configuraci&oacute;n de la categor&iacute;a, selecciona el formato
+            <strong>&ldquo;KO Directo&rdquo;</strong> en lugar de &ldquo;Grupos + Bracket&rdquo;.
+        </li>
+        <li>
+            ETTEM genera directamente la llave de eliminaci&oacute;n con todos los jugadores
+            importados, usando su ranking como criterio de siembra.
+        </li>
+        <li>
+            Ingresa los resultados partido a partido hasta coronar al campe&oacute;n.
+        </li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Siembra en KO Directo</strong>
+        Los jugadores se siembran autom&aacute;ticamente por su <code>ranking_pts</code> del
+        CSV. El jugador con mayor puntaje es la cabeza de serie 1, el segundo es la cabeza
+        de serie 2 (en el extremo opuesto), y as&iacute; sucesivamente siguiendo el criterio
+        cl&aacute;sico de llaves por ranking.
+    </div>
+
+    <h3>Diferencias con el bracket normal</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Aspecto</th>
+                <th>Grupos + Bracket</th>
+                <th>KO Directo <span class="badge badge-new">Nuevo V2.4</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Fase de grupos</td>
+                <td>&Iacute;ndice Round Robin</td>
+                <td>No hay &mdash; va directo al bracket</td>
+            </tr>
+            <tr>
+                <td>Siembra</td>
+                <td>Basada en standings de grupos</td>
+                <td>Basada en ranking_pts del CSV</td>
+            </tr>
+            <tr>
+                <td>Partidos por jugador</td>
+                <td>M&iacute;nimo: partidos de grupo + rondas KO</td>
+                <td>Solo los partidos KO (1 derrota = eliminado)</td>
+            </tr>
+            <tr>
+                <td>Ingreso de resultados</td>
+                <td>Igual que grupos</td>
+                <td>Igual que bracket normal</td>
+            </tr>
+            <tr>
+                <td>Uso t&iacute;pico</td>
+                <td>Torneos de un d&iacute;a completo</td>
+                <td>Play-offs, torneos express, pocos jugadores</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+        <strong>Tip &mdash; KO Directo para Equipos</strong>
+        El formato KO Directo tambi&eacute;n est&aacute; disponible para torneos de equipos.
+        Consulta la secci&oacute;n <a href="equipos.html">Equipos</a> para m&aacute;s detalles.
+    </div>
+
+    <div class="page-nav">
+        <a href="standings.html">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Standings</span>
+        </a>
+        <a href="equipos.html" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Equipos</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>
