@@ -75,9 +75,18 @@
         <li>Tu navegador se abrir&aacute; autom&aacute;ticamente en <code>http://127.0.0.1:8000</code></li>
     </ol>
 
-    <div class="callout callout-info">
-        <strong>Nota</strong>
-        La primera vez puede tardar unos segundos en iniciar. Windows puede mostrar una advertencia de SmartScreen &mdash; haz clic en &ldquo;M&aacute;s informaci&oacute;n&rdquo; y luego &ldquo;Ejecutar de todos modos&rdquo;.
+    <div class="callout callout-warning">
+        <strong>&#x26A0; Advertencia de Windows SmartScreen</strong>
+        <p>Al ejecutar ETTEM por primera vez, Windows mostrar&aacute; una advertencia de seguridad porque la aplicaci&oacute;n a&uacute;n no cuenta con un certificado de desarrollador. <strong>Esto es normal y seguro.</strong></p>
+        <p>Sigue estos pasos para continuar:</p>
+        <ol>
+            <li>Aparece la ventana <em>&ldquo;Windows protegi&oacute; tu PC&rdquo;</em></li>
+            <li>Haz clic en <strong>&ldquo;M&aacute;s informaci&oacute;n&rdquo;</strong> (texto azul debajo del mensaje)</li>
+            <li>Aparece el bot&oacute;n <strong>&ldquo;Ejecutar de todos modos&rdquo;</strong> &mdash; haz clic en &eacute;l</li>
+            <li>ETTEM iniciar&aacute; normalmente. <strong>Solo necesitas hacer esto una vez.</strong></li>
+        </ol>
+        <p style="margin-top: 0.5rem; opacity: 0.85; font-size: 0.9em;">
+            &#x1F512; <em>&iquest;Por qu&eacute; aparece esto?</em> Windows SmartScreen advierte sobre aplicaciones descargadas de Internet que no tienen firma digital de un certificado de desarrollador de Microsoft. ETTEM es una aplicaci&oacute;n segura &mdash; el c&oacute;digo no est&aacute; firmado a&uacute;n, pero esto no afecta su funcionamiento.</p>
     </div>
 
     <h2>macOS (Aplicaci&oacute;n)</h2>
@@ -89,9 +98,35 @@
     </ol>
 
     <div class="callout callout-warning">
-        <strong>Gatekeeper (macOS)</strong>
-        Si macOS bloquea la aplicaci&oacute;n por no estar firmada, haz clic derecho sobre ETTEM.app &rarr; &ldquo;Abrir&rdquo;.
-        Tambi&eacute;n puedes ejecutar en Terminal: <code>xattr -cr /Applications/ETTEM.app</code>
+        <strong>&#x26A0; Advertencia de macOS Gatekeeper</strong>
+        <p>macOS bloquea aplicaciones que no est&aacute;n firmadas con un certificado de Apple Developer. Al abrir ETTEM por primera vez ver&aacute;s el mensaje <em>&ldquo;ETTEM no se puede abrir porque es de un desarrollador no identificado&rdquo;</em>.</p>
+        <p><strong>Esto es normal y seguro.</strong> Sigue estos pasos:</p>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 1 &mdash; Clic derecho (recomendado):</strong></p>
+        <ol>
+            <li>Ve a la carpeta <strong>Aplicaciones</strong> en Finder</li>
+            <li>Haz <strong>clic derecho</strong> (o Control + clic) sobre <strong>ETTEM</strong></li>
+            <li>Selecciona <strong>&ldquo;Abrir&rdquo;</strong> en el men&uacute; contextual</li>
+            <li>Aparece un di&aacute;logo &mdash; haz clic en <strong>&ldquo;Abrir&rdquo;</strong> para confirmar</li>
+            <li>ETTEM iniciar&aacute; normalmente. <strong>Solo necesitas hacer esto una vez</strong> &mdash; las siguientes veces abre con doble clic normal.</li>
+        </ol>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 2 &mdash; Desde Ajustes del Sistema:</strong></p>
+        <ol>
+            <li>Intenta abrir ETTEM normalmente (doble clic) &mdash; aparece el bloqueo</li>
+            <li>Ve a <strong>Ajustes del Sistema &rarr; Privacidad y Seguridad</strong></li>
+            <li>Busca el mensaje <em>&ldquo;Se bloque&oacute; ETTEM&rdquo;</em> cerca del final</li>
+            <li>Haz clic en <strong>&ldquo;Abrir de todos modos&rdquo;</strong></li>
+            <li>Confirma con tu contrase&ntilde;a o Touch ID</li>
+        </ol>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 3 &mdash; Terminal (avanzado):</strong></p>
+        <p>Si las opciones anteriores no funcionan, abre Terminal y ejecuta:</p>
+        <p><code>xattr -cr /Applications/ETTEM.app</code></p>
+        <p>Luego abre ETTEM normalmente con doble clic.</p>
+
+        <p style="margin-top: 0.5rem; opacity: 0.85; font-size: 0.9em;">
+            &#x1F512; <em>&iquest;Por qu&eacute; aparece esto?</em> macOS Gatekeeper bloquea aplicaciones que no tienen firma de Apple Developer ID. ETTEM es una aplicaci&oacute;n segura &mdash; pr&oacute;ximamente se incluir&aacute; la firma digital para eliminar esta advertencia.</p>
     </div>
 
     <h2>D&oacute;nde se guardan los datos</h2>
