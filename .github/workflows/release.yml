@@ -85,3 +85,26 @@ jobs:
           files: |
             artifacts/ETTEM-Windows.exe/ETTEM-Windows.exe
             artifacts/ETTEM-macOS.dmg/ETTEM-macOS.dmg
+
+  deploy-downloads:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Prepare files with random names
+        run: |
+          HASH=$(echo "${{ github.ref_name }}-$(date +%s)" | sha256sum | head -c 8)
+          mkdir -p upload
+          cp ETTEM-Windows.exe/ETTEM-Windows.exe "upload/ETTEM-${HASH}.exe"
+          cp ETTEM-macOS.dmg/ETTEM-macOS.dmg "upload/ETTEM-${HASH}.dmg"
+          echo "Prepared: ETTEM-${HASH}.exe, ETTEM-${HASH}.dmg"
+
+      - name: Upload via FTP
+        run: |
+          sudo apt-get install -y lftp
+          lftp -u "${{ secrets.ETTEM_FTP_USERNAME }},${{ secrets.ETTEM_FTP_PASSWORD }}" \
+            -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set ftp:passive-mode yes; set net:timeout 60; set net:max-retries 3; mkdir -p descargas/files; cd descargas/files; glob -a rm -f *; mput upload/*; bye" \
+            "ftp://${{ secrets.ETTEM_FTP_HOST }}"
