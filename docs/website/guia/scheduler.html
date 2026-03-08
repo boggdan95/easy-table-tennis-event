@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Scheduler - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler" class="active">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Scheduler</h1>
+    <p class="page-subtitle">Organiza los partidos por mesa y hora con el planificador visual de sesiones.</p>
+
+    <h2>&iquest;Qu&eacute; es el Scheduler?</h2>
+    <p>
+        El Scheduler es el m&oacute;dulo de planificaci&oacute;n de ETTEM que te permite
+        asignar cada partido a una <strong>mesa</strong> y un <strong>horario</strong> espec&iacute;fico.
+        El resultado es una cuadr&iacute;cula visual (mesa &times; franja horaria) que puedes
+        imprimir y distribuir a los &aacute;rbitros y jugadores.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/13_scheduler.png" alt="Panel principal del Scheduler" loading="lazy">
+        <div class="screenshot-caption">Panel principal del Scheduler mostrando sesiones activas y configuraci&oacute;n de mesas.</div>
+    </div>
+
+    <h2>Paso 1 &mdash; Configurar las Mesas</h2>
+    <p>
+        Antes de crear una sesi&oacute;n, debes configurar cu&aacute;ntas mesas tiene el recinto
+        y c&oacute;mo se llaman. Para hacerlo:
+    </p>
+    <ol>
+        <li>Ve al men&uacute; <strong>Scheduler</strong> desde el panel de administraci&oacute;n.</li>
+        <li>Haz clic en <strong>Configurar Mesas</strong>.</li>
+        <li>Indica la cantidad de mesas disponibles.</li>
+        <li>
+            Opcionalmente, asigna un nombre a cada mesa (por defecto se llaman
+            &ldquo;Mesa 1&rdquo;, &ldquo;Mesa 2&rdquo;, etc., pero puedes personalizar:
+            &ldquo;Mesa Olímpica&rdquo;, &ldquo;Mesa Azul&rdquo;, &ldquo;Pista 1&rdquo;, etc.).
+        </li>
+        <li>Guarda la configuraci&oacute;n.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        Puedes cambiar la configuraci&oacute;n de mesas en cualquier momento, incluso despu&eacute;s
+        de haber creado sesiones. Las asignaciones existentes no se pierden.
+    </div>
+
+    <h2>Paso 2 &mdash; Crear una Sesi&oacute;n</h2>
+    <p>
+        Una <strong>sesi&oacute;n</strong> representa un bloque de tiempo de juego
+        (por ejemplo: &ldquo;Ma&ntilde;ana Grupos&rdquo;, &ldquo;Tarde Bracket&rdquo;,
+        &ldquo;Ronda de Cuartos&rdquo;). Para crear una sesi&oacute;n:
+    </p>
+    <ol>
+        <li>En el Scheduler, haz clic en <strong>Nueva Sesi&oacute;n</strong>.</li>
+        <li>
+            Completa los datos:
+            <ul>
+                <li><strong>Nombre:</strong> nombre descriptivo de la sesi&oacute;n.</li>
+                <li><strong>Hora de inicio:</strong> hora en que comienza el primer partido (p. ej. 09:00).</li>
+                <li><strong>Duraci&oacute;n por franja:</strong> cu&aacute;ntos minutos dura cada franja horaria (p. ej. 20 min).</li>
+                <li><strong>N&uacute;mero de franjas:</strong> cu&aacute;ntas franjas tiene la sesi&oacute;n (p. ej. 12 franjas = 4 horas).</li>
+            </ul>
+        </li>
+        <li>Guarda. La sesi&oacute;n aparece en la lista y su cuadr&iacute;cula queda disponible para asignar partidos.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Franjas flexibles</strong>
+        La duraci&oacute;n de las franjas es completamente configurable. Puedes usar 15 min
+        para torneos r&aacute;pidos o 45 min para partidos de dobles o equipos. Cada sesi&oacute;n
+        puede tener su propia configuraci&oacute;n.
+    </div>
+
+    <h2>Paso 3 &mdash; Asignar Partidos a la Cuadr&iacute;cula</h2>
+    <p>
+        La cuadr&iacute;cula muestra las <strong>mesas como columnas</strong> y las
+        <strong>franjas horarias como filas</strong>. Cada celda corresponde a un slot
+        mesa&nbsp;&times;&nbsp;hora.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/14_scheduler_grid.png" alt="Cuadr&iacute;cula del Scheduler con partidos asignados" loading="lazy">
+        <div class="screenshot-caption">Cuadr&iacute;cula del Scheduler: columnas = mesas, filas = franjas horarias. Las celdas coloreadas tienen partidos asignados.</div>
+    </div>
+
+    <p>Para asignar un partido:</p>
+    <ol>
+        <li>Haz clic en una celda vac&iacute;a de la cuadr&iacute;cula.</li>
+        <li>Selecciona el partido de la lista de partidos pendientes.</li>
+        <li>El partido queda asignado a esa mesa y esa franja horaria.</li>
+    </ol>
+    <p>Para reasignar o quitar un partido:</p>
+    <ul>
+        <li>Haz clic en la celda con el partido asignado para cambiar la asignaci&oacute;n.</li>
+        <li>Selecciona &ldquo;Quitar&rdquo; para dejar la celda libre.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Tip &mdash; Conflictos autom&aacute;ticos</strong>
+        ETTEM detecta si un mismo jugador (o equipo) est&aacute; asignado a dos partidos
+        en la misma franja horaria y muestra una advertencia visual en la cuadr&iacute;cula.
+    </div>
+
+    <h2>Monitoreo en Vivo desde el Panel</h2>
+    <p>
+        Desde el panel de administraci&oacute;n puedes ver en tiempo real el estado de
+        cada partido asignado en la sesi&oacute;n activa:
+    </p>
+    <ul>
+        <li><strong>Pendiente:</strong> el partido a&uacute;n no ha comenzado.</li>
+        <li><strong>En progreso:</strong> el partido est&aacute; siendo jugado.</li>
+        <li><strong>Completado:</strong> el resultado ya fue ingresado.</li>
+    </ul>
+    <p>
+        La vista de monitoreo se actualiza autom&aacute;ticamente cada 10 segundos, sin
+        necesidad de recargar la p&aacute;gina.
+    </p>
+
+    <h2>Finalizar y Reabrir Sesiones</h2>
+    <p>
+        Una vez que todos los partidos de una sesi&oacute;n han concluido, puedes
+        <strong>finalizar</strong> la sesi&oacute;n para marcarla como terminada. Esto
+        la archiva en el historial y libera la vista de la cuadr&iacute;cula para la
+        siguiente sesi&oacute;n.
+    </p>
+    <ul>
+        <li>
+            <strong>Finalizar sesi&oacute;n:</strong> haz clic en el bot&oacute;n
+            &ldquo;Finalizar Sesi&oacute;n&rdquo; en la parte superior de la cuadr&iacute;cula.
+            La sesi&oacute;n queda marcada como completada.
+        </li>
+        <li>
+            <strong>Reabrir sesi&oacute;n:</strong> si necesitas hacer correcciones, puedes
+            reabrir una sesi&oacute;n finalizada desde el historial de sesiones.
+        </li>
+    </ul>
+
+    <div class="callout callout-info">
+        <strong>Nota</strong>
+        Finalizar una sesi&oacute;n no elimina ni modifica ninguno de los resultados de los
+        partidos. Es solo un marcador de estado para la organizaci&oacute;n del torneo.
+    </div>
+
+    <h2>Imprimir el Scheduler</h2>
+    <p>
+        Puedes imprimir la cuadr&iacute;cula completa o una sesi&oacute;n espec&iacute;fica
+        para distribuir a &aacute;rbitros y jugadores. Desde la cuadr&iacute;cula, haz clic
+        en <strong>Imprimir</strong> o ve al <strong>Centro de Impresi&oacute;n</strong>
+        y selecciona la sesi&oacute;n que quieres imprimir.
+    </p>
+    <p>
+        El documento impreso incluye el nombre de la sesi&oacute;n, las mesas, las franjas
+        horarias y los partidos asignados con los nombres de los jugadores o equipos.
+    </p>
+
+    <div class="page-nav">
+        <a href="equipos">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Equipos</span>
+        </a>
+        <a href="arbitro" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Marcador de &Aacute;rbitro</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

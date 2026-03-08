@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Certificados - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados" class="active">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Certificados <span class="badge badge-new">Nuevo V2.6</span></h1>
+    <p class="page-subtitle">Genera diplomas de premiaci&oacute;n personalizados con el logo del torneo para los ganadores de cada categor&iacute;a.</p>
+
+    <h2>Descripci&oacute;n General</h2>
+    <p>
+        A partir de la versi&oacute;n 2.6, ETTEM puede generar <strong>certificados de
+        premiaci&oacute;n</strong> (diplomas) para los primeros tres lugares de cada
+        categor&iacute;a del torneo. Los certificados incluyen el branding del torneo
+        configurado en la p&aacute;gina de <a href="branding">Configuraci&oacute;n
+        del Torneo</a> &mdash; logo, nombre del organizador y pie de p&aacute;gina &mdash;
+        lo que les da una apariencia profesional lista para entregar en la ceremonia de
+        premiaci&oacute;n.
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Nueva funcionalidad en V2.6</strong>
+        Los certificados son completamente nuevos en la versi&oacute;n 2.6. No se requiere
+        ning&uacute;n software adicional para generarlos &mdash; todo ocurre dentro de ETTEM.
+    </div>
+
+    <h2>Dise&ntilde;o del Certificado</h2>
+    <p>
+        Cada certificado generado por ETTEM tiene las siguientes caracter&iacute;sticas:
+    </p>
+    <ul>
+        <li><strong>Formato horizontal (paisaje):</strong> orientaci&oacute;n apaisada, ideal para diplomas.</li>
+        <li><strong>Logo del torneo:</strong> mostrado prominentemente en la parte superior (requiere haberlo configurado en <a href="branding">Branding</a>).</li>
+        <li><strong>Nombre del jugador:</strong> en tipograf&iacute;a grande y destacada.</li>
+        <li><strong>Categor&iacute;a:</strong> el nombre completo de la categor&iacute;a (ej.: &ldquo;Sub-15 Masculino Singles&rdquo;).</li>
+        <li><strong>Posici&oacute;n obtenida:</strong> 1.&ordm; Lugar, 2.&ordm; Lugar o 3.&ordm; Lugar, con medalla o icono indicativo.</li>
+        <li><strong>Nombre del organizador y del evento:</strong> tomados autom&aacute;ticamente de la configuraci&oacute;n de branding.</li>
+        <li><strong>Pie de p&aacute;gina:</strong> el texto de pie configurado en branding (fecha, lugar, firma del organizador, etc.).</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Personaliza antes de generar</strong>
+        Para que los certificados incluyan el logo y el nombre del organizador, aseg&uacute;rate
+        de haber configurado el branding en <a href="branding">Configuraci&oacute;n del
+        Torneo</a> antes de generar los certificados. Si no hay logo configurado, el certificado
+        se generar&aacute; igualmente, pero sin imagen en el encabezado.
+    </div>
+
+    <h2>C&oacute;mo Acceder a los Certificados</h2>
+    <p>Puedes generar certificados desde dos lugares:</p>
+
+    <h3>Desde la p&aacute;gina de resultados de la categor&iacute;a</h3>
+    <p>
+        Al finalizar el bracket de una categor&iacute;a y tenerse un campe&oacute;n
+        definido, en la p&aacute;gina de resultados aparece el bot&oacute;n
+        <strong>Generar Certificados</strong>. Haz clic para acceder a la vista previa
+        de los tres certificados de esa categor&iacute;a (1.&ordm;, 2.&ordm; y 3.&ordm; lugar).
+    </p>
+
+    <h3>Desde el Centro de Impresi&oacute;n</h3>
+    <p>
+        En el <a href="impresion">Centro de Impresi&oacute;n</a>, en la secci&oacute;n
+        <strong>Certificados</strong>, selecciona la categor&iacute;a y haz clic en
+        <strong>Ver certificados</strong> para acceder a la vista previa.
+    </p>
+
+    <h2>Vista Previa e Impresi&oacute;n</h2>
+    <p>
+        Al acceder a los certificados, ETTEM muestra una <strong>vista previa en el
+        navegador</strong> de los tres certificados apilados verticalmente &mdash; uno
+        por posici&oacute;n. Desde esta vista puedes:
+    </p>
+    <ol>
+        <li>
+            <strong>Revisar el dise&ntilde;o</strong> antes de imprimir. Verifica que el
+            nombre del jugador, la categor&iacute;a y la posici&oacute;n sean correctos.
+        </li>
+        <li>
+            <strong>Imprimir directamente</strong> con <code>Ctrl+P</code> (Windows) o
+            <code>Cmd+P</code> (macOS). El dise&ntilde;o est&aacute; optimizado para que
+            cada certificado ocupe exactamente una p&aacute;gina en orientaci&oacute;n
+            horizontal.
+        </li>
+        <li>
+            <strong>Guardar como PDF</strong> seleccionando &ldquo;Guardar como PDF&rdquo;
+            en el di&aacute;logo de impresi&oacute;n del navegador.
+        </li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Configuraci&oacute;n de impresi&oacute;n recomendada</strong>
+        En el di&aacute;logo de impresi&oacute;n, selecciona:
+        <ul>
+            <li><strong>Orientaci&oacute;n:</strong> Horizontal (Paisaje).</li>
+            <li><strong>M&aacute;rgenes:</strong> M&iacute;nimos o Ninguno.</li>
+            <li><strong>Gr&aacute;ficos de fondo:</strong> Activado (para que los colores se impriman).</li>
+        </ul>
+        Esto garantiza que el certificado se imprima correctamente en una hoja A4 o Letter.
+    </div>
+
+    <h2>Descarga como PDF <span class="badge badge-new">Nuevo V2.6</span></h2>
+    <p>
+        Adem&aacute;s de la impresi&oacute;n directa, ETTEM ofrece un bot&oacute;n de
+        <strong>Descargar PDF</strong> que genera el certificado en formato PDF listo para
+        compartir digitalmente &mdash; por correo electr&oacute;nico, WhatsApp o redes sociales.
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Disponibilidad de la descarga PDF</strong>
+        La descarga directa de PDF requiere la librer&iacute;a <code>xhtml2pdf</code>,
+        que se incluye autom&aacute;ticamente en el ejecutable de ETTEM (Windows .exe y
+        macOS .dmg). Si est&aacute;s ejecutando ETTEM desde el c&oacute;digo fuente en
+        macOS con Python 3.9, es posible que esta opci&oacute;n no est&eacute; disponible
+        &mdash; en ese caso usa la opci&oacute;n &ldquo;Guardar como PDF&rdquo; del
+        navegador.
+    </div>
+
+    <h2>Certificados para Equipos</h2>
+    <p>
+        Los certificados tambi&eacute;n est&aacute;n disponibles para categor&iacute;as de
+        equipos. En este caso, el certificado muestra el <strong>nombre del equipo</strong>
+        en lugar del nombre de un jugador individual, junto con la categor&iacute;a y la
+        posici&oacute;n obtenida.
+    </p>
+
+    <h2>Posiciones Incluidas</h2>
+    <p>
+        ETTEM genera certificados para las tres primeras posiciones de cada categor&iacute;a:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Posici&oacute;n</th>
+                <th>Determinada por</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>1.&ordm; Lugar &mdash; Campe&oacute;n</strong></td>
+                <td>Ganador de la final del bracket KO.</td>
+            </tr>
+            <tr>
+                <td><strong>2.&ordm; Lugar &mdash; Subcampe&oacute;n</strong></td>
+                <td>Perdedor de la final del bracket KO.</td>
+            </tr>
+            <tr>
+                <td><strong>3.&ordm; Lugar &mdash; Bronce</strong></td>
+                <td>Ganador del partido por el tercer lugar (si existe) o ambos semifinalistas perdedores (si no hay partido de 3.&ordm; lugar).</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-nav">
+        <a href="exportar">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Exportar Datos</span>
+        </a>
+        <a href="faq" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Preguntas Frecuentes</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

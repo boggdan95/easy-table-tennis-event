@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Paddle -->
+  <ellipse cx="28" cy="24" rx="18" ry="22" fill="#10B981" stroke="#059669" stroke-width="2"/>
+  <ellipse cx="28" cy="24" rx="14" ry="18" fill="#34D399" opacity="0.4"/>
+  <!-- Handle -->
+  <rect x="22" y="44" width="12" height="18" rx="3" fill="#78350F" stroke="#92400E" stroke-width="1.5"/>
+  <rect x="24" y="44" width="8" height="18" rx="2" fill="#92400E" opacity="0.5"/>
+  <!-- Ball -->
+  <circle cx="50" cy="14" r="9" fill="#FB923C" stroke="#EA580C" stroke-width="1.5"/>
+  <path d="M50 5 Q53 14 50 23" fill="none" stroke="#FDBA74" stroke-width="1.2" opacity="0.7"/>
+</svg>

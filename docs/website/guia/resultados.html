@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Ingresar Resultados - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados" class="active">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Ingresar Resultados</h1>
+    <p class="page-subtitle">C&oacute;mo registrar los resultados de los partidos de grupos y del bracket (llave).</p>
+
+    <h2>Resultados de la Fase de Grupos</h2>
+    <p>
+        Una vez creados los grupos, ver&aacute;s la lista completa de partidos pendientes para cada grupo.
+        Para ingresar el resultado de un partido, haz clic en el bot&oacute;n <strong>Ingresar Resultado</strong>
+        junto al partido correspondiente.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/07_group_matches.png" alt="Lista de partidos del grupo con formulario de resultado" loading="lazy">
+        <div class="screenshot-caption">Vista de partidos de un grupo con los controles para ingresar sets.</div>
+    </div>
+
+    <h3>C&oacute;mo ingresar un resultado</h3>
+    <ol>
+        <li>Haz clic en <strong>Ingresar Resultado</strong> del partido deseado.</li>
+        <li>Ingresa los puntos de <strong>cada set</strong> para ambos jugadores (ej: 11&ndash;8, 11&ndash;9, 9&ndash;11, 11&ndash;7).</li>
+        <li>ETTEM valida autom&aacute;ticamente los puntos seg&uacute;n las reglas ITTF.</li>
+        <li>Haz clic en <strong>Guardar</strong> para registrar el resultado.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Nota</strong>
+        Solo necesitas ingresar los sets jugados. Si el partido termina en el set 3 de un Bo5,
+        no hace falta completar los sets 4 y 5.
+    </div>
+
+    <h2>Formatos de Partido (Bo3 / Bo5 / Bo7)</h2>
+    <p>El formato se define al crear la categor&iacute;a y determina cu&aacute;ntos sets puede tener un partido:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Formato</th>
+                <th>Nombre completo</th>
+                <th>Sets para ganar</th>
+                <th>M&aacute;ximo de sets</th>
+                <th>Uso com&uacute;n</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Bo3</strong></td>
+                <td>Best of 3</td>
+                <td>2 sets</td>
+                <td>3 sets</td>
+                <td>Fase de grupos juveniles</td>
+            </tr>
+            <tr>
+                <td><strong>Bo5</strong></td>
+                <td>Best of 5</td>
+                <td>3 sets</td>
+                <td>5 sets</td>
+                <td>Bracket individual, equipos</td>
+            </tr>
+            <tr>
+                <td><strong>Bo7</strong></td>
+                <td>Best of 7</td>
+                <td>4 sets</td>
+                <td>7 sets</td>
+                <td>Finales, competencias &eacute;lite</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Reglas de Validaci&oacute;n ITTF</h2>
+    <p>
+        ETTEM valida cada set ingresado conforme a las reglas oficiales de la ITTF. Un resultado
+        ser&aacute; rechazado si no cumple alguna de las siguientes condiciones:
+    </p>
+
+    <h3>Reglas de un Set</h3>
+    <ul>
+        <li>Un jugador debe alcanzar <strong>al menos 11 puntos</strong> para ganar el set.</li>
+        <li>El ganador debe tener una <strong>diferencia de al menos 2 puntos</strong> sobre el rival.</li>
+        <li>Si el marcador llega a <strong>10&ndash;10</strong>, se entra en <em>deuce</em>: el juego
+            contin&uacute;a hasta que un jugador tenga 2 puntos de diferencia (ej: 14&ndash;12, 15&ndash;13).</li>
+        <li>No hay l&iacute;mite m&aacute;ximo de puntos en deuce.</li>
+    </ul>
+
+    <h3>Ejemplos de resultados v&aacute;lidos</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Resultado</th>
+                <th>&iquest;V&aacute;lido?</th>
+                <th>Motivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>11&ndash;8</td><td>S&iacute;</td><td>Al menos 11 puntos, diferencia &ge; 2</td></tr>
+            <tr><td>11&ndash;0</td><td>S&iacute;</td><td>V&aacute;lido (walkover o victoria aplastante)</td></tr>
+            <tr><td>14&ndash;12</td><td>S&iacute;</td><td>Deuce, diferencia de 2</td></tr>
+            <tr><td>11&ndash;10</td><td>No</td><td>Diferencia insuficiente (debe ser &ge; 2)</td></tr>
+            <tr><td>10&ndash;8</td><td>No</td><td>Ning&uacute;n jugador lleg&oacute; a 11 puntos</td></tr>
+            <tr><td>12&ndash;11</td><td>No</td><td>Diferencia de solo 1 punto en deuce</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        Si ingresas un resultado inv&aacute;lido, ETTEM mostrar&aacute; un mensaje de error con la
+        raz&oacute;n espec&iacute;fica. Corr&iacute;gelo antes de guardar.
+    </div>
+
+    <h2>Walkover (W.O.)</h2>
+    <p>
+        Un <strong>walkover</strong> ocurre cuando un jugador no se presenta al partido o se retira.
+        Para registrarlo:
+    </p>
+    <ol>
+        <li>Abre el formulario del partido.</li>
+        <li>Activa la opci&oacute;n <strong>Walkover</strong>.</li>
+        <li>Selecciona qui&eacute;n recibe el walkover (el ganador).</li>
+        <li>Haz clic en <strong>Guardar</strong>.</li>
+    </ol>
+
+    <p>
+        Un walkover cuenta como <strong>derrota por 0 puntos</strong> en standings: el perdedor recibe
+        0 puntos de partido y 0 sets a favor. El ganador recibe 2 puntos de partido y los sets se
+        calculan como victoria por sets m&iacute;nimos necesarios.
+    </p>
+
+    <div class="callout callout-warning">
+        <strong>Atenci&oacute;n</strong>
+        Un walkover en fase de grupos <strong>no</strong> descalifica al jugador del torneo. Sigue
+        compitiendo en los dem&aacute;s partidos y los resultados de sus otros partidos cuentan
+        normalmente para standings.
+    </div>
+
+    <h2>Resultados de la Fase de Bracket (Llave)</h2>
+    <p>
+        El ingreso de resultados en la fase de bracket funciona de manera id&eacute;ntica a la fase
+        de grupos. La &uacute;nica diferencia es que al completar un partido, el ganador avanza
+        autom&aacute;ticamente a la siguiente ronda del bracket.
+    </p>
+
+    <ul>
+        <li>Ve a la categor&iacute;a y selecciona la pesta&ntilde;a <strong>Bracket</strong>.</li>
+        <li>Haz clic en un partido para ingresar el resultado.</li>
+        <li>Al guardar, el bracket se actualiza en tiempo real.</li>
+    </ul>
+
+    <h2>Editar un Resultado ya Guardado</h2>
+    <p>
+        Si necesitas corregir un resultado, haz clic en el partido ya completado y selecciona
+        <strong>Editar Resultado</strong>. Podr&aacute;s modificar los puntos de cualquier set.
+    </p>
+
+    <div class="callout callout-warning">
+        <strong>Atenci&oacute;n</strong>
+        En la fase de bracket, editar un resultado de una ronda anterior <strong>invalida las
+        rondas siguientes</strong>. ETTEM te avisar&aacute; si el cambio afecta partidos ya jugados.
+    </div>
+
+    <div class="page-nav">
+        <a href="grupos">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Crear Grupos</span>
+        </a>
+        <a href="standings" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Standings</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

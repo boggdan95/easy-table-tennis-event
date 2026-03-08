@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Crear Grupos - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos" class="active">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Crear Grupos</h1>
+    <p class="page-subtitle">C&oacute;mo dividir los jugadores en grupos de Round Robin con siembra autom&aacute;tica o manual.</p>
+
+    <h2>Generar Grupos</h2>
+    <p>
+        Una vez que los jugadores est&aacute;n inscritos en una categor&iacute;a, el siguiente paso es
+        crear los grupos de la fase clasificatoria (Round Robin). ETTEM distribuye a los jugadores
+        autom&aacute;ticamente usando <strong>snake seeding</strong>.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/06_create_groups.png" alt="Pantalla de creaci&oacute;n de grupos" loading="lazy">
+        <div class="screenshot-caption">Vista de creaci&oacute;n de grupos con snake seeding y opci&oacute;n de ajuste manual.</div>
+    </div>
+
+    <h3>Pasos para crear grupos</h3>
+    <ol>
+        <li>Desde el dashboard, haz clic en la categor&iacute;a y luego en <strong>Crear Grupos</strong>.</li>
+        <li>Selecciona el <strong>tama&ntilde;o de grupo</strong>: 3, 4 o 5 jugadores por grupo.</li>
+        <li>Revisa la distribuci&oacute;n propuesta con snake seeding.</li>
+        <li>Ajusta manualmente si lo necesitas (ver m&aacute;s abajo).</li>
+        <li>Haz clic en <strong>Confirmar Grupos</strong> para crear los partidos.</li>
+    </ol>
+
+    <h2>Snake Seeding</h2>
+    <p>
+        El <strong>snake seeding</strong> distribuye a los jugadores de forma equitativa seg&uacute;n
+        su ranking, evitando que los mejores jugadores queden en el mismo grupo.
+        El sistema ordena a todos los jugadores de mayor a menor ranking y los asigna en patr&oacute;n
+        de serpiente (zigzag) entre los grupos.
+    </p>
+
+    <p>Ejemplo con 8 jugadores en 2 grupos de 4:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Ronda de siembra</th>
+                <th>Grupo A</th>
+                <th>Grupo B</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Ronda 1 &rarr;</td>
+                <td>#1 (mejor ranking)</td>
+                <td>#2</td>
+            </tr>
+            <tr>
+                <td>Ronda 2 &larr;</td>
+                <td>#4</td>
+                <td>#3</td>
+            </tr>
+            <tr>
+                <td>Ronda 3 &rarr;</td>
+                <td>#5</td>
+                <td>#6</td>
+            </tr>
+            <tr>
+                <td>Ronda 4 &larr;</td>
+                <td>#8</td>
+                <td>#7</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-info">
+        <strong>Nota</strong>
+        Los jugadores sin ranking (<code>ranking_pts = 0</code>) se colocan al final de la lista y se
+        distribuyen igualmente entre los grupos durante las &uacute;ltimas rondas del snake.
+    </div>
+
+    <h2>Tama&ntilde;os de Grupo</h2>
+    <p>ETTEM admite grupos de 3, 4 o 5 jugadores. Cada tama&ntilde;o tiene un n&uacute;mero distinto de partidos:</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Tama&ntilde;o</th>
+                <th>Partidos por grupo</th>
+                <th>Orden de partidos</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>3 jugadores</td>
+                <td>3 partidos</td>
+                <td>Est&aacute;ndar round robin</td>
+            </tr>
+            <tr>
+                <td>4 jugadores</td>
+                <td>6 partidos</td>
+                <td>Est&aacute;ndar round robin</td>
+            </tr>
+            <tr>
+                <td>5 jugadores <span class="badge badge-new">Nuevo V2.4</span></td>
+                <td>10 partidos</td>
+                <td>Tabla de Berger (ver abajo)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Grupos de 5: Tabla de Berger <span class="badge badge-new">Nuevo V2.4</span></h2>
+    <p>
+        Para grupos de <strong>5 jugadores</strong>, ETTEM utiliza la <strong>Tabla de Berger</strong>,
+        un orden de encuentros que optimiza el uso de mesas y minimiza los tiempos de espera.
+        Los 10 partidos se juegan en el siguiente orden:
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Partido</th>
+                <th>Jugadores</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>Jugador 1 vs Jugador 4</td></tr>
+            <tr><td>2</td><td>Jugador 2 vs Jugador 5</td></tr>
+            <tr><td>3</td><td>Jugador 3 vs Jugador 4</td></tr>
+            <tr><td>4</td><td>Jugador 1 vs Jugador 5</td></tr>
+            <tr><td>5</td><td>Jugador 2 vs Jugador 3</td></tr>
+            <tr><td>6</td><td>Jugador 4 vs Jugador 5</td></tr>
+            <tr><td>7</td><td>Jugador 1 vs Jugador 3</td></tr>
+            <tr><td>8</td><td>Jugador 2 vs Jugador 4</td></tr>
+            <tr><td>9</td><td>Jugador 3 vs Jugador 5</td></tr>
+            <tr><td>10</td><td>Jugador 1 vs Jugador 2</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+        <strong>Ventaja del orden Berger</strong>
+        Este orden garantiza que en cada ronda ning&uacute;n jugador descanse dos veces seguidas,
+        distribuyendo los descansos de forma equitativa a lo largo de los 10 partidos.
+    </div>
+
+    <h2>Ajuste Manual con Drag &amp; Drop</h2>
+    <p>
+        Antes de confirmar los grupos, puedes arrastrar y soltar cualquier jugador entre grupos
+        para hacer ajustes manuales. Esto es &uacute;til cuando:
+    </p>
+    <ul>
+        <li>Dos jugadores del mismo club no deben estar en el mismo grupo.</li>
+        <li>Quieres separar jugadores del mismo pa&iacute;s en la fase de grupos.</li>
+        <li>Deseas balancear grupos con jugadores sin ranking conocido.</li>
+    </ul>
+
+    <p>Para mover un jugador:</p>
+    <ol>
+        <li>Haz clic y mantén presionado sobre el nombre del jugador.</li>
+        <li>Arr&aacute;stralo al grupo de destino.</li>
+        <li>Su&eacute;ltalo sobre la lista del grupo destino.</li>
+    </ol>
+
+    <div class="callout callout-warning">
+        <strong>Atenci&oacute;n</strong>
+        Los cambios manuales no se guardan hasta que hagas clic en <strong>Confirmar Grupos</strong>.
+        Si navegas a otra p&aacute;gina antes de confirmar, los cambios se perder&aacute;n.
+    </div>
+
+    <h2>Despu&eacute;s de Crear los Grupos</h2>
+    <p>
+        Una vez confirmados los grupos, ETTEM genera autom&aacute;ticamente todos los partidos de
+        Round Robin para cada grupo. Pasar&aacute;s a la fase de ingreso de resultados.
+    </p>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        &iquest;Necesitas rehac los grupos? Puedes borrar los grupos existentes siempre y cuando no
+        haya resultados ingresados. Ve a la secci&oacute;n de la categor&iacute;a y usa
+        <strong>Borrar Grupos</strong>.
+    </div>
+
+    <div class="page-nav">
+        <a href="jugadores">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Importar Jugadores</span>
+        </a>
+        <a href="resultados" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Ingresar Resultados</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

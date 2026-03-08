@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Pantalla P&uacute;blica - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display" class="active">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Pantalla P&uacute;blica</h1>
+    <p class="page-subtitle">Proyecci&oacute;n en tiempo real para el recinto: partidos en curso, resultados recientes y pr&oacute;ximos encuentros.</p>
+
+    <h2>Descripci&oacute;n General</h2>
+    <p>
+        La Pantalla P&uacute;blica es una vista dise&ntilde;ada para proyectarse en un
+        <strong>televisor o pantalla grande</strong> en el recinto del torneo. Muestra
+        informaci&oacute;n en tiempo real para que jugadores, entrenadores y espectadores
+        puedan seguir el torneo sin necesidad de acercarse a la mesa del organizador.
+    </p>
+
+    <div class="screenshot">
+        <img src="img/20_public_display.png" alt="Pantalla p&uacute;blica del torneo proyectada en pantalla grande" loading="lazy">
+        <div class="screenshot-caption">Pantalla p&uacute;blica con tema oscuro: partidos en vivo con marcador, resultados recientes y pr&oacute;ximos encuentros.</div>
+    </div>
+
+    <h2>C&oacute;mo Acceder</h2>
+    <p>
+        La pantalla p&uacute;blica est&aacute; disponible en la ruta <code>/display</code>
+        del servidor de ETTEM. Desde cualquier navegador en la red local:
+    </p>
+    <ul>
+        <li>
+            En la computadora principal: abre el navegador y ve a
+            <code>http://127.0.0.1:8000/display</code>
+        </li>
+        <li>
+            Desde otro dispositivo en la misma red: usa la IP local de la computadora,
+            por ejemplo <code>http://192.168.1.100:8000/display</code>
+        </li>
+        <li>
+            Para conectar un televisor o proyector: conecta el dispositivo HDMI a la
+            computadora y abre el navegador en pantalla completa.
+        </li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Pantalla completa &mdash; tecla F11</strong>
+        Para proyecci&oacute;n en pantalla completa sin barras de navegador, presiona
+        <strong>F11</strong> en el teclado (en la mayor&iacute;a de navegadores en Windows
+        y Linux). En macOS usa <strong>Cmd + Ctrl + F</strong>. Presiona de nuevo para salir.
+    </div>
+
+    <h2>Contenido de la Pantalla</h2>
+    <p>La pantalla p&uacute;blica muestra tres secciones principales:</p>
+
+    <h3>Partidos en Vivo</h3>
+    <p>
+        La secci&oacute;n m&aacute;s destacada muestra los <strong>partidos actualmente en curso</strong>
+        con el marcador actual (si se usa el marcador de &aacute;rbitro en modo punto a punto)
+        o el &uacute;ltimo marcador conocido. Incluye:
+    </p>
+    <ul>
+        <li>Nombres de los jugadores o equipos.</li>
+        <li>Banderas de pa&iacute;ses.</li>
+        <li>Marcador de sets actual.</li>
+        <li>Mesa en la que se juega.</li>
+        <li>Categor&iacute;a y ronda (fase de grupos, cuartos, semis, final, etc.).</li>
+    </ul>
+
+    <h3>Resultados Recientes</h3>
+    <p>
+        Muestra los &uacute;ltimos partidos finalizados con el marcador completo (por sets).
+        Esta secci&oacute;n se actualiza tan pronto como se ingresa un resultado en el sistema.
+    </p>
+
+    <h3>Pr&oacute;ximos Partidos</h3>
+    <p>
+        Lista los partidos pendientes seg&uacute;n el Scheduler: qu&eacute; jugadores juegan
+        a continuaci&oacute;n y en qu&eacute; mesa. Permite a los jugadores prepararse con
+        anticipaci&oacute;n.
+    </p>
+
+    <h2>Actualizaci&oacute;n Autom&aacute;tica</h2>
+    <p>
+        La pantalla p&uacute;blica se actualiza <strong>autom&aacute;ticamente cada 5 segundos</strong>
+        usando JavaScript, sin que nadie tenga que recargar la p&aacute;gina. No se requiere
+        ninguna interacci&oacute;n &mdash; simplemente d&eacute;jala proyectada y mostrar&aacute;
+        siempre la informaci&oacute;n m&aacute;s reciente.
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Sin internet</strong>
+        La actualizaci&oacute;n autom&aacute;tica funciona completamente en la red local.
+        No se necesita conexi&oacute;n a internet para que la pantalla p&uacute;blica funcione.
+    </div>
+
+    <h2>Dise&ntilde;o y Temas</h2>
+    <p>
+        La pantalla p&uacute;blica usa un <strong>tema oscuro</strong> optimizado para
+        proyecci&oacute;n en pantallas grandes en ambientes con luz ambiente variada:
+    </p>
+    <ul>
+        <li>Fondo oscuro para reducir el brillo y facilitar la lectura a distancia.</li>
+        <li>Tipograf&iacute;a grande y de alto contraste.</li>
+        <li>Dise&ntilde;o responsivo optimizado para resoluciones <strong>Full HD (1920&times;1080)</strong> y <strong>4K (3840&times;2160)</strong>.</li>
+        <li>Sin barras de navegaci&oacute;n ni elementos de administraci&oacute;n &mdash; solo la informaci&oacute;n del torneo.</li>
+    </ul>
+
+    <h2>Rotaci&oacute;n Autom&aacute;tica</h2>
+    <p>
+        Cuando hay mucha informaci&oacute;n para mostrar (muchos partidos en curso, muchos resultados),
+        la pantalla p&uacute;blica rota autom&aacute;ticamente entre las secciones de
+        <strong>resultados recientes</strong> y <strong>pr&oacute;ximos partidos</strong>,
+        asegurando que toda la informaci&oacute;n relevante sea visible sin necesidad de
+        hacer scroll.
+    </p>
+
+    <h2>Configuraci&oacute;n de Red para el Display</h2>
+    <p>
+        Para acceder a la pantalla p&uacute;blica desde otro dispositivo (televisor con
+        navegador, tablet, etc.) en el mismo recinto:
+    </p>
+
+    <h3>Encontrar la IP de la computadora</h3>
+    <p>En la computadora que ejecuta ETTEM:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Sistema Operativo</th>
+                <th>Comando</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Windows</td>
+                <td>Abre el <strong>S&iacute;mbolo del sistema</strong> y escribe <code>ipconfig</code>. Busca la l&iacute;nea &ldquo;Direcci&oacute;n IPv4&rdquo;.</td>
+            </tr>
+            <tr>
+                <td>macOS</td>
+                <td>Abre <strong>Terminal</strong> y escribe <code>ifconfig | grep inet</code>, o ve a <strong>Preferencias del Sistema &rarr; Red</strong>.</td>
+            </tr>
+            <tr>
+                <td>Linux</td>
+                <td>Abre <strong>Terminal</strong> y escribe <code>ip addr</code> o <code>hostname -I</code>.</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+        La IP local suele tener la forma <code>192.168.X.X</code> o <code>10.0.X.X</code>.
+        Desde cualquier dispositivo en la misma red Wi-Fi, accede a:
+        <code>http://&lt;IP-de-la-computadora&gt;:8000/display</code>
+    </p>
+
+    <h3>Regla en el firewall de Windows</h3>
+    <p>
+        Si otros dispositivos no pueden acceder al display en Windows, es posible que el
+        firewall est&eacute; bloqueando el puerto 8000. Para habilitarlo:
+    </p>
+    <ol>
+        <li>Abre el <strong>Panel de Control &rarr; Sistema y Seguridad &rarr; Firewall de Windows Defender</strong>.</li>
+        <li>Haz clic en <strong>Configuraci&oacute;n avanzada</strong>.</li>
+        <li>En <strong>Reglas de entrada</strong>, haz clic en <strong>Nueva regla</strong>.</li>
+        <li>Selecciona <strong>Puerto</strong>, protocolo <strong>TCP</strong>, puerto espec&iacute;fico <strong>8000</strong>.</li>
+        <li>Selecciona <strong>Permitir la conexi&oacute;n</strong> y guarda.</li>
+    </ol>
+
+    <div class="callout callout-tip">
+        <strong>Alternativa r&aacute;pida en Windows</strong>
+        Al iniciar ETTEM por primera vez, Windows suele mostrar una ventana de &ldquo;Seguridad
+        de Windows&rdquo; preguntando si permitir el acceso a la red. Haz clic en
+        <strong>Permitir acceso</strong> para habilitar la conexi&oacute;n desde otros
+        dispositivos sin tener que configurar el firewall manualmente.
+    </div>
+
+    <div class="page-nav">
+        <a href="arbitro">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Marcador de &Aacute;rbitro</span>
+        </a>
+        <a href="impresion" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Centro de Impresi&oacute;n</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

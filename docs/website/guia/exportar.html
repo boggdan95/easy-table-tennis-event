@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Exportar Datos - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar" class="active">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Exportar Datos <span class="badge badge-new">Nuevo V2.6</span></h1>
+    <p class="page-subtitle">Descarga todos los datos del torneo en formato Excel o CSV para an&aacute;lisis, archivo o integraci&oacute;n con otros sistemas.</p>
+
+    <h2>Descripci&oacute;n General</h2>
+    <p>
+        A partir de la versi&oacute;n 2.6, ETTEM permite exportar todos los datos del torneo
+        con un solo clic. Los datos exportados incluyen jugadores, grupos, partidos,
+        standings y resultados del bracket &mdash; todo lo necesario para archivar el
+        torneo, compartirlo con la federaci&oacute;n o procesarlo en Excel o cualquier
+        herramienta externa.
+    </p>
+
+    <div class="callout callout-info">
+        <strong>Nueva funcionalidad en V2.6</strong>
+        La exportaci&oacute;n de datos es completamente nueva en la versi&oacute;n 2.6.
+        Anteriormente, los datos del torneo solo eran accesibles a trav&eacute;s de la
+        base de datos SQLite interna.
+    </div>
+
+    <h2>C&oacute;mo Acceder a las Exportaciones</h2>
+    <p>Puedes iniciar una exportaci&oacute;n desde dos lugares:</p>
+    <ul>
+        <li>
+            <strong>Centro de Impresi&oacute;n:</strong> haz clic en el bot&oacute;n
+            <strong>Exportar</strong> en la secci&oacute;n correspondiente.
+        </li>
+        <li>
+            <strong>Men&uacute; de administraci&oacute;n:</strong> accede directamente a
+            <code>/admin/export/</code> para ver todas las opciones de exportaci&oacute;n disponibles.
+        </li>
+    </ul>
+
+    <h2>Formatos de Exportaci&oacute;n</h2>
+
+    <h3>Excel (.xlsx) <span class="badge badge-new">Nuevo V2.6</span></h3>
+    <p>
+        El archivo Excel generado contiene <strong>6 hojas de c&aacute;lculo</strong>, cada una
+        con un conjunto de datos diferente del torneo:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Hoja</th>
+                <th>Contenido</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Jugadores</strong></td>
+                <td>Lista completa de todos los jugadores inscritos: nombre, apellido, g&eacute;nero, pa&iacute;s, ranking y categor&iacute;a.</td>
+            </tr>
+            <tr>
+                <td><strong>Grupos</strong></td>
+                <td>Todos los grupos creados por categor&iacute;a: n&uacute;mero de grupo, jugadores asignados y fase.</td>
+            </tr>
+            <tr>
+                <td><strong>Partidos de Grupo</strong></td>
+                <td>Cada partido de la fase de grupos con los jugadores, marcador por sets y resultado final.</td>
+            </tr>
+            <tr>
+                <td><strong>Standings</strong></td>
+                <td>Clasificaci&oacute;n final de la fase de grupos: posici&oacute;n, jugador, partidos jugados/ganados/perdidos, sets y puntos.</td>
+            </tr>
+            <tr>
+                <td><strong>Bracket</strong></td>
+                <td>Estructura completa del cuadro eliminatorio: rondas, enfrentamientos y jugadores en cada posici&oacute;n.</td>
+            </tr>
+            <tr>
+                <td><strong>Resultados de Bracket</strong></td>
+                <td>Todos los partidos del bracket KO con marcadores por sets, ganadores y ronda correspondiente.</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>
+        El archivo Excel se descarga directamente desde el navegador como
+        <code>torneo_[nombre]_[fecha].xlsx</code>. Puedes abrirlo con Microsoft Excel,
+        LibreOffice Calc, Google Sheets o cualquier aplicaci&oacute;n compatible con el
+        formato .xlsx.
+    </p>
+
+    <h3>CSV Combinado <span class="badge badge-new">Nuevo V2.6</span></h3>
+    <p>
+        La opci&oacute;n de <strong>CSV combinado</strong> genera un &uacute;nico archivo
+        de texto con todos los datos del torneo en formato CSV (valores separados por coma).
+        A diferencia del Excel, todos los datos se incluyen en un solo archivo con una
+        columna adicional que indica el tipo de registro.
+    </p>
+    <p>
+        Este formato es ideal para:
+    </p>
+    <ul>
+        <li>Importar los datos a bases de datos externas o sistemas de ranking de federaci&oacute;n.</li>
+        <li>Procesamiento autom&aacute;tico con scripts o herramientas de l&iacute;nea de comandos.</li>
+        <li>Entornos donde Excel no est&aacute; disponible.</li>
+        <li>Archivo de larga duraci&oacute;n en un formato abierto y universal.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>&iquest;Cu&aacute;ndo usar Excel y cu&aacute;ndo CSV?</strong>
+        Usa <strong>Excel</strong> cuando necesites revisar o presentar los datos de forma
+        organizada (p&aacute;ginas separadas, formato, sumas autom&aacute;ticas). Usa
+        <strong>CSV</strong> cuando necesites procesar los datos con otro programa o
+        importarlos a un sistema externo.
+    </div>
+
+    <h2>Exportaci&oacute;n por Categor&iacute;a</h2>
+    <p>
+        Puedes exportar los datos de <strong>todo el torneo</strong> o filtrar por
+        <strong>categor&iacute;a espec&iacute;fica</strong>. Al seleccionar una categor&iacute;a,
+        el archivo exportado contendr&aacute; &uacute;nicamente los datos correspondientes
+        a esa categor&iacute;a (jugadores inscritos en ella, sus grupos, partidos y resultados).
+    </p>
+
+    <h2>Notas Importantes</h2>
+
+    <div class="callout callout-warning">
+        <strong>Los datos se exportan tal como est&aacute;n</strong>
+        La exportaci&oacute;n refleja el estado actual del torneo. Si hay partidos pendientes
+        o resultados sin ingresar, esas celdas aparecer&aacute;n vac&iacute;as en el archivo
+        exportado. Para obtener una exportaci&oacute;n completa, realiza la exportaci&oacute;n
+        al finalizar el torneo con todos los resultados ingresados.
+    </div>
+
+    <div class="callout callout-info">
+        <strong>Sin conexi&oacute;n a internet</strong>
+        La exportaci&oacute;n funciona completamente de forma local. El archivo se genera
+        en la computadora que ejecuta ETTEM y se descarga directamente en el navegador,
+        sin necesidad de enviar ning&uacute;n dato a servidores externos.
+    </div>
+
+    <div class="page-nav">
+        <a href="branding">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Branding</span>
+        </a>
+        <a href="certificados" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Certificados</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>

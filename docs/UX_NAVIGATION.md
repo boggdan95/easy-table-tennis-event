@@ -1,7 +1,7 @@
 # ETTEM - UX & Navigation Architecture
 
 > Documento de referencia para el flujo de navegacion, estructura de pantallas y convenciones de UX.
-> Ultima actualizacion: v2.6 (Feb 2026)
+> Ultima actualizacion: v2.7 (Mar 2026)
 
 ## Capturas de Referencia
 
@@ -67,6 +67,7 @@ Crear Torneo → Importar → Organizar → Jugar → Calcular → Coronar Campe
 │    Personalizacion             │                         │
 │    Config. Mesas               │                         │
 │    Centro de Impresion         │                         │
+│    Guia de Usuario (externo)   │                         │
 └──────────────────────────────────────────────────────────┘
 ```
 

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <title>Instalaci&oacute;n - ETTEM Gu&iacute;a</title>
+    <link rel="stylesheet" href="css/guide.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a href="./" class="topbar-logo">ETT<span>EM</span> &mdash; Gu&iacute;a</a>
+    <div class="topbar-links">
+        <a href="https://ettem.boggdan.com">Sitio Web</a>
+        <a href="mailto:ettem@boggdan.com">Contacto</a>
+    </div>
+</header>
+
+<div class="layout">
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Inicio</div>
+        <ul>
+            <li><a href="./">Introducci&oacute;n</a></li>
+            <li><a href="instalacion" class="active">Instalaci&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Torneo</div>
+        <ul>
+            <li><a href="dashboard">Panel Principal</a></li>
+            <li><a href="jugadores">Importar Jugadores</a></li>
+            <li><a href="grupos">Crear Grupos</a></li>
+            <li><a href="resultados">Ingresar Resultados</a></li>
+            <li><a href="standings">Standings</a></li>
+            <li><a href="bracket">Bracket (Llave)</a></li>
+            <li><a href="equipos">Equipos <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Operaci&oacute;n</div>
+        <ul>
+            <li><a href="scheduler">Scheduler</a></li>
+            <li><a href="arbitro">Marcador de &Aacute;rbitro</a></li>
+            <li><a href="display">Pantalla P&uacute;blica</a></li>
+            <li><a href="impresion">Centro de Impresi&oacute;n</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Personalizaci&oacute;n</div>
+        <ul>
+            <li><a href="branding">Branding <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="exportar">Exportar Datos <span class="badge badge-new">Nuevo</span></a></li>
+            <li><a href="certificados">Certificados <span class="badge badge-new">Nuevo</span></a></li>
+        </ul>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Ayuda</div>
+        <ul>
+            <li><a href="faq">Preguntas Frecuentes</a></li>
+        </ul>
+    </div>
+</nav>
+
+<main class="content">
+    <h1>Instalaci&oacute;n y Primer Inicio</h1>
+    <p class="page-subtitle">C&oacute;mo instalar ETTEM en Windows y macOS, y activar tu licencia.</p>
+
+    <h2>Windows (Ejecutable)</h2>
+    <ol>
+        <li>Descarga el archivo <code>ETTEM.exe</code></li>
+        <li>Col&oacute;calo en una carpeta de tu preferencia (ej: <code>C:\ETTEM\</code>)</li>
+        <li>Haz <strong>doble clic</strong> en <code>ETTEM.exe</code></li>
+        <li>Tu navegador se abrir&aacute; autom&aacute;ticamente en <code>http://127.0.0.1:8000</code></li>
+    </ol>
+
+    <div class="callout callout-warning">
+        <strong>&#x26A0; Advertencia de Windows SmartScreen</strong>
+        <p>Al ejecutar ETTEM por primera vez, Windows mostrar&aacute; una advertencia de seguridad porque la aplicaci&oacute;n a&uacute;n no cuenta con un certificado de desarrollador. <strong>Esto es normal y seguro.</strong></p>
+        <p>Sigue estos pasos para continuar:</p>
+        <ol>
+            <li>Aparece la ventana <em>&ldquo;Windows protegi&oacute; tu PC&rdquo;</em></li>
+            <li>Haz clic en <strong>&ldquo;M&aacute;s informaci&oacute;n&rdquo;</strong> (texto azul debajo del mensaje)</li>
+            <li>Aparece el bot&oacute;n <strong>&ldquo;Ejecutar de todos modos&rdquo;</strong> &mdash; haz clic en &eacute;l</li>
+            <li>ETTEM iniciar&aacute; normalmente. <strong>Solo necesitas hacer esto una vez.</strong></li>
+        </ol>
+        <p style="margin-top: 0.5rem; opacity: 0.85; font-size: 0.9em;">
+            &#x1F512; <em>&iquest;Por qu&eacute; aparece esto?</em> Windows SmartScreen advierte sobre aplicaciones descargadas de Internet que no tienen firma digital de un certificado de desarrollador de Microsoft. ETTEM es una aplicaci&oacute;n segura &mdash; el c&oacute;digo no est&aacute; firmado a&uacute;n, pero esto no afecta su funcionamiento.</p>
+    </div>
+
+    <h2>macOS (Aplicaci&oacute;n)</h2>
+    <ol>
+        <li>Descarga el archivo <code>ETTEM.dmg</code></li>
+        <li>Abre el <code>.dmg</code> y arrastra <strong>ETTEM</strong> a la carpeta <strong>Aplicaciones</strong></li>
+        <li>Abre <strong>ETTEM</strong> desde Aplicaciones</li>
+        <li>Tu navegador se abrir&aacute; autom&aacute;ticamente</li>
+    </ol>
+
+    <div class="callout callout-warning">
+        <strong>&#x26A0; Advertencia de macOS Gatekeeper</strong>
+        <p>macOS bloquea aplicaciones que no est&aacute;n firmadas con un certificado de Apple Developer. Al abrir ETTEM por primera vez ver&aacute;s el mensaje <em>&ldquo;ETTEM no se puede abrir porque es de un desarrollador no identificado&rdquo;</em>.</p>
+        <p><strong>Esto es normal y seguro.</strong> Sigue estos pasos:</p>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 1 &mdash; Clic derecho (recomendado):</strong></p>
+        <ol>
+            <li>Ve a la carpeta <strong>Aplicaciones</strong> en Finder</li>
+            <li>Haz <strong>clic derecho</strong> (o Control + clic) sobre <strong>ETTEM</strong></li>
+            <li>Selecciona <strong>&ldquo;Abrir&rdquo;</strong> en el men&uacute; contextual</li>
+            <li>Aparece un di&aacute;logo &mdash; haz clic en <strong>&ldquo;Abrir&rdquo;</strong> para confirmar</li>
+            <li>ETTEM iniciar&aacute; normalmente. <strong>Solo necesitas hacer esto una vez</strong> &mdash; las siguientes veces abre con doble clic normal.</li>
+        </ol>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 2 &mdash; Desde Ajustes del Sistema:</strong></p>
+        <ol>
+            <li>Intenta abrir ETTEM normalmente (doble clic) &mdash; aparece el bloqueo</li>
+            <li>Ve a <strong>Ajustes del Sistema &rarr; Privacidad y Seguridad</strong></li>
+            <li>Busca el mensaje <em>&ldquo;Se bloque&oacute; ETTEM&rdquo;</em> cerca del final</li>
+            <li>Haz clic en <strong>&ldquo;Abrir de todos modos&rdquo;</strong></li>
+            <li>Confirma con tu contrase&ntilde;a o Touch ID</li>
+        </ol>
+
+        <p style="margin-top: 0.75rem;"><strong>Opci&oacute;n 3 &mdash; Terminal (avanzado):</strong></p>
+        <p>Si las opciones anteriores no funcionan, abre Terminal y ejecuta:</p>
+        <p><code>xattr -cr /Applications/ETTEM.app</code></p>
+        <p>Luego abre ETTEM normalmente con doble clic.</p>
+
+        <p style="margin-top: 0.5rem; opacity: 0.85; font-size: 0.9em;">
+            &#x1F512; <em>&iquest;Por qu&eacute; aparece esto?</em> macOS Gatekeeper bloquea aplicaciones que no tienen firma de Apple Developer ID. ETTEM es una aplicaci&oacute;n segura &mdash; pr&oacute;ximamente se incluir&aacute; la firma digital para eliminar esta advertencia.</p>
+    </div>
+
+    <h2>D&oacute;nde se guardan los datos</h2>
+    <table>
+        <thead>
+            <tr><th>Plataforma</th><th>Ubicaci&oacute;n</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Windows</td><td><code>.ettem/</code> junto al <code>ETTEM.exe</code></td></tr>
+            <tr><td>macOS</td><td><code>~/Library/Application Support/ETTEM/</code></td></tr>
+        </tbody>
+    </table>
+
+    <p>La carpeta contiene:</p>
+    <ul>
+        <li><code>ettem.sqlite</code> &mdash; Base de datos con todos los torneos</li>
+        <li><code>license.key</code> &mdash; Tu clave de licencia</li>
+        <li><code>uploads/</code> &mdash; Logos y archivos subidos</li>
+    </ul>
+
+    <h2>Activar Licencia</h2>
+    <p>La primera vez que abras ETTEM, ver&aacute;s la pantalla de activaci&oacute;n.</p>
+    <ol>
+        <li>Ingresa tu <strong>clave de licencia</strong> en formato: <code>ETTEM-XXXX-MMYY-SSSSSSSS</code></li>
+        <li>Haz clic en <strong>Activar</strong></li>
+        <li>Si la clave es v&aacute;lida, acceder&aacute;s al panel principal</li>
+    </ol>
+
+    <h3>Estado de la Licencia</h3>
+    <p>En la barra lateral izquierda ver&aacute;s los d&iacute;as restantes:</p>
+    <ul>
+        <li><strong>Verde:</strong> M&aacute;s de 30 d&iacute;as restantes</li>
+        <li><strong>Amarillo/Parpadeante:</strong> Menos de 7 d&iacute;as &mdash; renueva pronto</li>
+        <li><strong>Expirada:</strong> Contacta al proveedor para renovar</li>
+    </ul>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        &iquest;No tienes licencia? Contacta a <a href="mailto:ettem@boggdan.com">ettem@boggdan.com</a> para solicitar una demo.
+    </div>
+
+    <div class="page-nav">
+        <a href="./">
+            <span class="nav-label">&larr; Anterior</span>
+            <span class="nav-title">Introducci&oacute;n</span>
+        </a>
+        <a href="dashboard" class="next">
+            <span class="nav-label">Siguiente &rarr;</span>
+            <span class="nav-title">Panel Principal</span>
+        </a>
+    </div>
+</main>
+
+</div>
+
+<button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">&#9776;</button>
+<script>
+document.getElementById('sidebarToggle').addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('open');
+});
+</script>
+</body>
+</html>
