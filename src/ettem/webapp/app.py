@@ -1,6 +1,7 @@
 """FastAPI web application for Easy Table Tennis Event Manager."""
 
 import math
+from datetime import datetime as _dt
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from ettem.models import Match, MatchStatus, Pair, Player, Set, Team, detect_event_type, is_doubles_category, is_teams_category
+from ettem.models import Gender, Match, MatchStatus, Pair, Player, Set, Team, detect_event_type, is_doubles_category, is_teams_category
 from ettem.standings import calculate_standings
 from ettem.storage import (
     DatabaseManager,
@@ -3008,11 +3009,14 @@ async def admin_registration_sheet(request: Request):
         for p in all_players
     ]
 
+    # Build lookup dict to avoid N+1 queries
+    players_by_id = {p.id: p for p in all_players}
+
     # Build existing pairs for display
     pairs_for_js = []
     for ep in existing_pairs:
-        p1 = player_repo.get_by_id(ep.player1_id)
-        p2 = player_repo.get_by_id(ep.player2_id)
+        p1 = players_by_id.get(ep.player1_id)
+        p2 = players_by_id.get(ep.player2_id)
         pairs_for_js.append({
             "id": ep.id,
             "player1": f"{p1.nombre} {p1.apellido}" if p1 else "?",
@@ -3026,11 +3030,8 @@ async def admin_registration_sheet(request: Request):
     teams_for_js = []
     for et in existing_teams:
         player_ids = json.loads(et.player_ids_json) if et.player_ids_json else []
-        team_players = []
-        for pid in player_ids:
-            tp = player_repo.get_by_id(pid)
-            if tp:
-                team_players.append(f"{tp.nombre} {tp.apellido}")
+        team_players = [f"{players_by_id[pid].nombre} {players_by_id[pid].apellido}"
+                        for pid in player_ids if pid in players_by_id]
         teams_for_js.append({
             "id": et.id,
             "name": et.name,
@@ -3098,7 +3099,6 @@ async def admin_registration_sheet_save(request: Request):
                     setattr(draft, k, v)
                 draft.is_valid = is_valid
                 draft.validation_errors = errors
-                from datetime import datetime as _dt
                 draft.updated_at = _dt.utcnow()
                 draft_repo.update(draft)
                 results.append(_draft_to_dict(draft))
@@ -3226,7 +3226,6 @@ async def admin_registration_sheet_import(request: Request):
         }, status_code=400)
 
     # Import as real players
-    from ettem.models import Player, Gender
     categories_to_seed = set()
     imported_count = 0
 
@@ -3266,8 +3265,6 @@ async def admin_registration_sheet_import(request: Request):
 @app.post("/admin/registration-sheet/pairs/create")
 async def admin_registration_sheet_pairs_create(request: Request):
     """JSON: create a pair from two existing player IDs."""
-    from ettem.models import Pair
-
     session = get_db_session()
     tournament_repo = TournamentRepository(session)
     current_tournament = tournament_repo.get_current()
@@ -3352,8 +3349,6 @@ async def admin_registration_sheet_pairs_delete(request: Request):
 @app.post("/admin/registration-sheet/teams/create")
 async def admin_registration_sheet_teams_create(request: Request):
     """JSON: create a team from existing player IDs."""
-    from ettem.models import Team
-
     session = get_db_session()
     tournament_repo = TournamentRepository(session)
     current_tournament = tournament_repo.get_current()

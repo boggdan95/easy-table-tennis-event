@@ -627,9 +627,11 @@ const playersSheet = (function() {
 })();
 
 
+// Shared player data for both assemblers
+const allPlayers = {{ players_for_js | tojson }};
+
 // ==================== PAIRS ASSEMBLER ====================
 const pairsAssembler = (function() {
-    const allPlayers = {{ players_for_js | tojson }};
     let existingPairs = {{ existing_pairs | tojson }};
 
     function populateSelects() {
@@ -730,7 +732,6 @@ const pairsAssembler = (function() {
 
 // ==================== TEAMS ASSEMBLER ====================
 const teamsAssembler = (function() {
-    const allPlayers = {{ players_for_js | tojson }};
     let existingTeams = {{ existing_teams | tojson }};
 
     function populatePlayerSelect(sel) {
@@ -846,7 +847,7 @@ const teamsAssembler = (function() {
     initSelects();
     renderTeams();
 
-    return { createPair: createTeam, createTeam, addPlayerSlot };
+    return { createTeam, addPlayerSlot };
 })();
 </script>
 
