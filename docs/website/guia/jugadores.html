@@ -197,6 +197,76 @@
         sin necesidad de modificar el CSV original.
     </div>
 
+    <h2>Opci&oacute;n 3: Hoja de Inscripci&oacute;n <span class="badge badge-new">Nuevo</span></h2>
+    <p>
+        La <strong>Hoja de Inscripci&oacute;n</strong> es un panel dentro de ETTEM con 3 tabs para registrar
+        jugadores, parejas y equipos directamente. Es ideal para inscripciones progresivas: hoy 2 jugadores,
+        ma&ntilde;ana 5 m&aacute;s, etc.
+    </p>
+
+    <h3>C&oacute;mo acceder</h3>
+    <ul>
+        <li>Desde el men&uacute; lateral: <strong>Gesti&oacute;n del Torneo &rarr; Hoja de Inscripci&oacute;n</strong></li>
+        <li>Desde la p&aacute;gina de Importar Jugadores: bot&oacute;n <strong>Hoja de Inscripci&oacute;n</strong></li>
+    </ul>
+
+    <h3>Tab: Jugadores</h3>
+    <p>Hoja tipo Excel para registrar jugadores individuales.</p>
+    <ul>
+        <li><strong>Selector de categor&iacute;a</strong> &mdash; Elige una categor&iacute;a predeterminada. Cada fila nueva se pre-llena autom&aacute;ticamente.</li>
+        <li><strong>Edici&oacute;n directa</strong> &mdash; Escribe en cada celda como en Excel. Usa <kbd>Tab</kbd> para moverse entre columnas y <kbd>Enter</kbd> para crear una fila nueva.</li>
+        <li><strong>Columnas</strong> &mdash; ID, Nombre, Apellido, G&eacute;nero (M/F), Pa&iacute;s (ISO-3), Ranking, Categor&iacute;a.</li>
+    </ul>
+
+    <h3>Tab: Parejas</h3>
+    <p>Hoja tipo Excel para registrar parejas de dobles.</p>
+    <ul>
+        <li><strong>Columnas</strong> &mdash; Nombre1, Apellido1, Pa&iacute;s1, Nombre2, Apellido2, Pa&iacute;s2, Ranking, Categor&iacute;a.</li>
+        <li><strong>Categor&iacute;as</strong> &mdash; Debe ser categor&iacute;a de dobles: MD, WD, XD, U15BD, etc.</li>
+        <li>Al importar, ETTEM crea autom&aacute;ticamente los jugadores si no existen.</li>
+        <li>El g&eacute;nero se infiere de la categor&iacute;a (MD&rarr;M, WD&rarr;F).</li>
+    </ul>
+
+    <h3>Tab: Equipos</h3>
+    <p>Interfaz de tarjetas para registrar equipos (3-5 jugadores por equipo).</p>
+    <ul>
+        <li><strong>Tarjeta de equipo</strong> &mdash; Nombre del equipo, pa&iacute;s, categor&iacute;a, ranking.</li>
+        <li><strong>Jugadores</strong> &mdash; Cada tarjeta tiene una tabla con 3-5 jugadores (nombre, apellido, pa&iacute;s).</li>
+        <li><strong>Categor&iacute;as</strong> &mdash; Debe ser categor&iacute;a de equipos: MT, WT, U15BT, etc.</li>
+        <li>Al importar, ETTEM crea autom&aacute;ticamente los jugadores si no existen.</li>
+    </ul>
+
+    <h3>Funcionalidades comunes</h3>
+    <ul>
+        <li><strong>Auto-guardado</strong> &mdash; Los cambios se guardan autom&aacute;ticamente cada 1.5 segundos. Un indicador muestra &ldquo;Guardando...&rdquo; y luego &ldquo;Guardado &#10003;&rdquo;.</li>
+        <li><strong>Pegar desde Excel</strong> &mdash; Copia filas en Excel y pega con <kbd>Ctrl+V</kbd> (o <kbd>Cmd+V</kbd> en Mac). ETTEM detecta el formato TSV y crea todas las filas autom&aacute;ticamente.</li>
+        <li><strong>Validaci&oacute;n</strong> &mdash; Las celdas con errores se marcan en rojo (nombre vac&iacute;o, pa&iacute;s incorrecto, etc.).</li>
+        <li><strong>Eliminar</strong> &mdash; Haz clic en &ldquo;&#10005;&rdquo; al final de cada fila/tarjeta para eliminarla.</li>
+    </ul>
+
+    <h3>Importar al Torneo</h3>
+    <p>
+        Cada tab tiene su propio bot&oacute;n <strong>Importar al Torneo</strong>. Al hacer clic, ETTEM:
+    </p>
+    <ol>
+        <li>Valida todas las filas del tab activo.</li>
+        <li>Verifica duplicados contra datos existentes.</li>
+        <li>Crea jugadores/parejas/equipos y asigna seeds por ranking.</li>
+        <li>Limpia la hoja y redirige a la p&aacute;gina correspondiente.</li>
+    </ol>
+
+    <div class="callout callout-info">
+        <strong>Nota</strong>
+        Si alguna fila tiene errores, ETTEM marcar&aacute; las celdas problem&aacute;ticas en rojo y no importar&aacute;
+        ninguna fila hasta que se corrijan todos los errores.
+    </div>
+
+    <div class="callout callout-tip">
+        <strong>Tip</strong>
+        Puedes mezclar categor&iacute;as en la misma hoja. Cada fila puede tener una categor&iacute;a diferente.
+        El selector de categor&iacute;a solo pre-llena las filas nuevas &mdash; siempre puedes editarlo manualmente.
+    </div>
+
     <h2>Editar y Eliminar Jugadores</h2>
     <p>
         Desde la lista de jugadores de cada categor&iacute;a puedes:

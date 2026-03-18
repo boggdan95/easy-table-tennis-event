@@ -1,0 +1,842 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('registration_sheet.title', default='Hoja de Inscripción') }} - ETTEM{% endblock %}
+
+{% block page_title %}{{ t('registration_sheet.title', default='Hoja de Inscripción') }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin/import-players" class="btn btn-secondary btn-sm">
+    <span>←</span>
+    <span>{{ t('nav.import_players') }}</span>
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not tournament %}
+<div class="card">
+    <div class="card-body" style="text-align: center; padding: 3rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📋</div>
+        <h2 style="margin-bottom: 1rem; color: var(--text-color);">{{ t('registration_sheet.no_tournament', default='No hay torneo activo') }}</h2>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            {{ t('registration_sheet.create_first', default='Crea un torneo primero para usar la hoja de inscripción.') }}
+        </p>
+        <a href="/tournaments" class="btn btn-primary">
+            <span>📅</span>
+            <span>{{ t('nav.tournaments') }}</span>
+        </a>
+    </div>
+</div>
+{% else %}
+
+<!-- Tabs -->
+<div class="reg-tabs">
+    <button class="reg-tab active" data-tab="players" onclick="switchTab('players')">
+        {{ t('registration_sheet.tab_players', default='Jugadores') }}
+    </button>
+    <button class="reg-tab" data-tab="pairs" onclick="switchTab('pairs')">
+        {{ t('registration_sheet.tab_pairs', default='Parejas') }}
+    </button>
+    <button class="reg-tab" data-tab="teams" onclick="switchTab('teams')">
+        {{ t('registration_sheet.tab_teams', default='Equipos') }}
+    </button>
+</div>
+
+<!-- ==================== TAB: PLAYERS ==================== -->
+<div class="tab-content" id="tab-players">
+
+<!-- Toolbar -->
+<div class="card mb-3">
+    <div class="card-body" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="default-category" style="font-size: 0.85rem; color: var(--text-muted); white-space: nowrap;">
+                {{ t('registration_sheet.default_category', default='Categoría:') }}
+            </label>
+            <select id="default-category" class="form-control" style="width: auto; padding: 0.3rem 0.5rem; font-size: 0.85rem;">
+                <option value="">—</option>
+                {% for cat in existing_categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" id="custom-category" class="form-control"
+                   style="width: 100px; padding: 0.3rem 0.5rem; font-size: 0.85rem;{% if existing_categories %} display: none;{% endif %}"
+                   placeholder="{{ t('registration_sheet.new_category', default='Nueva...') }}">
+        </div>
+        <button onclick="playersSheet.addRow()" class="btn btn-primary btn-sm">
+            <span>➕</span>
+            <span>{{ t('registration_sheet.add_row', default='Agregar Fila') }}</span>
+        </button>
+        <button onclick="playersSheet.doImport()" class="btn btn-success btn-sm" id="btn-import-players">
+            <span>📥</span>
+            <span>{{ t('registration_sheet.import_to_tournament', default='Importar al Torneo') }}</span>
+        </button>
+        <span id="save-status-players" class="save-status"></span>
+        <span style="flex: 1;"></span>
+        <span style="color: var(--text-muted); font-size: 0.85rem;">
+            {{ t('registration_sheet.paste_hint', default='Pega desde Excel (Ctrl+V) — columnas: ID, Nombre, Apellido, Género, País, Ranking, Categoría') }}
+        </span>
+    </div>
+</div>
+
+<!-- Spreadsheet -->
+<div class="card">
+    <div class="table-responsive">
+        <table class="table sheet-table" id="sheet-table-players">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">ID</th>
+                    <th>{{ t('registration_sheet.col_nombre', default='Nombre') }}</th>
+                    <th>{{ t('registration_sheet.col_apellido', default='Apellido') }}</th>
+                    <th style="width: 90px;">{{ t('registration_sheet.col_genero', default='Género') }}</th>
+                    <th style="width: 90px;">{{ t('registration_sheet.col_pais', default='País') }}</th>
+                    <th style="width: 100px;">{{ t('registration_sheet.col_ranking', default='Ranking') }}</th>
+                    <th>{{ t('registration_sheet.col_categoria', default='Categoría') }}</th>
+                    <th style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody id="sheet-body-players"></tbody>
+        </table>
+    </div>
+</div>
+</div>
+
+<!-- ==================== TAB: PAIRS (Assembler) ==================== -->
+<div class="tab-content" id="tab-pairs" style="display: none;">
+
+<!-- Info banner -->
+<div class="card mb-3" style="border-left: 3px solid var(--primary-color);">
+    <div class="card-body" style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">
+        {{ t('registration_sheet.pairs_hint', default='Selecciona jugadores ya importados para armar parejas. Primero importa jugadores en la pestaña "Jugadores".') }}
+    </div>
+</div>
+
+<!-- Create pair form -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 180px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_jugador', default='Jugador') }} 1</label>
+                <select id="pair-player1" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;">
+                    <option value="">{{ t('registration_sheet.select_player', default='— Seleccionar —') }}</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 180px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_jugador', default='Jugador') }} 2</label>
+                <select id="pair-player2" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;">
+                    <option value="">{{ t('registration_sheet.select_player', default='— Seleccionar —') }}</option>
+                </select>
+            </div>
+            <div style="min-width: 120px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_categoria', default='Categoría') }}</label>
+                <input type="text" id="pair-categoria" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" placeholder="MD, WD, XD...">
+            </div>
+            <div style="min-width: 100px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_ranking', default='Ranking') }}</label>
+                <input type="number" id="pair-ranking" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" value="0">
+            </div>
+            <button onclick="pairsAssembler.createPair()" class="btn btn-primary btn-sm" style="height: 34px;">
+                {{ t('registration_sheet.create_pair', default='Crear Pareja') }}
+            </button>
+        </div>
+        <div id="pair-error" style="color: var(--danger-color, #dc3545); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></div>
+    </div>
+</div>
+
+<!-- Existing pairs table -->
+<div class="card">
+    <div class="card-header" style="padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 600;">
+        {{ t('registration_sheet.existing_pairs', default='Parejas creadas') }}
+        <span id="pairs-count" style="color: var(--text-muted); font-weight: normal;"></span>
+    </div>
+    <div class="table-responsive">
+        <table class="table" id="pairs-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">Seed</th>
+                    <th>{{ t('registration_sheet.col_jugador', default='Jugador') }} 1</th>
+                    <th>{{ t('registration_sheet.col_jugador', default='Jugador') }} 2</th>
+                    <th>{{ t('registration_sheet.col_categoria', default='Categoría') }}</th>
+                    <th style="width: 100px;">{{ t('registration_sheet.col_ranking', default='Ranking') }}</th>
+                    <th style="width: 40px;"></th>
+                </tr>
+            </thead>
+            <tbody id="pairs-body"></tbody>
+        </table>
+    </div>
+    <div id="pairs-empty" style="text-align: center; padding: 2rem; color: var(--text-muted); display: none;">
+        {{ t('registration_sheet.no_pairs', default='No hay parejas creadas. Selecciona 2 jugadores arriba para crear una.') }}
+    </div>
+</div>
+</div>
+
+<!-- ==================== TAB: TEAMS (Assembler) ==================== -->
+<div class="tab-content" id="tab-teams" style="display: none;">
+
+<!-- Info banner -->
+<div class="card mb-3" style="border-left: 3px solid var(--primary-color);">
+    <div class="card-body" style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">
+        {{ t('registration_sheet.teams_hint', default='Selecciona jugadores ya importados para armar equipos (3-5 jugadores). Primero importa jugadores en la pestaña "Jugadores".') }}
+    </div>
+</div>
+
+<!-- Create team form -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            <div style="flex: 1; min-width: 180px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.team_name', default='Nombre del Equipo') }}</label>
+                <input type="text" id="team-name" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" placeholder="Club Barcelona">
+            </div>
+            <div style="min-width: 90px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_pais', default='País') }}</label>
+                <input type="text" id="team-pais" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" maxlength="3" placeholder="ESP">
+            </div>
+            <div style="min-width: 120px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_categoria', default='Categoría') }}</label>
+                <input type="text" id="team-categoria" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" placeholder="MT, WT...">
+            </div>
+            <div style="min-width: 100px;">
+                <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 2px;">{{ t('registration_sheet.col_ranking', default='Ranking') }}</label>
+                <input type="number" id="team-ranking" class="form-control" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;" value="0">
+            </div>
+        </div>
+        <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 4px;">{{ t('registration_sheet.team_players', default='Jugadores del equipo (3-5)') }}</label>
+            <div id="team-player-selectors" style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <select class="form-control team-player-sel" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;">
+                    <option value="">{{ t('registration_sheet.select_player', default='— Seleccionar —') }}</option>
+                </select>
+                <select class="form-control team-player-sel" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;">
+                    <option value="">{{ t('registration_sheet.select_player', default='— Seleccionar —') }}</option>
+                </select>
+                <select class="form-control team-player-sel" style="padding: 0.35rem 0.5rem; font-size: 0.9rem;">
+                    <option value="">{{ t('registration_sheet.select_player', default='— Seleccionar —') }}</option>
+                </select>
+            </div>
+            <button onclick="teamsAssembler.addPlayerSlot()" class="btn-add-player" id="btn-add-team-player" style="margin-top: 0.4rem;">
+                + {{ t('registration_sheet.add_player', default='Agregar Jugador') }}
+            </button>
+        </div>
+        <button onclick="teamsAssembler.createTeam()" class="btn btn-primary btn-sm">
+            {{ t('registration_sheet.create_team', default='Crear Equipo') }}
+        </button>
+        <div id="team-error" style="color: var(--danger-color, #dc3545); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></div>
+    </div>
+</div>
+
+<!-- Existing teams -->
+<div class="card">
+    <div class="card-header" style="padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: 600;">
+        {{ t('registration_sheet.existing_teams', default='Equipos creados') }}
+        <span id="teams-count" style="color: var(--text-muted); font-weight: normal;"></span>
+    </div>
+    <div id="teams-list"></div>
+    <div id="teams-empty" style="text-align: center; padding: 2rem; color: var(--text-muted); display: none;">
+        {{ t('registration_sheet.no_teams', default='No hay equipos creados. Completa el formulario arriba para crear uno.') }}
+    </div>
+</div>
+</div>
+
+<!-- ==================== STYLES ==================== -->
+<style>
+.reg-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+}
+.reg-tab {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+}
+.reg-tab:hover {
+    color: var(--text-color);
+}
+.reg-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 600;
+}
+.save-status {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.sheet-table input,
+.sheet-table select {
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 0.35rem 0.5rem;
+    width: 100%;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    box-sizing: border-box;
+    outline: none;
+}
+.sheet-table input:focus,
+.sheet-table select:focus {
+    border-color: var(--primary-color);
+    background: var(--bg-color);
+    border-radius: 4px;
+}
+.sheet-table .cell-error input,
+.sheet-table .cell-error select {
+    border-color: var(--danger-color, #dc3545);
+    background: rgba(220, 53, 69, 0.06);
+    border-radius: 4px;
+}
+.sheet-table td {
+    padding: 2px 4px;
+    vertical-align: middle;
+}
+.sheet-table .btn-delete-row {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    opacity: 0.5;
+}
+.sheet-table .btn-delete-row:hover {
+    opacity: 1;
+    color: var(--danger-color, #dc3545);
+}
+
+/* Assembler styles */
+.btn-add-player {
+    background: none;
+    border: 1px dashed var(--border-color, #dee2e6);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.3rem 0.8rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+.btn-add-player:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+.team-item {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.team-item:last-child { border-bottom: none; }
+.team-item-info { flex: 1; }
+.team-item-name { font-weight: 600; font-size: 0.95rem; }
+.team-item-details { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+.team-item-players { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.btn-delete-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    opacity: 0.5;
+}
+.btn-delete-item:hover {
+    opacity: 1;
+    color: var(--danger-color, #dc3545);
+}
+</style>
+
+<script>
+// ==================== TAB SWITCHING ====================
+let currentTab = 'players';
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.reg-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+    document.getElementById('tab-' + tab).style.display = '';
+    window.location.hash = tab;
+}
+
+// Restore tab from hash
+if (window.location.hash) {
+    const h = window.location.hash.slice(1);
+    if (['players', 'pairs', 'teams'].includes(h)) switchTab(h);
+}
+
+// ==================== SHARED HELPERS ====================
+const DEBOUNCE_MS = 1500;
+const STR_SAVING = '{{ t("registration_sheet.saving", default="Guardando...") }}';
+const STR_SAVED = '{{ t("registration_sheet.saved", default="Guardado ✓") }}';
+const STR_ERROR = '{{ t("registration_sheet.save_error", default="Error al guardar") }}';
+const STR_IMPORTING = '{{ t("registration_sheet.importing", default="Importando...") }}';
+const STR_IMPORT_BTN = '{{ t("registration_sheet.import_to_tournament", default="Importar al Torneo") }}';
+const STR_IMPORT_ERRORS = '{{ t("registration_sheet.import_errors", default="Hay filas con errores. Corrígelos e intenta de nuevo.") }}';
+
+function showStatus(elId, state) {
+    const el = document.getElementById(elId);
+    if (state === 'saving') {
+        el.textContent = STR_SAVING;
+        el.style.color = 'var(--text-muted)';
+    } else if (state === 'saved') {
+        el.textContent = STR_SAVED;
+        el.style.color = 'var(--success-color, #28a745)';
+        setTimeout(() => { el.textContent = ''; }, 3000);
+    } else {
+        el.textContent = STR_ERROR;
+        el.style.color = 'var(--danger-color, #dc3545)';
+    }
+}
+
+function getCategoryFromSelector(selectId, customId) {
+    const sel = document.getElementById(selectId);
+    const custom = document.getElementById(customId);
+    if (sel && sel.value) return sel.value;
+    if (custom && custom.value.trim()) return custom.value.trim().toUpperCase();
+    return '';
+}
+
+// ==================== PLAYERS SHEET ====================
+const playersSheet = (function() {
+    const FIELDS = ['original_id', 'nombre', 'apellido', 'genero', 'pais_cd', 'ranking_pts', 'categoria'];
+    let rows = {{ drafts | tojson }};
+    let pendingSaves = {};
+    let saveTimer = null;
+
+    function getDefaultCategory() {
+        return getCategoryFromSelector('default-category', 'custom-category');
+    }
+
+    document.getElementById('default-category').addEventListener('change', function() {
+        const custom = document.getElementById('custom-category');
+        custom.style.display = this.value === '' ? 'inline-block' : 'none';
+        if (this.value !== '') custom.value = '';
+    });
+
+    function renderRows() {
+        const tbody = document.getElementById('sheet-body-players');
+        tbody.innerHTML = '';
+        rows.forEach((row, idx) => renderRow(row, idx));
+    }
+
+    function renderRow(row, idx) {
+        const tbody = document.getElementById('sheet-body-players');
+        const tr = document.createElement('tr');
+        tr.dataset.rowId = row.id || '';
+        tr.dataset.idx = idx;
+
+        FIELDS.forEach(field => {
+            const td = document.createElement('td');
+            const errors = row.validation_errors || {};
+            if (errors[field]) td.className = 'cell-error';
+
+            if (field === 'genero') {
+                const sel = document.createElement('select');
+                sel.dataset.field = field;
+                ['', 'M', 'F'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = v || '-';
+                    if ((row[field] || '').toUpperCase() === v) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+                sel.addEventListener('change', () => onCellChange(tr, field, sel.value));
+                td.appendChild(sel);
+            } else {
+                const inp = document.createElement('input');
+                inp.type = (field === 'ranking_pts' || field === 'original_id') ? 'number' : 'text';
+                inp.dataset.field = field;
+                inp.value = row[field] !== undefined && row[field] !== null ? row[field] : '';
+                if (field === 'pais_cd') inp.maxLength = 3;
+                inp.addEventListener('change', () => onCellChange(tr, field, inp.value));
+                inp.addEventListener('keydown', (e) => onKeyDown(e, tr, field));
+                td.appendChild(inp);
+            }
+            tr.appendChild(td);
+        });
+
+        const tdDel = document.createElement('td');
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn-delete-row';
+        btnDel.title = 'Delete';
+        btnDel.textContent = '✕';
+        btnDel.addEventListener('click', () => deleteRow(tr, row));
+        tdDel.appendChild(btnDel);
+        tr.appendChild(tdDel);
+        tbody.appendChild(tr);
+    }
+
+    function onCellChange(tr, field, value) {
+        const idx = parseInt(tr.dataset.idx);
+        rows[idx][field] = value;
+        const rowId = tr.dataset.rowId;
+        const key = rowId || ('new_' + idx);
+        if (!pendingSaves[key]) pendingSaves[key] = { ...rows[idx] };
+        pendingSaves[key][field] = value;
+        if (rowId) pendingSaves[key].id = parseInt(rowId);
+        scheduleSave();
+    }
+
+    function onKeyDown(e, tr, field) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const idx = parseInt(tr.dataset.idx);
+            if (idx === rows.length - 1) {
+                addRow();
+                setTimeout(() => {
+                    const newTr = document.getElementById('sheet-body-players').lastElementChild;
+                    if (newTr) { const fi = newTr.querySelector('input'); if (fi) fi.focus(); }
+                }, 50);
+            } else {
+                const nextTr = tr.nextElementSibling;
+                if (nextTr) { const el = nextTr.querySelector(`[data-field="${field}"]`); if (el) el.focus(); }
+            }
+        }
+    }
+
+    function scheduleSave() {
+        if (saveTimer) clearTimeout(saveTimer);
+        showStatus('save-status-players', 'saving');
+        saveTimer = setTimeout(() => flushSaves(), DEBOUNCE_MS);
+    }
+
+    async function flushSaves() {
+        const toSave = Object.values(pendingSaves);
+        if (toSave.length === 0) return;
+        pendingSaves = {};
+        showStatus('save-status-players', 'saving');
+        try {
+            const resp = await fetch('/admin/registration-sheet/save', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rows: toSave }),
+            });
+            const data = await resp.json();
+            if (data.rows) {
+                data.rows.forEach(saved => {
+                    const idx = rows.findIndex(r =>
+                        (r.id && r.id === saved.id) ||
+                        (!r.id && r.nombre === saved.nombre && r.apellido === saved.apellido)
+                    );
+                    if (idx >= 0) rows[idx] = saved; else rows.push(saved);
+                });
+                renderRows();
+            }
+            showStatus('save-status-players', 'saved');
+        } catch (err) {
+            showStatus('save-status-players', 'error');
+            console.error('Save failed:', err);
+        }
+    }
+
+    function addRow() {
+        const defaultCat = getDefaultCategory();
+        const newRow = {
+            id: null, row_order: rows.length, original_id: '', nombre: '', apellido: '',
+            genero: '', pais_cd: '', ranking_pts: '', categoria: defaultCat,
+            is_valid: false, validation_errors: {},
+        };
+        rows.push(newRow);
+        const idx = rows.length - 1;
+        renderRow(newRow, idx);
+        pendingSaves['new_' + idx] = { ...newRow, row_order: idx };
+        scheduleSave();
+    }
+
+    async function deleteRow(tr, row) {
+        const idx = parseInt(tr.dataset.idx);
+        if (row.id) {
+            try { await fetch('/admin/registration-sheet/row/' + row.id, { method: 'DELETE' }); } catch(e) {}
+        }
+        rows.splice(idx, 1);
+        const key = row.id ? String(row.id) : ('new_' + idx);
+        delete pendingSaves[key];
+        renderRows();
+    }
+
+    async function doImport() {
+        if (Object.keys(pendingSaves).length > 0) await flushSaves();
+        const btn = document.getElementById('btn-import-players');
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> <span>' + STR_IMPORTING + '</span>';
+        try {
+            const resp = await fetch('/admin/registration-sheet/import', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await resp.json();
+            if (data.ok) { window.location.href = '/admin/import-players'; return; }
+            if (data.row_errors) {
+                rows.forEach(r => {
+                    if (data.row_errors[String(r.id)]) { r.validation_errors = data.row_errors[String(r.id)]; r.is_valid = false; }
+                });
+                renderRows();
+                alert(data.message || STR_IMPORT_ERRORS);
+            } else { alert(data.error || 'Error'); }
+        } catch (err) { alert('Error: ' + err.message); }
+        finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>📥</span> <span>' + STR_IMPORT_BTN + '</span>';
+        }
+    }
+
+    // Paste handler
+    document.addEventListener('paste', function(e) {
+        if (currentTab !== 'players') return;
+        const table = document.getElementById('sheet-table-players');
+        if (!table.contains(document.activeElement) && document.activeElement !== document.body) return;
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        if (!text || !text.includes('\t')) return;
+        e.preventDefault();
+        const defaultCat = getDefaultCategory();
+        text.trim().split('\n').filter(l => l.trim()).forEach((line, lineIdx) => {
+            const cols = line.split('\t').map(c => c.trim());
+            const row = {
+                id: null, row_order: rows.length + lineIdx,
+                original_id: cols[0] || '', nombre: cols[1] || '', apellido: cols[2] || '',
+                genero: (cols[3] || '').toUpperCase(), pais_cd: (cols[4] || '').toUpperCase(),
+                ranking_pts: cols[5] || '', categoria: (cols[6] || '').toUpperCase() || defaultCat,
+                is_valid: false, validation_errors: {},
+            };
+            rows.push(row);
+            const idx = rows.length - 1;
+            pendingSaves['new_' + idx] = { ...row, row_order: idx };
+        });
+        renderRows();
+        scheduleSave();
+    });
+
+    renderRows();
+    if (rows.length === 0) { addRow(); addRow(); addRow(); }
+
+    return { addRow, doImport };
+})();
+
+
+// ==================== PAIRS ASSEMBLER ====================
+const pairsAssembler = (function() {
+    const allPlayers = {{ players_for_js | tojson }};
+    let existingPairs = {{ existing_pairs | tojson }};
+
+    function populateSelects() {
+        ['pair-player1', 'pair-player2'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="">{{ t("registration_sheet.select_player", default="— Seleccionar —") }}</option>';
+            allPlayers.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.display;
+                sel.appendChild(opt);
+            });
+            if (curVal) sel.value = curVal;
+        });
+    }
+
+    function renderPairs() {
+        const tbody = document.getElementById('pairs-body');
+        const emptyEl = document.getElementById('pairs-empty');
+        const countEl = document.getElementById('pairs-count');
+        tbody.innerHTML = '';
+        if (existingPairs.length === 0) {
+            emptyEl.style.display = '';
+            document.getElementById('pairs-table').style.display = 'none';
+            countEl.textContent = '';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        document.getElementById('pairs-table').style.display = '';
+        countEl.textContent = `(${existingPairs.length})`;
+        existingPairs.forEach(pair => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center; color: var(--text-muted);">${pair.seed || '-'}</td>
+                <td>${pair.player1}</td>
+                <td>${pair.player2}</td>
+                <td>${pair.categoria}</td>
+                <td>${pair.ranking_pts || 0}</td>
+                <td><button class="btn-delete-item" data-pair-id="${pair.id}" title="Delete">✕</button></td>
+            `;
+            tr.querySelector('.btn-delete-item').addEventListener('click', () => deletePair(pair.id));
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function createPair() {
+        const p1 = document.getElementById('pair-player1').value;
+        const p2 = document.getElementById('pair-player2').value;
+        const cat = document.getElementById('pair-categoria').value.trim().toUpperCase();
+        const ranking = document.getElementById('pair-ranking').value || 0;
+        const errEl = document.getElementById('pair-error');
+        errEl.style.display = 'none';
+
+        if (!p1 || !p2) { errEl.textContent = '{{ t("registration_sheet.err_select_both", default="Selecciona ambos jugadores") }}'; errEl.style.display = ''; return; }
+        if (p1 === p2) { errEl.textContent = '{{ t("registration_sheet.err_same_player", default="Los jugadores deben ser diferentes") }}'; errEl.style.display = ''; return; }
+        if (!cat) { errEl.textContent = '{{ t("registration_sheet.err_category", default="Categoría requerida") }}'; errEl.style.display = ''; return; }
+
+        try {
+            const resp = await fetch('/admin/registration-sheet/pairs/create', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player1_id: parseInt(p1), player2_id: parseInt(p2), categoria: cat, ranking_pts: parseFloat(ranking) }),
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                // Reload to get updated data
+                window.location.reload();
+            } else {
+                errEl.textContent = data.error || 'Error';
+                errEl.style.display = '';
+            }
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = '';
+        }
+    }
+
+    async function deletePair(pairId) {
+        try {
+            const resp = await fetch('/admin/registration-sheet/pairs/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pair_id: pairId }),
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                existingPairs = existingPairs.filter(p => p.id !== pairId);
+                renderPairs();
+            } else { alert(data.error || 'Error'); }
+        } catch (err) { alert(err.message); }
+    }
+
+    populateSelects();
+    renderPairs();
+
+    return { createPair };
+})();
+
+
+// ==================== TEAMS ASSEMBLER ====================
+const teamsAssembler = (function() {
+    const allPlayers = {{ players_for_js | tojson }};
+    let existingTeams = {{ existing_teams | tojson }};
+
+    function populatePlayerSelect(sel) {
+        const curVal = sel.value;
+        sel.innerHTML = '<option value="">{{ t("registration_sheet.select_player", default="— Seleccionar —") }}</option>';
+        allPlayers.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.display;
+            sel.appendChild(opt);
+        });
+        if (curVal) sel.value = curVal;
+    }
+
+    function initSelects() {
+        document.querySelectorAll('.team-player-sel').forEach(sel => populatePlayerSelect(sel));
+    }
+
+    function addPlayerSlot() {
+        const container = document.getElementById('team-player-selectors');
+        if (container.querySelectorAll('.team-player-sel').length >= 5) return;
+        const sel = document.createElement('select');
+        sel.className = 'form-control team-player-sel';
+        sel.style = 'padding: 0.35rem 0.5rem; font-size: 0.9rem;';
+        populatePlayerSelect(sel);
+        container.appendChild(sel);
+        if (container.querySelectorAll('.team-player-sel').length >= 5) {
+            document.getElementById('btn-add-team-player').style.display = 'none';
+        }
+    }
+
+    function renderTeams() {
+        const list = document.getElementById('teams-list');
+        const emptyEl = document.getElementById('teams-empty');
+        const countEl = document.getElementById('teams-count');
+        list.innerHTML = '';
+        if (existingTeams.length === 0) {
+            emptyEl.style.display = '';
+            countEl.textContent = '';
+            return;
+        }
+        emptyEl.style.display = 'none';
+        countEl.textContent = `(${existingTeams.length})`;
+        existingTeams.forEach(team => {
+            const div = document.createElement('div');
+            div.className = 'team-item';
+            div.innerHTML = `
+                <div class="team-item-info">
+                    <div class="team-item-name">${team.seed ? '[' + team.seed + '] ' : ''}${team.name} (${team.pais_cd || '-'})</div>
+                    <div class="team-item-details">${team.categoria} | Ranking: ${team.ranking_pts || 0}</div>
+                    <div class="team-item-players">${team.players.join(', ')}</div>
+                </div>
+                <button class="btn-delete-item" data-team-id="${team.id}" title="Delete">✕</button>
+            `;
+            div.querySelector('.btn-delete-item').addEventListener('click', () => deleteTeam(team.id));
+            list.appendChild(div);
+        });
+    }
+
+    async function createTeam() {
+        const teamName = document.getElementById('team-name').value.trim();
+        const pais = document.getElementById('team-pais').value.trim().toUpperCase();
+        const cat = document.getElementById('team-categoria').value.trim().toUpperCase();
+        const ranking = document.getElementById('team-ranking').value || 0;
+        const errEl = document.getElementById('team-error');
+        errEl.style.display = 'none';
+
+        const playerIds = [];
+        document.querySelectorAll('.team-player-sel').forEach(sel => {
+            if (sel.value) playerIds.push(parseInt(sel.value));
+        });
+
+        if (!teamName) { errEl.textContent = '{{ t("registration_sheet.err_team_name", default="Nombre del equipo requerido") }}'; errEl.style.display = ''; return; }
+        if (!cat) { errEl.textContent = '{{ t("registration_sheet.err_category", default="Categoría requerida") }}'; errEl.style.display = ''; return; }
+        if (playerIds.length < 3) { errEl.textContent = '{{ t("registration_sheet.err_min_players", default="Mínimo 3 jugadores requeridos") }}'; errEl.style.display = ''; return; }
+
+        // Check duplicates
+        const unique = new Set(playerIds);
+        if (unique.size !== playerIds.length) { errEl.textContent = '{{ t("registration_sheet.err_duplicate_players", default="No se pueden repetir jugadores") }}'; errEl.style.display = ''; return; }
+
+        try {
+            const resp = await fetch('/admin/registration-sheet/teams/create', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team_name: teamName, pais_cd: pais, categoria: cat, ranking_pts: parseFloat(ranking), player_ids: playerIds }),
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                window.location.reload();
+            } else {
+                errEl.textContent = data.error || 'Error';
+                errEl.style.display = '';
+            }
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = '';
+        }
+    }
+
+    async function deleteTeam(teamId) {
+        try {
+            const resp = await fetch('/admin/registration-sheet/teams/delete', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team_id: teamId }),
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                existingTeams = existingTeams.filter(t => t.id !== teamId);
+                renderTeams();
+            } else { alert(data.error || 'Error'); }
+        } catch (err) { alert(err.message); }
+    }
+
+    initSelects();
+    renderTeams();
+
+    return { createPair: createTeam, createTeam, addPlayerSlot };
+})();
+</script>
+
+{% endif %}
+{% endblock %}
