@@ -609,7 +609,19 @@ const playersSheet = (function() {
     });
 
     renderRows();
-    if (rows.length === 0) { addRow(); addRow(); addRow(); }
+    if (rows.length === 0) {
+        // Add 3 starter rows visually but don't auto-save empty rows
+        for (let i = 0; i < 3; i++) {
+            const defaultCat = getDefaultCategory();
+            const newRow = {
+                id: null, row_order: rows.length, original_id: '', nombre: '', apellido: '',
+                genero: '', pais_cd: '', ranking_pts: '', categoria: defaultCat,
+                is_valid: false, validation_errors: {},
+            };
+            rows.push(newRow);
+            renderRow(newRow, rows.length - 1);
+        }
+    }
 
     return { addRow, doImport };
 })();

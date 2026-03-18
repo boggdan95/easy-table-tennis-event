@@ -3295,6 +3295,12 @@ async def admin_registration_sheet_pairs_create(request: Request):
     if not p1 or not p2:
         return JSONResponse({"error": "Player not found"}, status_code=404)
 
+    # XD (mixed doubles) requires one male and one female player
+    if categoria.startswith("XD") or categoria.endswith("XD"):
+        genders = {p1.genero.upper(), p2.genero.upper()}
+        if genders != {"M", "F"}:
+            return JSONResponse({"error": "Mixed doubles (XD) requires one male and one female player"}, status_code=400)
+
     pair_repo = PairRepository(session)
     # Check duplicate
     existing = pair_repo.get_all(tournament_id=current_tournament.id)
@@ -3329,6 +3335,9 @@ async def admin_registration_sheet_pairs_delete(request: Request):
     pair = pair_repo.get_by_id(int(pair_id))
     if not pair or pair.tournament_id != current_tournament.id:
         return JSONResponse({"error": "Pair not found"}, status_code=404)
+
+    if pair.group_id:
+        return JSONResponse({"error": "Cannot delete a pair that is already in a group"}, status_code=400)
 
     pair_repo.delete(int(pair_id))
     # Re-seed remaining pairs in that category
@@ -3415,6 +3424,9 @@ async def admin_registration_sheet_teams_delete(request: Request):
     team = team_repo.get_by_id(int(team_id))
     if not team or team.tournament_id != current_tournament.id:
         return JSONResponse({"error": "Team not found"}, status_code=404)
+
+    if team.group_id:
+        return JSONResponse({"error": "Cannot delete a team that is already in a group"}, status_code=400)
 
     cat = team.categoria
     team_repo.delete(int(team_id))
