@@ -153,6 +153,45 @@ class PlayerORM(Base):
     )
 
 
+class DraftPlayerORM(Base):
+    """Draft player table for registration sheet.
+
+    Stores incomplete player data during spreadsheet-style registration.
+    Drafts are kept separate from players to avoid polluting groups/brackets.
+    """
+
+    __tablename__ = "draft_players"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"), nullable=False)
+    row_order = Column(Integer, nullable=False, default=0)
+
+    # Player fields (all nullable — drafts can be incomplete)
+    original_id = Column(Integer, nullable=True)
+    nombre = Column(String(100), nullable=True)
+    apellido = Column(String(100), nullable=True)
+    genero = Column(String(1), nullable=True)  # M or F
+    pais_cd = Column(String(3), nullable=True)  # ISO-3
+    ranking_pts = Column(Float, nullable=True)
+    categoria = Column(String(20), nullable=True)
+
+    # Validation state
+    is_valid = Column(Boolean, nullable=False, default=False)
+    validation_errors_json = Column(Text, nullable=True)  # JSON dict
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @property
+    def validation_errors(self) -> dict:
+        return json.loads(self.validation_errors_json) if self.validation_errors_json else {}
+
+    @validation_errors.setter
+    def validation_errors(self, value: dict):
+        self.validation_errors_json = json.dumps(value)
+
+
 class PairORM(Base):
     """Doubles pair table.
 
@@ -870,6 +909,93 @@ class PlayerRepository:
         for idx, player in enumerate(players, start=1):
             player.seed = idx
         self.session.commit()
+
+
+class DraftPlayerRepository:
+    """Repository for DraftPlayer operations (registration sheet)."""
+
+    def __init__(self, session):
+        self.session = session
+
+    def create(self, tournament_id: int, row_order: int = 0, **fields) -> DraftPlayerORM:
+        """Create a new draft player row."""
+        draft = DraftPlayerORM(
+            tournament_id=tournament_id,
+            row_order=row_order,
+            **fields,
+        )
+        self.session.add(draft)
+        self.session.commit()
+        self.session.refresh(draft)
+        return draft
+
+    def bulk_create(self, tournament_id: int, rows: list[dict]) -> list[DraftPlayerORM]:
+        """Create multiple draft rows at once."""
+        drafts = []
+        for row in rows:
+            draft = DraftPlayerORM(tournament_id=tournament_id, **row)
+            self.session.add(draft)
+            drafts.append(draft)
+        self.session.commit()
+        for d in drafts:
+            self.session.refresh(d)
+        return drafts
+
+    def get_by_tournament(self, tournament_id: int) -> list[DraftPlayerORM]:
+        """Get all drafts for a tournament ordered by row_order."""
+        return (
+            self.session.query(DraftPlayerORM)
+            .filter(DraftPlayerORM.tournament_id == tournament_id)
+            .order_by(DraftPlayerORM.row_order.asc())
+            .all()
+        )
+
+    def get_by_id(self, draft_id: int) -> Optional[DraftPlayerORM]:
+        """Get draft by ID."""
+        return self.session.query(DraftPlayerORM).filter(DraftPlayerORM.id == draft_id).first()
+
+    def update(self, draft: DraftPlayerORM) -> DraftPlayerORM:
+        """Update an existing draft."""
+        self.session.commit()
+        self.session.refresh(draft)
+        return draft
+
+    def delete(self, draft_id: int) -> bool:
+        """Delete a draft by ID."""
+        draft = self.get_by_id(draft_id)
+        if draft:
+            self.session.delete(draft)
+            self.session.commit()
+            return True
+        return False
+
+    def delete_all(self, tournament_id: int) -> int:
+        """Delete all drafts for a tournament. Returns count deleted."""
+        count = (
+            self.session.query(DraftPlayerORM)
+            .filter(DraftPlayerORM.tournament_id == tournament_id)
+            .delete()
+        )
+        self.session.commit()
+        return count
+
+    def count(self, tournament_id: int) -> int:
+        """Count drafts for a tournament."""
+        return (
+            self.session.query(DraftPlayerORM)
+            .filter(DraftPlayerORM.tournament_id == tournament_id)
+            .count()
+        )
+
+    def get_next_row_order(self, tournament_id: int) -> int:
+        """Get the next available row_order for a tournament."""
+        from sqlalchemy import func
+        max_order = (
+            self.session.query(func.max(DraftPlayerORM.row_order))
+            .filter(DraftPlayerORM.tournament_id == tournament_id)
+            .scalar()
+        )
+        return (max_order or 0) + 1
 
 
 class GroupRepository:
@@ -2616,3 +2742,45 @@ def migrate_v26_branding(engine):
 
     finally:
         session.close()
+
+
+def migrate_v28_draft_players(engine):
+    """Run V2.8 migration: add draft_players table for registration sheet.
+
+    Safe to run multiple times (idempotent).
+    """
+    from sqlalchemy import text, inspect
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        if "draft_players" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS draft_players (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tournament_id INTEGER NOT NULL,
+                    row_order INTEGER NOT NULL DEFAULT 0,
+                    original_id INTEGER,
+                    nombre VARCHAR(100),
+                    apellido VARCHAR(100),
+                    genero VARCHAR(1),
+                    pais_cd VARCHAR(3),
+                    ranking_pts FLOAT,
+                    categoria VARCHAR(20),
+                    is_valid BOOLEAN NOT NULL DEFAULT 0,
+                    validation_errors_json TEXT,
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
+                )
+            """))
+            session.commit()
+
+    finally:
+        session.close()
+
+

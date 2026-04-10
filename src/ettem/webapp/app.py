@@ -1,6 +1,7 @@
 """FastAPI web application for Easy Table Tennis Event Manager."""
 
 import math
+from datetime import datetime as _dt
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from ettem.models import Match, MatchStatus, Pair, Player, Set, Team, detect_event_type, is_doubles_category, is_teams_category
+from ettem.models import Gender, Match, MatchStatus, Pair, Player, Set, Team, detect_event_type, is_doubles_category, is_teams_category
 from ettem.standings import calculate_standings
 from ettem.storage import (
     DatabaseManager,
@@ -34,6 +35,9 @@ from ettem.storage import (
     TeamMatchDetailRepository,
     TeamORM,
     TeamMatchDetailORM,
+    DraftPlayerORM,
+    DraftPlayerRepository,
+    migrate_v28_draft_players,
 )
 from ettem.webapp.helpers import CompetitorDisplay, get_competitor_display
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
@@ -424,6 +428,7 @@ migrate_scheduler_tables()  # Must run before bracket_slots migration since it a
 migrate_v24_doubles(db_manager.engine)  # Add doubles support (pairs table + nullable columns)
 migrate_v25_teams(db_manager.engine)  # Add teams support (teams + team_match_details tables)
 migrate_v26_branding(db_manager.engine)  # Add tournament branding table
+migrate_v28_draft_players(db_manager.engine)  # Add draft_players table for registration sheet
 migrate_bracket_slots_add_tournament_id()
 migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
@@ -2887,6 +2892,541 @@ async def admin_import_players_manual(
         request.session["flash_type"] = "error"
 
     return RedirectResponse(url="/admin/import-players", status_code=303)
+
+
+# ─── Registration Sheet (V2.8) ─────────────────────────────────────────
+
+
+def _validate_draft_row(row: dict) -> dict:
+    """Validate a draft player row field by field. Returns dict of field→error."""
+    errors = {}
+    if not row.get("nombre") or not str(row["nombre"]).strip():
+        errors["nombre"] = "required"
+    if not row.get("apellido") or not str(row["apellido"]).strip():
+        errors["apellido"] = "required"
+    genero = row.get("genero")
+    if not genero or str(genero).strip().upper() not in ("M", "F"):
+        errors["genero"] = "must_be_m_or_f"
+    pais = row.get("pais_cd")
+    if not pais or len(str(pais).strip()) != 3:
+        errors["pais_cd"] = "iso3_required"
+    cat = row.get("categoria")
+    if not cat or not str(cat).strip():
+        errors["categoria"] = "required"
+    ranking = row.get("ranking_pts")
+    if ranking is not None and ranking != "":
+        try:
+            float(ranking)
+        except (ValueError, TypeError):
+            errors["ranking_pts"] = "must_be_number"
+    return errors
+
+
+def _clean_draft_fields(data: dict) -> dict:
+    """Clean and coerce draft field types."""
+    cleaned = {}
+    for key in ("nombre", "apellido", "pais_cd", "categoria", "genero"):
+        val = data.get(key)
+        if val is not None:
+            cleaned[key] = str(val).strip()
+    if "genero" in cleaned:
+        cleaned["genero"] = cleaned["genero"].upper()
+    if "pais_cd" in cleaned:
+        cleaned["pais_cd"] = cleaned["pais_cd"].upper()
+    if "categoria" in cleaned:
+        cleaned["categoria"] = cleaned["categoria"].upper()
+    # original_id
+    oid = data.get("original_id")
+    if oid is not None and oid != "":
+        try:
+            cleaned["original_id"] = int(oid)
+        except (ValueError, TypeError):
+            cleaned["original_id"] = None
+    else:
+        cleaned["original_id"] = None
+    # ranking_pts
+    rp = data.get("ranking_pts")
+    if rp is not None and rp != "":
+        try:
+            cleaned["ranking_pts"] = float(rp)
+        except (ValueError, TypeError):
+            cleaned["ranking_pts"] = None
+    else:
+        cleaned["ranking_pts"] = None
+    return cleaned
+
+
+def _draft_to_dict(d: DraftPlayerORM) -> dict:
+    """Convert DraftPlayerORM to JSON-serializable dict."""
+    return {
+        "id": d.id,
+        "row_order": d.row_order,
+        "original_id": d.original_id,
+        "nombre": d.nombre or "",
+        "apellido": d.apellido or "",
+        "genero": d.genero or "",
+        "pais_cd": d.pais_cd or "",
+        "ranking_pts": d.ranking_pts if d.ranking_pts is not None else "",
+        "categoria": d.categoria or "",
+        "is_valid": d.is_valid,
+        "validation_errors": d.validation_errors,
+    }
+
+
+@app.get("/admin/registration-sheet", response_class=HTMLResponse)
+async def admin_registration_sheet(request: Request):
+    """Render the registration sheet page."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+
+    if not current_tournament:
+        return render_template("admin_registration_sheet.html", {
+            "request": request,
+            "tournament": None,
+            "drafts": [],
+            "draft_pairs": [],
+            "draft_teams": [],
+        })
+
+    draft_repo = DraftPlayerRepository(session)
+    player_repo = PlayerRepository(session)
+    pair_repo = PairRepository(session)
+    team_repo = TeamRepository(session)
+    drafts = draft_repo.get_by_tournament(current_tournament.id)
+
+    # Get existing data for assembler tabs
+    all_players = player_repo.get_all(tournament_id=current_tournament.id)
+    existing_categories = sorted(set(p.categoria for p in all_players))
+    existing_pairs = pair_repo.get_all(tournament_id=current_tournament.id)
+    existing_teams = team_repo.get_all(tournament_id=current_tournament.id)
+
+    # Build player list for JS (id, name, country, category)
+    players_for_js = [
+        {"id": p.id, "nombre": p.nombre, "apellido": p.apellido,
+         "pais_cd": p.pais_cd, "categoria": p.categoria,
+         "display": f"{p.nombre} {p.apellido} ({p.pais_cd})"}
+        for p in all_players
+    ]
+
+    # Build lookup dict to avoid N+1 queries
+    players_by_id = {p.id: p for p in all_players}
+
+    # Build existing pairs for display
+    pairs_for_js = []
+    for ep in existing_pairs:
+        p1 = players_by_id.get(ep.player1_id)
+        p2 = players_by_id.get(ep.player2_id)
+        pairs_for_js.append({
+            "id": ep.id,
+            "player1": f"{p1.nombre} {p1.apellido}" if p1 else "?",
+            "player2": f"{p2.nombre} {p2.apellido}" if p2 else "?",
+            "categoria": ep.categoria,
+            "ranking_pts": ep.ranking_pts,
+            "seed": ep.seed,
+        })
+
+    # Build existing teams for display
+    teams_for_js = []
+    for et in existing_teams:
+        player_ids = json.loads(et.player_ids_json) if et.player_ids_json else []
+        team_players = [f"{players_by_id[pid].nombre} {players_by_id[pid].apellido}"
+                        for pid in player_ids if pid in players_by_id]
+        teams_for_js.append({
+            "id": et.id,
+            "name": et.name,
+            "pais_cd": et.pais_cd,
+            "categoria": et.categoria,
+            "ranking_pts": et.ranking_pts,
+            "seed": et.seed,
+            "players": team_players,
+        })
+
+    return render_template("admin_registration_sheet.html", {
+        "request": request,
+        "tournament": current_tournament,
+        "drafts": [_draft_to_dict(d) for d in drafts],
+        "players_for_js": players_for_js,
+        "existing_pairs": pairs_for_js,
+        "existing_teams": teams_for_js,
+        "existing_categories": existing_categories,
+    })
+
+
+@app.get("/admin/registration-sheet/data")
+async def admin_registration_sheet_data(request: Request):
+    """JSON: get all draft rows for current tournament."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"rows": [], "error": "No active tournament"}, status_code=400)
+
+    draft_repo = DraftPlayerRepository(session)
+    drafts = draft_repo.get_by_tournament(current_tournament.id)
+    return JSONResponse({"rows": [_draft_to_dict(d) for d in drafts]})
+
+
+@app.post("/admin/registration-sheet/save")
+async def admin_registration_sheet_save(request: Request):
+    """JSON: save/create draft rows (batch). Expects JSON body with 'rows' list."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+    rows = body.get("rows", [])
+    draft_repo = DraftPlayerRepository(session)
+    results = []
+
+    for row_data in rows:
+        cleaned = _clean_draft_fields(row_data)
+        errors = _validate_draft_row(cleaned)
+        is_valid = len(errors) == 0
+
+        row_id = row_data.get("id")
+        if row_id:
+            # Update existing
+            draft = draft_repo.get_by_id(int(row_id))
+            if draft and draft.tournament_id == current_tournament.id:
+                for k, v in cleaned.items():
+                    setattr(draft, k, v)
+                draft.is_valid = is_valid
+                draft.validation_errors = errors
+                draft.updated_at = _dt.utcnow()
+                draft_repo.update(draft)
+                results.append(_draft_to_dict(draft))
+        else:
+            # Create new
+            row_order = row_data.get("row_order", draft_repo.get_next_row_order(current_tournament.id))
+            draft = DraftPlayerORM(
+                tournament_id=current_tournament.id,
+                row_order=row_order,
+                is_valid=is_valid,
+                **cleaned,
+            )
+            draft.validation_errors = errors
+            session.add(draft)
+            session.commit()
+            session.refresh(draft)
+            results.append(_draft_to_dict(draft))
+
+    return JSONResponse({"rows": results})
+
+
+@app.delete("/admin/registration-sheet/row/{row_id}")
+async def admin_registration_sheet_delete_row(row_id: int, request: Request):
+    """JSON: delete a single draft row."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    draft_repo = DraftPlayerRepository(session)
+    draft = draft_repo.get_by_id(row_id)
+    if not draft or draft.tournament_id != current_tournament.id:
+        return JSONResponse({"error": "Row not found"}, status_code=404)
+
+    draft_repo.delete(row_id)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/admin/registration-sheet/import")
+async def admin_registration_sheet_import(request: Request):
+    """JSON: validate all drafts and import as real players."""
+    from datetime import datetime as dt
+
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    draft_repo = DraftPlayerRepository(session)
+    player_repo = PlayerRepository(session)
+    drafts = draft_repo.get_by_tournament(current_tournament.id)
+
+    if not drafts:
+        return JSONResponse({"error": "No rows to import"}, status_code=400)
+
+    # Validate all rows
+    row_errors = {}
+    valid_drafts = []
+    for d in drafts:
+        cleaned = {
+            "nombre": d.nombre, "apellido": d.apellido, "genero": d.genero,
+            "pais_cd": d.pais_cd, "ranking_pts": d.ranking_pts,
+            "categoria": d.categoria, "original_id": d.original_id,
+        }
+        errors = _validate_draft_row(cleaned)
+        if errors:
+            row_errors[d.id] = errors
+            d.is_valid = False
+            d.validation_errors = errors
+        else:
+            d.is_valid = True
+            d.validation_errors = {}
+            valid_drafts.append(d)
+
+    if row_errors:
+        session.commit()
+        return JSONResponse({
+            "error": "validation_failed",
+            "row_errors": {str(k): v for k, v in row_errors.items()},
+            "message": f"{len(row_errors)} row(s) have errors",
+        }, status_code=400)
+
+    # Check duplicate original_ids within drafts
+    oids = [d.original_id for d in valid_drafts if d.original_id is not None]
+    # Group by category for duplicate check
+    cat_oids: dict[str, list] = {}
+    for d in valid_drafts:
+        cat = d.categoria
+        if cat not in cat_oids:
+            cat_oids[cat] = []
+        if d.original_id is not None:
+            if d.original_id in cat_oids[cat]:
+                row_errors[d.id] = {"original_id": "duplicate_in_sheet"}
+            else:
+                cat_oids[cat].append(d.original_id)
+
+    # Check duplicates against existing players
+    existing_players = player_repo.get_all(tournament_id=current_tournament.id)
+    existing_by_cat: dict[str, set] = {}
+    for p in existing_players:
+        if p.categoria not in existing_by_cat:
+            existing_by_cat[p.categoria] = set()
+        if p.original_id is not None:
+            existing_by_cat[p.categoria].add(p.original_id)
+
+    for d in valid_drafts:
+        if d.id in row_errors:
+            continue
+        if d.original_id is not None and d.categoria in existing_by_cat:
+            if d.original_id in existing_by_cat[d.categoria]:
+                row_errors[d.id] = {"original_id": "duplicate_existing"}
+
+    if row_errors:
+        for d in drafts:
+            if d.id in row_errors:
+                d.is_valid = False
+                d.validation_errors = row_errors[d.id]
+        session.commit()
+        return JSONResponse({
+            "error": "validation_failed",
+            "row_errors": {str(k): v for k, v in row_errors.items()},
+            "message": f"{len(row_errors)} row(s) have duplicate IDs",
+        }, status_code=400)
+
+    # Import as real players
+    categories_to_seed = set()
+    imported_count = 0
+
+    for d in valid_drafts:
+        player = Player(
+            id=0,
+            nombre=d.nombre.strip(),
+            apellido=d.apellido.strip(),
+            genero=Gender.MALE if d.genero.upper() == "M" else Gender.FEMALE,
+            pais_cd=d.pais_cd.upper(),
+            ranking_pts=d.ranking_pts if d.ranking_pts is not None else 0,
+            categoria=d.categoria.upper(),
+            original_id=d.original_id,
+        )
+        player_repo.create(player, tournament_id=current_tournament.id)
+        categories_to_seed.add(d.categoria.upper())
+        imported_count += 1
+
+    # Assign seeds per category
+    for cat in categories_to_seed:
+        player_repo.assign_seeds(cat)
+
+    # Clear all drafts
+    draft_repo.delete_all(current_tournament.id)
+
+    return JSONResponse({
+        "ok": True,
+        "imported": imported_count,
+        "categories": list(categories_to_seed),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Registration Sheet — Pair/Team assembler routes (use existing players)
+# ---------------------------------------------------------------------------
+
+@app.post("/admin/registration-sheet/pairs/create")
+async def admin_registration_sheet_pairs_create(request: Request):
+    """JSON: create a pair from two existing player IDs."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    body = await request.json()
+    player1_id = body.get("player1_id")
+    player2_id = body.get("player2_id")
+    categoria = (body.get("categoria") or "").strip().upper()
+    ranking_pts = float(body.get("ranking_pts", 0) or 0)
+
+    if not player1_id or not player2_id:
+        return JSONResponse({"error": "Both players required"}, status_code=400)
+    if player1_id == player2_id:
+        return JSONResponse({"error": "Players must be different"}, status_code=400)
+    if not categoria:
+        return JSONResponse({"error": "Category required"}, status_code=400)
+    if not is_doubles_category(categoria):
+        return JSONResponse({"error": f"{categoria} is not a doubles category"}, status_code=400)
+
+    player_repo = PlayerRepository(session)
+    p1 = player_repo.get_by_id(player1_id)
+    p2 = player_repo.get_by_id(player2_id)
+    if not p1 or not p2:
+        return JSONResponse({"error": "Player not found"}, status_code=404)
+
+    # XD (mixed doubles) requires one male and one female player
+    if categoria.startswith("XD") or categoria.endswith("XD"):
+        genders = {p1.genero.upper(), p2.genero.upper()}
+        if genders != {"M", "F"}:
+            return JSONResponse({"error": "Mixed doubles (XD) requires one male and one female player"}, status_code=400)
+
+    pair_repo = PairRepository(session)
+    # Check duplicate
+    existing = pair_repo.get_all(tournament_id=current_tournament.id)
+    for ep in existing:
+        if (ep.player1_id == player1_id and ep.player2_id == player2_id) or \
+           (ep.player1_id == player2_id and ep.player2_id == player1_id):
+            return JSONResponse({"error": "Pair already exists"}, status_code=400)
+
+    pair = Pair(id=0, player1_id=player1_id, player2_id=player2_id,
+                categoria=categoria, ranking_pts=ranking_pts)
+    pair_repo.create(pair, tournament_id=current_tournament.id)
+    pair_repo.assign_seeds(categoria, tournament_id=current_tournament.id)
+
+    return JSONResponse({"ok": True, "pair_id": pair.id})
+
+
+@app.post("/admin/registration-sheet/pairs/delete")
+async def admin_registration_sheet_pairs_delete(request: Request):
+    """JSON: delete a pair by ID."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    body = await request.json()
+    pair_id = body.get("pair_id")
+    if not pair_id:
+        return JSONResponse({"error": "pair_id required"}, status_code=400)
+
+    pair_repo = PairRepository(session)
+    pair = pair_repo.get_by_id(int(pair_id))
+    if not pair or pair.tournament_id != current_tournament.id:
+        return JSONResponse({"error": "Pair not found"}, status_code=404)
+
+    if pair.group_id:
+        return JSONResponse({"error": "Cannot delete a pair that is already in a group"}, status_code=400)
+
+    pair_repo.delete(int(pair_id))
+    # Re-seed remaining pairs in that category
+    pair_repo.assign_seeds(pair.categoria, tournament_id=current_tournament.id)
+    return JSONResponse({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Registration Sheet — TEAMS assembler routes
+# ---------------------------------------------------------------------------
+
+@app.post("/admin/registration-sheet/teams/create")
+async def admin_registration_sheet_teams_create(request: Request):
+    """JSON: create a team from existing player IDs."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    body = await request.json()
+    team_name = (body.get("team_name") or "").strip()
+    pais_cd = (body.get("pais_cd") or "").strip().upper()
+    categoria = (body.get("categoria") or "").strip().upper()
+    ranking_pts = float(body.get("ranking_pts", 0) or 0)
+    player_ids = body.get("player_ids", [])
+
+    if not team_name:
+        return JSONResponse({"error": "Team name required"}, status_code=400)
+    if not categoria:
+        return JSONResponse({"error": "Category required"}, status_code=400)
+    if not is_teams_category(categoria):
+        return JSONResponse({"error": f"{categoria} is not a teams category"}, status_code=400)
+    if len(player_ids) < 3:
+        return JSONResponse({"error": "Minimum 3 players required"}, status_code=400)
+    if len(player_ids) > 5:
+        return JSONResponse({"error": "Maximum 5 players allowed"}, status_code=400)
+
+    # Verify all players exist
+    player_repo = PlayerRepository(session)
+    for pid in player_ids:
+        p = player_repo.get_by_id(pid)
+        if not p:
+            return JSONResponse({"error": f"Player {pid} not found"}, status_code=404)
+
+    # Check duplicate team name in same category
+    team_repo = TeamRepository(session)
+    existing_teams = team_repo.get_all(tournament_id=current_tournament.id)
+    for et in existing_teams:
+        if et.name.strip().lower() == team_name.lower() and et.categoria.strip().upper() == categoria:
+            return JSONResponse({"error": "Team name already exists in this category"}, status_code=400)
+
+    team = Team(
+        id=0,
+        name=team_name,
+        categoria=categoria,
+        pais_cd=pais_cd,
+        ranking_pts=ranking_pts,
+        player_ids=player_ids,
+    )
+    team_repo.create(team, tournament_id=current_tournament.id)
+    team_repo.assign_seeds(categoria, tournament_id=current_tournament.id)
+
+    return JSONResponse({"ok": True, "team_id": team.id})
+
+
+@app.post("/admin/registration-sheet/teams/delete")
+async def admin_registration_sheet_teams_delete(request: Request):
+    """JSON: delete a team by ID."""
+    session = get_db_session()
+    tournament_repo = TournamentRepository(session)
+    current_tournament = tournament_repo.get_current()
+    if not current_tournament:
+        return JSONResponse({"error": "No active tournament"}, status_code=400)
+
+    body = await request.json()
+    team_id = body.get("team_id")
+    if not team_id:
+        return JSONResponse({"error": "team_id required"}, status_code=400)
+
+    team_repo = TeamRepository(session)
+    team = team_repo.get_by_id(int(team_id))
+    if not team or team.tournament_id != current_tournament.id:
+        return JSONResponse({"error": "Team not found"}, status_code=404)
+
+    if team.group_id:
+        return JSONResponse({"error": "Cannot delete a team that is already in a group"}, status_code=400)
+
+    cat = team.categoria
+    team_repo.delete(int(team_id))
+    team_repo.assign_seeds(cat, tournament_id=current_tournament.id)
+    return JSONResponse({"ok": True})
 
 
 @app.post("/admin/player/edit")

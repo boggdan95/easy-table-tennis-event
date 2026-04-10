@@ -1,0 +1,7 @@
+id,nombre,apellido,genero,pais_cd,ranking_pts,categoria
+1,Juan,Perez,M,ESP,1200,MS
+2,Pedro,Lopez,M,MEX,1100,MS
+3,Carlos,Garcia,M,ARG,1000,MS
+4,Luis,Martinez,M,COL,900,MS
+5,Ana,Rodriguez,F,ESP,800,WS
+6,Maria,Sanchez,F,MEX,700,WS
