@@ -22,7 +22,7 @@ Aplicación Python para gestionar torneos de tenis de mesa:
 - **Limpiar cache Playwright si hay problemas**: `rm -rf ~/Library/Caches/ms-playwright/mcp-chromium-*`
 - Después de cada cambio significativo, levantar el servidor y validar en browser
 
-## Estado Actual: V2.5.2
+## Estado Actual: V2.8.0
 
 ### ✅ Funcionalidades Completas
 

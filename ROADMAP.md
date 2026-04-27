@@ -1,7 +1,7 @@
 # ETTEM - Roadmap de Desarrollo
 
-> Última actualización: 2026-02-20
-> Versión actual: 2.5.2
+> Última actualización: 2026-04-26
+> Versión actual: 2.8.0
 
 ---
 
@@ -252,44 +252,44 @@ DESKTOP APP                    SERVIDOR (Bluehost)           ADMIN PANEL
 
 ---
 
-## V2.6 - Reportes Personalizables
+## V2.6 - Reportes Personalizables (Completada)
 
 **Objetivo:** Documentos profesionales con identidad del torneo
 
 ### 2.6.1 - Configuración de Torneo/Evento
-- [ ] Subir logo del torneo (PNG/JPG)
-- [ ] Nombre oficial del evento
-- [ ] Fecha y sede
-- [ ] Organizador / Federación
-- [ ] Sponsors (logos secundarios)
+- [x] Subir logo del torneo (PNG/JPG)
+- [x] Nombre oficial del evento
+- [x] Fecha y sede
+- [x] Organizador / Federación
+- [x] Sponsors (logos secundarios)
 
 ### 2.6.2 - Personalización de Reportes
-- [ ] Logo en encabezado de todos los documentos
-- [ ] Bandera del país junto a jugadores (usando pais_cd)
-- [ ] Colores personalizables (primario/secundario)
-- [ ] Pie de página con datos del evento
+- [x] Logo en encabezado de todos los documentos
+- [x] Bandera del país junto a jugadores (usando pais_cd)
+- [x] Colores personalizables (primario/secundario)
+- [x] Pie de página con datos del evento
 
 ### 2.6.3 - Documentos Mejorados
-- [ ] Hoja de partido con logo y datos del torneo
-- [ ] Hoja de grupo con encabezado profesional
-- [ ] Bracket con identidad visual
-- [ ] Acta oficial de resultados por categoría
+- [x] Hoja de partido con logo y datos del torneo
+- [x] Hoja de grupo con encabezado profesional
+- [x] Bracket con identidad visual
+- [x] Acta oficial de resultados por categoría
 
 ### 2.6.4 - Exportaciones
-- [ ] CSV de todos los resultados
-- [ ] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
-- [ ] PDF de resumen del torneo
+- [x] CSV de todos los resultados
+- [x] Excel con múltiples hojas (jugadores, grupos, bracket, resultados)
+- [x] PDF de resumen del torneo
 
 ### 2.6.5 - Certificados (Opcional)
-- [ ] Template de diploma/certificado
-- [ ] Generación automática para top 3
-- [ ] Logo, firma, datos del evento
+- [x] Template de diploma/certificado
+- [x] Generación automática para top 3
+- [x] Logo, firma, datos del evento
 
 ---
 
-## V2.7 - Portal Público para Jugadores
+## V2.7 - Guía de Usuario Online (Completada)
 
-**Objetivo:** Jugadores consultan horarios y resultados desde su celular (sin imprimir)
+**Objetivo:** Documentación completa y landing page actualizado
 
 ```
 JUGADOR (su celular)              SERVIDOR
@@ -365,25 +365,15 @@ JUGADOR (su celular)              SERVIDOR
 
 ---
 
-## V2.8 - Check-in de Jugadores
+## V2.8 - Registration Sheets & Teams (Completada)
 
-**Objetivo:** Saber quién llegó y quién falta
+**Objetivo:** Hojas de registro para jugadores, parejas y equipos
 
-### 2.8.1 - Control de Asistencia
-- [ ] Marcar jugador como "presente" (check-in)
-- [ ] Vista de jugadores pendientes por categoría
-- [ ] Hora de check-in registrada
-- [ ] Filtro: "Solo ausentes"
-
-### 2.8.2 - Alertas de Ausencia
-- [ ] Advertencia al generar grupos si hay jugadores sin check-in
-- [ ] Opción de excluir automáticamente ausentes
-- [ ] Reporte de no-shows al final del torneo
-
-### 2.8.3 - QR Check-in (Opcional)
-- [ ] Generar QR único por jugador
-- [ ] Escanear con celular del organizador
-- [ ] Auto check-in al escanear
+### 2.8.1 - Registration Sheets
+- [x] Hojas de registro para jugadores individuales
+- [x] Hojas de registro para parejas (doubles)
+- [x] Hojas de registro para equipos (teams)
+- [x] Impresión y exportación de hojas de registro
 
 ---
 

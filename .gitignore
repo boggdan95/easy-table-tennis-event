@@ -227,3 +227,6 @@ tmpclaude-*
 
 # Server config (contains DB credentials and secrets)
 server/api/config.php
+
+# Claude Code settings (contains OAuth tokens)
+.claude/settings.local.json
