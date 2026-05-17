@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
@@ -55,6 +56,10 @@ class TournamentORM(Base):
     num_tables = Column(Integer, nullable=True, default=4)  # Number of tables available
     default_match_duration = Column(Integer, nullable=True, default=30)  # Minutes per match
     min_rest_time = Column(Integer, nullable=True, default=10)  # Minimum rest between matches (minutes)
+
+    # Cloud sync (ETTEM Cloud V1) — maps this local tournament to its Supabase UUID.
+    # NULL for tournaments created locally that have not been pulled from cloud.
+    cloud_tournament_id = Column(String(36), nullable=True, unique=True, index=True)
 
     # Relationships
     players = relationship("PlayerORM", back_populates="tournament")
@@ -142,6 +147,9 @@ class PlayerORM(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Cloud sync (ETTEM Cloud V1) — maps this local player to its Supabase UUID.
+    cloud_player_id = Column(String(36), nullable=True, unique=True, index=True)
+
     # Relationships
     tournament = relationship("TournamentORM", back_populates="players")
     group = relationship("GroupORM", foreign_keys=[group_id])
@@ -212,6 +220,9 @@ class PairORM(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # Cloud sync (ETTEM Cloud V2 — reserved) — maps this local pair to its Supabase UUID.
+    cloud_pair_id = Column(String(36), nullable=True, unique=True, index=True)
+
     # Relationships
     tournament = relationship("TournamentORM")
     player1 = relationship("PlayerORM", foreign_keys=[player1_id])
@@ -235,6 +246,9 @@ class TeamORM(Base):
     group_number = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Cloud sync (ETTEM Cloud V2 — reserved) — maps this local team to its Supabase UUID.
+    cloud_team_id = Column(String(36), nullable=True, unique=True, index=True)
 
     # Relationships
     tournament = relationship("TournamentORM")
@@ -594,6 +608,42 @@ class ScheduleSlotORM(Base):
     # Relationships
     session = relationship("SessionORM", back_populates="schedule_slots")
     match = relationship("MatchORM")
+
+
+class EventMappingORM(Base):
+    """Maps a desktop (tournament, category, event_type) tuple to a cloud event UUID.
+
+    Cloud's data model has a normalized `events` table per category, whereas the
+    desktop denormalizes the category as a string on PlayerORM.categoria,
+    MatchORM.category, GroupORM.category, etc. This table is the single source of
+    truth for resolving local category strings to their cloud event UUID (and the
+    cloud category UUID they point at) when running sync.
+    """
+
+    __tablename__ = "event_mappings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tournament_id = Column(
+        Integer,
+        ForeignKey("tournaments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    category = Column(String(20), nullable=False)  # e.g. "U15BS"
+    event_type = Column(String(10), nullable=False, default="singles")  # singles/doubles/teams
+    cloud_event_id = Column(String(36), nullable=False, unique=True)
+    cloud_category_id = Column(String(36), nullable=False)  # the cloud category it points to
+    format = Column(String(10), nullable=False, default="bo5")  # bo3/bo5/bo7 from cloud event spec
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tournament_id", "category", "event_type", name="uq_event_mapping"
+        ),
+    )
+
+    # Relationships
+    tournament = relationship("TournamentORM")
 
 
 # ============================================================================
@@ -2780,6 +2830,76 @@ def migrate_v28_draft_players(engine):
             """))
             session.commit()
 
+    finally:
+        session.close()
+
+
+def migrate_cloud_id_mapping(engine):
+    """Run cloud-ID-mapping migration: add cloud_*_id columns + event_mappings table.
+
+    Part of Fase 5 (desktop <-> ETTEM Cloud integration). Adds nullable UUID
+    columns to map local INT autoincrement IDs to Supabase UUIDs, plus a
+    dedicated table mapping (tournament_id, category, event_type) tuples to
+    cloud event UUIDs (since the desktop denormalizes categories as strings
+    while the cloud has a normalized `events` table).
+
+    Safe to run multiple times (idempotent).
+    """
+    from sqlalchemy import text, inspect
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Add cloud_*_id columns on existing tables. SQLite cannot add a UNIQUE
+        # column inline via ALTER, so we add the column then create a unique
+        # index (also idempotent — `IF NOT EXISTS`).
+        _safe_add_column(session, "tournaments", "cloud_tournament_id", "VARCHAR(36)")
+        _safe_add_column(session, "players", "cloud_player_id", "VARCHAR(36)")
+        _safe_add_column(session, "pairs", "cloud_pair_id", "VARCHAR(36)")
+        _safe_add_column(session, "teams", "cloud_team_id", "VARCHAR(36)")
+
+        session.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_tournaments_cloud_id "
+            "ON tournaments(cloud_tournament_id) WHERE cloud_tournament_id IS NOT NULL"
+        ))
+        session.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_players_cloud_id "
+            "ON players(cloud_player_id) WHERE cloud_player_id IS NOT NULL"
+        ))
+        session.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_pairs_cloud_id "
+            "ON pairs(cloud_pair_id) WHERE cloud_pair_id IS NOT NULL"
+        ))
+        session.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_teams_cloud_id "
+            "ON teams(cloud_team_id) WHERE cloud_team_id IS NOT NULL"
+        ))
+
+        # Create event_mappings table if missing.
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        if "event_mappings" not in existing_tables:
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS event_mappings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tournament_id INTEGER NOT NULL,
+                    category VARCHAR(20) NOT NULL,
+                    event_type VARCHAR(10) NOT NULL DEFAULT 'singles',
+                    cloud_event_id VARCHAR(36) NOT NULL UNIQUE,
+                    cloud_category_id VARCHAR(36) NOT NULL,
+                    format VARCHAR(10) NOT NULL DEFAULT 'bo5',
+                    created_at DATETIME,
+                    CONSTRAINT uq_event_mapping UNIQUE (tournament_id, category, event_type),
+                    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
+                )
+            """))
+            session.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_event_mappings_tournament "
+                "ON event_mappings(tournament_id)"
+            ))
+
+        session.commit()
     finally:
         session.close()
 

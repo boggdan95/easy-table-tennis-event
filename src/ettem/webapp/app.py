@@ -38,6 +38,7 @@ from ettem.storage import (
     DraftPlayerORM,
     DraftPlayerRepository,
     migrate_v28_draft_players,
+    migrate_cloud_id_mapping,
 )
 from ettem.webapp.helpers import CompetitorDisplay, get_competitor_display
 from ettem.validation import validate_match_sets, validate_tt_set, validate_walkover
@@ -429,6 +430,7 @@ migrate_v24_doubles(db_manager.engine)  # Add doubles support (pairs table + nul
 migrate_v25_teams(db_manager.engine)  # Add teams support (teams + team_match_details tables)
 migrate_v26_branding(db_manager.engine)  # Add tournament branding table
 migrate_v28_draft_players(db_manager.engine)  # Add draft_players table for registration sheet
+migrate_cloud_id_mapping(db_manager.engine)  # Add cloud_*_id columns + event_mappings table (ETTEM Cloud)
 migrate_bracket_slots_add_tournament_id()
 migrate_matches_fill_category_from_group()  # Fill missing categories from groups
 
