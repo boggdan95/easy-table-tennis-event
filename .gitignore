@@ -16,6 +16,9 @@ eggs/
 .eggs/
 lib/
 lib64/
+# admin PHP includes — explicitly tracked (overrides Python venv lib/ rule above)
+!docs/website/admin/lib/
+!docs/website/admin/lib/*.php
 parts/
 sdist/
 var/

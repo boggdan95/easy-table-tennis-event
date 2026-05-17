@@ -1,0 +1,12 @@
+Options -Indexes
+DirectoryIndex index.php
+
+# Deny direct access to config.php (contains Supabase service_role key)
+<FilesMatch "^config\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block direct requests to lib/ — only PHP includes should reach those files
+RewriteEngine On
+RewriteRule ^lib/ - [F,L]
