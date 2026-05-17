@@ -31,7 +31,8 @@ function sb_request(array $cfg, string $method, string $path, ?array $body = nul
     $raw = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
-    curl_close($ch);
+    // PHP 8.0+ auto-closes; calling curl_close() is deprecated in 8.5.
+    unset($ch);
 
     if ($raw === false) {
         return ['ok' => false, 'data' => null, 'error' => $err ?: 'curl failed', 'status' => 0];

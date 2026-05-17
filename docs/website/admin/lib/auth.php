@@ -10,6 +10,23 @@ function admin_session_token(array $cfg): string
     return hash('sha256', $cfg['admin_code'] . $cfg['cookie_salt']);
 }
 
+/**
+ * True if the current request came over HTTPS. Used to set the cookie's
+ * Secure flag conditionally so local dev over HTTP still works while prod
+ * (Bluehost over HTTPS) gets a proper Secure cookie.
+ */
+function admin_request_is_https(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') {
+        return true;
+    }
+    // Behind a proxy (some hosts), HTTPS info comes via X-Forwarded-Proto.
+    if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
+        return true;
+    }
+    return false;
+}
+
 function admin_is_authenticated(array $cfg): bool
 {
     $name = $cfg['cookie_name'];
@@ -29,8 +46,8 @@ function admin_login(array $cfg, string $submitted_code): bool
         admin_session_token($cfg),
         [
             'expires' => time() + $cfg['session_ttl_seconds'],
-            'path' => '/admin/',
-            'secure' => true,
+            'path' => '/',
+            'secure' => admin_request_is_https(),
             'httponly' => true,
             'samesite' => 'Strict',
         ]
@@ -42,7 +59,7 @@ function admin_logout(array $cfg): void
 {
     setcookie($cfg['cookie_name'], '', [
         'expires' => time() - 3600,
-        'path' => '/admin/',
+        'path' => '/',
         'secure' => true,
         'httponly' => true,
         'samesite' => 'Strict',
