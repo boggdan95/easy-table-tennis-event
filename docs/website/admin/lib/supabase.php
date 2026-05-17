@@ -52,8 +52,17 @@ function sb_request(array $cfg, string $method, string $path, ?array $body = nul
 
 function sb_invite_user(array $cfg, string $email): array
 {
-    // Sends a magic-link invite email. User clicks the link → sets password.
-    return sb_request($cfg, 'POST', '/auth/v1/invite', ['email' => $email]);
+    // Sends a magic-link invite email. User clicks the link → /auth/callback
+    // exchanges the code for a session, then forwards to /set-password so
+    // the client picks their own password (real B2B UX, not Supabase's
+    // default magic-link-only flow).
+    $body = ['email' => $email];
+    if (!empty($cfg['app_url'])) {
+        $next = urlencode('/set-password');
+        $body['redirect_to'] = rtrim($cfg['app_url'], '/')
+            . '/auth/callback?next=' . $next;
+    }
+    return sb_request($cfg, 'POST', '/auth/v1/invite', $body);
 }
 
 function sb_get_user_by_email(array $cfg, string $email): array

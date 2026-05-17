@@ -22,4 +22,10 @@ return [
     // Supabase project — find these in Project Settings → API
     'supabase_url' => 'https://YOUR_PROJECT_REF.supabase.co',
     'supabase_service_role_key' => 'eyJ...',
+
+    // URL of the ETTEM Cloud portal (Next.js app on Vercel). Used as the
+    // redirect destination for magic-link invites.
+    //   Local dev: http://localhost:3000
+    //   Production: https://app.ettem.boggdan.com
+    'app_url' => 'http://localhost:3000',
 ];
