@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cloud.tournaments.title') }} — ETTEM{% endblock %}
+{% block content %}
+<div class="page-header" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+    <div>
+        <h1>{{ t('cloud.tournaments.title') }}</h1>
+        <p class="subtitle">
+            {{ t('cloud.tournaments.subtitle') }}
+            {% if email %}
+                — <strong>{{ email }}</strong>
+            {% endif %}
+        </p>
+    </div>
+    <form method="post" action="/cloud/logout" style="margin: 0;">
+        <button type="submit" class="btn btn-secondary btn-sm">
+            {{ t('cloud.logout') }}
+        </button>
+    </form>
+</div>
+
+{% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if not tournaments %}
+    <div class="card" style="text-align: center; padding: 3rem 1rem;">
+        <p>{{ t('cloud.tournaments.empty') }}</p>
+        <p class="text-muted" style="font-size: 0.9rem;">
+            {{ t('cloud.tournaments.empty_hint') }}
+        </p>
+    </div>
+{% else %}
+    <div class="card">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>{{ t('cloud.tournaments.col_name') }}</th>
+                    <th>{{ t('cloud.tournaments.col_dates') }}</th>
+                    <th>{{ t('cloud.tournaments.col_venue') }}</th>
+                    <th>{{ t('cloud.tournaments.col_status') }}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tour in tournaments %}
+                    <tr>
+                        <td><strong>{{ tour.name }}</strong></td>
+                        <td>
+                            {% if tour.starts_on %}
+                                {{ tour.starts_on }}
+                                {% if tour.ends_on and tour.ends_on != tour.starts_on %}
+                                    – {{ tour.ends_on }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ tour.venue or '—' }}</td>
+                        <td>
+                            <span class="badge badge-{{ tour.status }}">{{ tour.status }}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <code style="font-size: 0.75rem;">{{ tour.id[:8] }}…</code>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
+        {{ t('cloud.tournaments.import_hint') }}
+    </p>
+{% endif %}
+{% endblock %}

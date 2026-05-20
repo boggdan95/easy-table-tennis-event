@@ -35,6 +35,8 @@ nav:
   tournament_settings: "Personalización"
   user_guide: "Guía de Usuario"
   registration_sheet: "Hoja de Inscripción"
+  cloud: "Nube"
+  cloud_tournaments: "Torneos en la Nube"
   collapse_menu: "Colapsar/Expandir menú"
   change_theme: "Cambiar tema"
   groups_of: "Grupos de {category}"
@@ -830,3 +832,23 @@ event_type:
   singles: "Singles"
   doubles: "Dobles"
   teams: "Equipos"
+
+cloud:
+  logout: "Cerrar sesión"
+  login:
+    title: "Conectar con ETTEM Cloud"
+    subtitle: "Iniciá sesión con la cuenta de tu federación."
+    email: "Correo electrónico"
+    password: "Contraseña"
+    submit: "Entrar"
+    no_account_hint: "¿Sin cuenta? Contactá a tu administrador para que te invite desde el portal."
+  tournaments:
+    title: "Torneos en la nube"
+    subtitle: "Conectado como"
+    empty: "Todavía no hay torneos creados en la nube."
+    empty_hint: "Creá un torneo en app.ettem.boggdan.com para verlo acá."
+    col_name: "Nombre"
+    col_dates: "Fechas"
+    col_venue: "Sede"
+    col_status: "Estado"
+    import_hint: "La importación al desktop se habilita cuando el torneo está en estado 'registration_closed'."
