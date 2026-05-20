@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cloud.login.title') }} — ETTEM{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>{{ t('cloud.login.title') }}</h1>
+    <p class="subtitle">{{ t('cloud.login.subtitle') }}</p>
+</div>
+
+<div class="card" style="max-width: 480px; margin: 2rem auto;">
+    {% if error %}
+        <div class="alert alert-error" style="margin-bottom: 1rem;">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="/cloud/login" class="form">
+        <div class="form-group">
+            <label for="email">{{ t('cloud.login.email') }}</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                autocomplete="email"
+                value="{{ email or '' }}"
+                placeholder="federation@example.org"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="password">{{ t('cloud.login.password') }}</label>
+            <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                autocomplete="current-password"
+            >
+        </div>
+
+        <div class="form-actions" style="margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-primary">
+                {{ t('cloud.login.submit') }}
+            </button>
+        </div>
+    </form>
+
+    <p class="text-muted" style="margin-top: 1.5rem; font-size: 0.9rem;">
+        {{ t('cloud.login.no_account_hint') }}
+    </p>
+</div>
+{% endblock %}

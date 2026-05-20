@@ -49,6 +49,8 @@ clear_i18n_cache()
 from ettem import pdf_generator
 from ettem.paths import get_templates_dir, get_static_dir, get_data_dir
 from ettem.licensing import get_current_license, get_current_license_with_online, validate_license_key, save_license, load_license, clear_license, LicenseInfo
+from ettem.cloud_session import CloudSession, CloudAuthError
+from ettem.cloud_sync import CloudSyncClient, CloudSyncError
 
 # Initialize FastAPI app
 app = FastAPI(title="Easy Table Tennis Event Manager")
@@ -13476,6 +13478,96 @@ async def serve_upload(filename: str):
         return Response(content="Not found", status_code=404)
 
     return FileResponse(file_path)
+
+
+# ---------------------------------------------------------------------------
+# ETTEM Cloud — login + tournament listing (Fase 5)
+# ---------------------------------------------------------------------------
+
+_cloud_session: Optional[CloudSession] = None
+_cloud_client: Optional[CloudSyncClient] = None
+
+
+def get_cloud_session() -> CloudSession:
+    global _cloud_session
+    if _cloud_session is None:
+        _cloud_session = CloudSession()
+    return _cloud_session
+
+
+def get_cloud_client() -> CloudSyncClient:
+    global _cloud_client
+    if _cloud_client is None:
+        _cloud_client = CloudSyncClient(get_cloud_session())
+    return _cloud_client
+
+
+def _cloud_context(request: Request) -> Dict[str, Any]:
+    """Boilerplate i18n+lang setup shared by cloud routes."""
+    lang = None
+    if hasattr(request, "session"):
+        lang = request.session.get("lang")
+    if not lang:
+        lang = get_language_from_env()
+    try:
+        i18n_strings = load_strings(lang)
+    except (ValueError, FileNotFoundError):
+        i18n_strings = {}
+    return {
+        "request": request,
+        "t": make_translation_function(i18n_strings, lang),
+        "lang": lang,
+    }
+
+
+@app.get("/cloud/login", response_class=HTMLResponse)
+async def cloud_login_page(request: Request):
+    ctx = _cloud_context(request)
+    ctx.update({"error": None, "email": ""})
+    if get_cloud_session().is_logged_in():
+        return RedirectResponse(url="/cloud/tournaments", status_code=303)
+    return templates.TemplateResponse(request, "cloud_login.html", ctx)
+
+
+@app.post("/cloud/login")
+async def cloud_login_submit(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+):
+    ctx = _cloud_context(request)
+    try:
+        get_cloud_session().login(email.strip(), password)
+    except CloudAuthError as exc:
+        ctx.update({"error": str(exc), "email": email})
+        return templates.TemplateResponse(request, "cloud_login.html", ctx)
+    return RedirectResponse(url="/cloud/tournaments", status_code=303)
+
+
+@app.post("/cloud/logout")
+async def cloud_logout(request: Request):
+    get_cloud_session().logout()
+    return RedirectResponse(url="/cloud/login", status_code=303)
+
+
+@app.get("/cloud/tournaments", response_class=HTMLResponse)
+async def cloud_tournaments_page(request: Request):
+    session = get_cloud_session()
+    if not session.is_logged_in():
+        return RedirectResponse(url="/cloud/login", status_code=303)
+
+    ctx = _cloud_context(request)
+    ctx["email"] = session.get_email()
+    try:
+        ctx["tournaments"] = get_cloud_client().list_tournaments()
+        ctx["error"] = None
+    except CloudAuthError:
+        # Refresh failed — bounce to login
+        return RedirectResponse(url="/cloud/login", status_code=303)
+    except CloudSyncError as exc:
+        ctx["tournaments"] = []
+        ctx["error"] = str(exc)
+    return templates.TemplateResponse(request, "cloud_tournaments.html", ctx)
 
 
 if __name__ == "__main__":

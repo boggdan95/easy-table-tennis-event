@@ -90,6 +90,50 @@ class CloudSyncClient:
     def device_id(self) -> str:
         return self._device_id
 
+    def list_tournaments(self) -> list[dict]:
+        """List tournaments visible to the authenticated user.
+
+        Hits PostgREST directly (no RPC) — RLS on the tournaments table filters
+        by tenant membership. Used by the desktop UI to populate a picker.
+        Returns rows ordered by created_at desc.
+        """
+        token = self._session.get_access_token()
+        url = f"{cloud_config.get_supabase_url()}/rest/v1/tournaments"
+        try:
+            resp = self._http.get(
+                url,
+                params={
+                    "select": "id,name,starts_on,ends_on,venue,status,archived_at",
+                    "archived_at": "is.null",
+                    "order": "created_at.desc",
+                },
+                headers={
+                    "apikey": cloud_config.get_supabase_anon_key(),
+                    "Authorization": f"Bearer {token}",
+                },
+            )
+        except httpx.HTTPError as exc:
+            raise CloudSyncError(
+                f"Network error listing tournaments: {exc}", error_code=None
+            ) from exc
+
+        if resp.status_code >= 400:
+            self._raise_for_error("list_tournaments", resp)
+
+        try:
+            data = resp.json()
+        except json.JSONDecodeError as exc:
+            raise CloudSyncError(
+                "Malformed response listing tournaments", status_code=resp.status_code
+            ) from exc
+
+        if not isinstance(data, list):
+            raise CloudSyncError(
+                "Expected an array from /rest/v1/tournaments",
+                status_code=resp.status_code,
+            )
+        return data
+
     def pull_tournament(
         self, tournament_id: str, *, force_acquire: bool = False
     ) -> dict:

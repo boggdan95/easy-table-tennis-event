@@ -35,6 +35,8 @@ nav:
   tournament_settings: "Customization"
   user_guide: "User Guide"
   registration_sheet: "Registration Sheet"
+  cloud: "Cloud"
+  cloud_tournaments: "Cloud Tournaments"
   collapse_menu: "Collapse/Expand menu"
   change_theme: "Change theme"
   groups_of: "Groups of {category}"
@@ -830,3 +832,23 @@ event_type:
   singles: "Singles"
   doubles: "Doubles"
   teams: "Teams"
+
+cloud:
+  logout: "Sign out"
+  login:
+    title: "Connect to ETTEM Cloud"
+    subtitle: "Sign in with your federation's account."
+    email: "Email"
+    password: "Password"
+    submit: "Sign in"
+    no_account_hint: "No account? Contact your administrator to invite you from the portal."
+  tournaments:
+    title: "Cloud Tournaments"
+    subtitle: "Signed in as"
+    empty: "No tournaments in the cloud yet."
+    empty_hint: "Create a tournament at app.ettem.boggdan.com to see it here."
+    col_name: "Name"
+    col_dates: "Dates"
+    col_venue: "Venue"
+    col_status: "Status"
+    import_hint: "Import to desktop becomes available when the tournament status is 'registration_closed'."
